@@ -316,6 +316,7 @@ BackgroundProperties{
             default: return null;
             }
         }
+        restoreMode: Binding.RestoreNone
     }
 
     onXChanged: solidBackground.updateEffectsArea();

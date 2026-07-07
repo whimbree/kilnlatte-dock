@@ -246,6 +246,7 @@ PlasmaCore.ToolTipArea {
         property: "horizontalCenterOffset"
         when: compactRepresentation
         value: appletItem ? appletItem.iconOffsetX : 0
+        restoreMode: Binding.RestoreNone
     }
 
     Binding {
@@ -253,6 +254,7 @@ PlasmaCore.ToolTipArea {
         property: "verticalCenterOffset"
         when: compactRepresentation
         value: appletItem ? appletItem.iconOffsetY : 0
+        restoreMode: Binding.RestoreNone
     }
 
     Binding {

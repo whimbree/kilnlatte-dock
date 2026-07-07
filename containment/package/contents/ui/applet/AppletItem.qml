@@ -620,6 +620,7 @@ Item {
         property: "lengthAppletFullMargin"
         when: !communicator.inStartup
         value: lengthAppletPadding + metrics.margin.length;
+        restoreMode: Binding.RestoreNone
     }
 
     //! Connections

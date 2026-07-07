@@ -60,6 +60,7 @@ Loader{
                 return "";
             }
         }
+        restoreMode: Binding.RestoreNone
     }
 
     sourceComponent: Item{

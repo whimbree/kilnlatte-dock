@@ -356,6 +356,7 @@ Item{
 
             return false;
         }
+        restoreMode: Binding.RestoreNone
     }
 
     Binding {
@@ -363,6 +364,7 @@ Item{
         property: "marginsLength"
         when: latteView && (!root.inStartup || visibilityManager.inRelocationHiding)
         value: localLengthMargins
+        restoreMode: Binding.RestoreNone
     }
 
     function updateAutoFillLength() {
@@ -570,6 +572,7 @@ Item{
                     property: "backgroundColor"
                     when: overlayIconItem.providesColors
                     value: overlayIconItem.backgroundColor
+                    restoreMode: Binding.RestoreNone
                 }
 
                 Binding{
@@ -577,6 +580,7 @@ Item{
                     property: "glowColor"
                     when: overlayIconItem.providesColors
                     value: overlayIconItem.glowColor
+                    restoreMode: Binding.RestoreNone
                 }
 
                 Loader{

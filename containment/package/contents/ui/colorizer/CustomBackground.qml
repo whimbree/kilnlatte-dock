@@ -70,6 +70,7 @@ Item{
         value: {
             return (latteView && latteView.effects && ((latteView.effects.enabledBorders & KSvg.FrameSvg.TopBorder)) > 0) || allBorders;
         }
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -79,6 +80,7 @@ Item{
         value: {
             return (latteView && latteView.effects && ((latteView.effects.enabledBorders & KSvg.FrameSvg.LeftBorder)) > 0) || allBorders;
         }
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -88,6 +90,7 @@ Item{
         value: {
             return (latteView && latteView.effects && ((latteView.effects.enabledBorders & KSvg.FrameSvg.BottomBorder)) > 0) || allBorders;
         }
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -97,6 +100,7 @@ Item{
         value: {
             return (latteView && latteView.effects && ((latteView.effects.enabledBorders & KSvg.FrameSvg.RightBorder)) > 0) || allBorders;
         }
+        restoreMode: Binding.RestoreNone
     }
 
     Loader {

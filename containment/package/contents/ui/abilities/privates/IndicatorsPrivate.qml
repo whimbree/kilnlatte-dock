@@ -35,6 +35,7 @@ AbilityHost.Indicators {
         property:"enabledForApplets"
         when: view && view.indicator
         value: _indicators.info.enabledForApplets
+        restoreMode: Binding.RestoreNone
     }
 
     //! Bindings in order to inform View::Indicator::Info
@@ -43,6 +44,7 @@ AbilityHost.Indicators {
         property:"needsIconColors"
         when: view && view.indicator
         value: _indicators.info.needsIconColors
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -50,6 +52,7 @@ AbilityHost.Indicators {
         property:"needsMouseEventCoordinates"
         when: view && view.indicator
         value: _indicators.info.needsMouseEventCoordinates
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -57,6 +60,7 @@ AbilityHost.Indicators {
         property:"providesClickedAnimation"
         when: view && view.indicator
         value: _indicators.info.providesClickedAnimation
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -64,6 +68,7 @@ AbilityHost.Indicators {
         property:"providesHoveredAnimation"
         when: view && view.indicator
         value: _indicators.info.providesHoveredAnimation
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -71,6 +76,7 @@ AbilityHost.Indicators {
         property:"providesInAttentionAnimation"
         when: view && view.indicator
         value: _indicators.info.providesInAttentionAnimation
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -78,6 +84,7 @@ AbilityHost.Indicators {
         property:"providesTaskLauncherAnimation"
         when: view && view.indicator
         value: _indicators.info.providesTaskLauncherAnimation
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -85,6 +92,7 @@ AbilityHost.Indicators {
         property:"providesGroupedWindowAddedAnimation"
         when: view && view.indicator
         value: _indicators.info.providesGroupedWindowAddedAnimation
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -92,6 +100,7 @@ AbilityHost.Indicators {
         property:"providesGroupedWindowRemovedAnimation"
         when: view && view.indicator
         value: _indicators.info.providesGroupedWindowRemovedAnimation
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -99,6 +108,7 @@ AbilityHost.Indicators {
         property:"providesFrontLayer"
         when: view && view.indicator
         value: _indicators.info.providesFrontLayer
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -106,6 +116,7 @@ AbilityHost.Indicators {
         property:"extraMaskThickness"
         when: view && view.indicator
         value: _indicators.info.extraMaskThickness
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -113,6 +124,7 @@ AbilityHost.Indicators {
         property:"minLengthPadding"
         when: view && view.indicator
         value: _indicators.info.minLengthPadding
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -120,5 +132,6 @@ AbilityHost.Indicators {
         property:"minThicknessPadding"
         when: view && view.indicator
         value: _indicators.info.minThicknessPadding
+        restoreMode: Binding.RestoreNone
     }
 }

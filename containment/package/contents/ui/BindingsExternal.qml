@@ -66,6 +66,7 @@ Item {
         property: "type"
         when: latteView
         value: root.viewType
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -73,6 +74,7 @@ Item {
         property: "behaveAsPlasmaPanel"
         when: latteView
         value: root.behaveAsPlasmaPanel
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -80,6 +82,7 @@ Item {
         property: "fontPixelSize"
         when: Kirigami.Theme
         value: Kirigami.Theme.defaultFont.pixelSize
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -87,6 +90,7 @@ Item {
         property: "maxLength"
         when: latteView
         value: root.maxLengthPerCentage/100
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -94,6 +98,7 @@ Item {
         property: "offset"
         when: latteView
         value: Plasmoid.configuration.offset/100
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -101,6 +106,7 @@ Item {
         property: "screenEdgeMargin"
         when: latteView
         value: Math.max(0, Plasmoid.configuration.screenEdgeMargin)
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -108,6 +114,7 @@ Item {
         property: "screenEdgeMarginEnabled"
         when: latteView
         value: root.screenEdgeMarginEnabled && !root.hideThickScreenGap
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -115,6 +122,7 @@ Item {
         property: "alignment"
         when: latteView
         value: myView.alignment
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -132,6 +140,7 @@ Item {
 
             return root.isVertical && !latteView.visibility.isHidden && !isTouchingTopScreenEdge && isStickedOnTopBorder && background.isShown;
         }
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -152,6 +161,7 @@ Item {
 
             return root.isVertical && !latteView.visibility.isHidden && !isTouchingBottomScreenEdge && isStickedOnBottomBorder && background.isShown;
         }
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -159,6 +169,7 @@ Item {
         property: "colorizer"
         when: latteView
         value: colorizerManager
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -166,6 +177,7 @@ Item {
         property: "metrics"
         when: latteView
         value: metrics
+        restoreMode: Binding.RestoreNone
     }
 
     //! View::Effects bindings
@@ -179,6 +191,7 @@ Item {
                        && Plasmoid.configuration.maxLength===100
                        && myView.alignment===LatteCore.Types.Justify
                        && !root.hideLengthScreenGaps))
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -186,6 +199,7 @@ Item {
         property: "backgroundRadius"
         when: latteView && latteView.effects
         value: background.customRadius
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -193,6 +207,7 @@ Item {
         property: "backgroundRadiusEnabled"
         when: latteView && latteView.effects
         value: background.customRadiusIsEnabled
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -200,6 +215,7 @@ Item {
         property: "backgroundOpacity"
         when: latteView && latteView.effects
         value: Plasmoid.configuration.panelTransparency===-1 /*Default option*/ ? -1 : background.currentOpacity
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -209,6 +225,7 @@ Item {
         value: LatteCore.WindowSystem.compositingActive
                && (((root.blurEnabled && root.useThemePanel) || (root.blurEnabled && root.forceSolidPanel))
                    && (!root.inStartup || visibilityManager.inRelocationHiding))
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -216,6 +233,7 @@ Item {
         property: "drawShadows"
         when: latteView && latteView.effects
         value: root.drawShadowsExternal && (!root.inStartup || visibilityManager.inRelocationHiding) && !(latteView && latteView.visibility.isHidden)
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -223,6 +241,7 @@ Item {
         property:"editShadow"
         when: latteView && latteView.effects
         value: root.editShadow
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -230,6 +249,7 @@ Item {
         property:"innerShadow"
         when: latteView && latteView.effects
         value: background.shadows.headThickness
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -237,6 +257,7 @@ Item {
         property: "panelBackgroundSvg"
         when: latteView && latteView.effects
         value: background.panelBackgroundSvg
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -274,6 +295,7 @@ Item {
         property: "isStickedOnTopEdge"
         when: latteView && latteView.positioner
         value: Plasmoid.configuration.isStickedOnTopEdge
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -281,6 +303,7 @@ Item {
         property: "isStickedOnBottomEdge"
         when: latteView && latteView.positioner
         value: Plasmoid.configuration.isStickedOnBottomEdge
+        restoreMode: Binding.RestoreNone
     }
 
     //! View::VisibilityManager
@@ -289,6 +312,7 @@ Item {
         property: "isShownFully"
         when: latteView && latteView.visibility
         value: myView.isShownFully
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -317,6 +341,7 @@ Item {
             var edgeThickness = isCapableToHideScreenGap ? thicknessForIsCapableToHideScreenGap : metrics.mask.screenEdge * mirrorGapFactor;
             return edgeThickness + metrics.mask.thickness.maxNormalForItemsWithoutScreenEdge;
         }
+        restoreMode: Binding.RestoreNone
     }
 
     Binding {
@@ -329,6 +354,7 @@ Item {
                    || latteView.visibility.mode === LatteCore.Types.DodgeAllWindows
                    || latteView.visibility.mode === LatteCore.Types.DodgeMaximized
                    || latteView.visibility.mode === LatteCore.Types.SidebarAutoHide)
+        restoreMode: Binding.RestoreNone
     }
 
     //! View::WindowsTracker bindings
@@ -351,6 +377,7 @@ Item {
                     || root.windowColors !== LatteContainment.Types.NoneWindowColors))
                || (root.screenEdgeMarginsEnabled                             /*Dynamic Screen Edge Margin*/
                    && Plasmoid.configuration.hideFloatingGapForMaximized)
+        restoreMode: Binding.RestoreNone
     }
 
     //! View::ExtendedInterface bindings
@@ -359,6 +386,7 @@ Item {
         property: "plasmoid"
         when: latteView && latteView.extendedInterface
         value: containmentItem
+        restoreMode: Binding.RestoreNone
     }
 
     Binding{
@@ -366,5 +394,6 @@ Item {
         property: "layoutManager"
         when: latteView && latteView.extendedInterface
         value: fastLayoutManager
+        restoreMode: Binding.RestoreNone
     }
 }
