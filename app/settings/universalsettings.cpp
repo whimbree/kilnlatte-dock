@@ -116,7 +116,7 @@ void UniversalSettings::load()
     connect(KDirWatch::self(), &KDirWatch::dirty, this, &UniversalSettings::trackedFileChanged);
 
     //! this is needed to inform globalshortcuts to update its modifiers tracking
-    emit metaPressAndHoldEnabledChanged();
+    Q_EMIT metaPressAndHoldEnabledChanged();
 }
 
 bool UniversalSettings::inAdvancedModeForEditSettings() const
@@ -131,7 +131,7 @@ void UniversalSettings::setInAdvancedModeForEditSettings(const bool &inAdvanced)
     }
 
     m_inAdvancedModeForEditSettings = inAdvanced;
-    emit inAdvancedModeForEditSettingsChanged();
+    Q_EMIT inAdvancedModeForEditSettingsChanged();
 }
 
 bool UniversalSettings::inConfigureAppletsMode() const
@@ -146,7 +146,7 @@ void UniversalSettings::setInConfigureAppletsMode(const bool enabled)
     }
 
     m_inConfigureAppletsMode = enabled;
-    emit inConfigureAppletsModeChanged();
+    Q_EMIT inConfigureAppletsModeChanged();
 }
 
 bool UniversalSettings::isAvailableGeometryBroadcastedToPlasma() const
@@ -161,7 +161,7 @@ void UniversalSettings::setIsAvailableGeometryBroadcastedToPlasma(const bool &is
     }
 
     m_isAvailableGeometryBroadcastedToPlasma = isBroadcasted;
-    emit isAvailableGeometryBroadcastedToPlasmaChanged();
+    Q_EMIT isAvailableGeometryBroadcastedToPlasmaChanged();
 }
 
 bool UniversalSettings::showInfoWindow() const
@@ -176,7 +176,7 @@ void UniversalSettings::setShowInfoWindow(bool show)
     }
 
     m_showInfoWindow = show;
-    emit showInfoWindowChanged();
+    Q_EMIT showInfoWindowChanged();
 }
 
 int UniversalSettings::version() const
@@ -193,7 +193,7 @@ void UniversalSettings::setVersion(int ver)
     m_version = ver;
     qDebug() << "Universal Settings version updated to : " << m_version;
 
-    emit versionChanged();
+    Q_EMIT versionChanged();
 }
 
 int UniversalSettings::screenTrackerInterval() const
@@ -208,7 +208,7 @@ void UniversalSettings::setScreenTrackerInterval(int duration)
     }
 
     m_screenTrackerInterval = duration;
-    emit screenTrackerIntervalChanged();
+    Q_EMIT screenTrackerIntervalChanged();
 }
 
 int UniversalSettings::parabolicSpread() const
@@ -223,7 +223,7 @@ void UniversalSettings::setParabolicSpread(const int &spread)
     }
 
     m_parabolicSpread = spread;
-    emit parabolicSpreadChanged();
+    Q_EMIT parabolicSpreadChanged();
 }
 
 float UniversalSettings::thicknessMarginInfluence() const
@@ -238,7 +238,7 @@ void UniversalSettings::setThicknessMarginInfluence(const float &influence)
     }
 
     m_thicknessMarginInfluence = influence;
-    emit thicknessMarginInfluenceChanged();
+    Q_EMIT thicknessMarginInfluenceChanged();
 }
 
 QString UniversalSettings::singleModeLayoutName() const
@@ -253,7 +253,7 @@ void UniversalSettings::setSingleModeLayoutName(QString layoutName)
     }
 
     m_singleModeLayoutName = layoutName;
-    emit singleModeLayoutNameChanged();
+    Q_EMIT singleModeLayoutNameChanged();
 }
 
 QStringList UniversalSettings::contextMenuActionsAlwaysShown() const
@@ -268,7 +268,7 @@ void UniversalSettings::setContextMenuActionsAlwaysShown(const QStringList &acti
     }
 
     m_contextMenuActionsAlwaysShown = actions;
-    emit actionsChanged();
+    Q_EMIT actionsChanged();
 }
 
 QStringList UniversalSettings::launchers() const
@@ -283,7 +283,7 @@ void UniversalSettings::setLaunchers(QStringList launcherList)
     }
 
     m_launchers = launcherList;
-    emit launchersChanged();
+    Q_EMIT launchersChanged();
 }
 
 
@@ -304,7 +304,7 @@ void UniversalSettings::setAutostart(bool state)
         Layouts::Importer::disableAutostart();
     }
 
-    emit autostartChanged();
+    Q_EMIT autostartChanged();
 }
 
 bool UniversalSettings::badges3DStyle() const
@@ -319,7 +319,7 @@ void UniversalSettings::setBadges3DStyle(bool enable)
     }
 
     m_badges3DStyle = enable;
-    emit badges3DStyleChanged();
+    Q_EMIT badges3DStyleChanged();
 }
 
 
@@ -335,7 +335,7 @@ void UniversalSettings::setCanDisableBorders(bool enable)
     }
 
     m_canDisableBorders = enable;
-    emit canDisableBordersChanged();
+    Q_EMIT canDisableBordersChanged();
 }
 
 bool UniversalSettings::colorsScriptIsPresent() const
@@ -350,7 +350,7 @@ void UniversalSettings::setColorsScriptIsPresent(bool present)
     }
 
     m_colorsScriptIsPresent = present;
-    emit colorsScriptIsPresentChanged();
+    Q_EMIT colorsScriptIsPresentChanged();
 }
 
 void UniversalSettings::updateColorsScriptIsPresent()
@@ -462,7 +462,7 @@ void UniversalSettings::setMetaPressAndHoldEnabled(bool enabled)
 
     m_metaPressAndHoldEnabled = enabled;
 
-    emit metaPressAndHoldEnabledChanged();
+    Q_EMIT metaPressAndHoldEnabledChanged();
 }
 
 MemoryUsage::LayoutsMemory UniversalSettings::layoutsMemoryUsage() const
@@ -477,7 +477,7 @@ void UniversalSettings::setLayoutsMemoryUsage(MemoryUsage::LayoutsMemory layouts
     }
 
     m_memoryUsage = layoutsMemoryUsage;
-    emit layoutsMemoryUsageChanged();
+    Q_EMIT layoutsMemoryUsageChanged();
 }
 
 Settings::MouseSensitivity UniversalSettings::sensitivity()
@@ -494,7 +494,7 @@ void UniversalSettings::setSensitivity(Settings::MouseSensitivity sense)
     }
 
     m_sensitivity = sense;
- //   emit sensitivityChanged();
+ //   Q_EMIT sensitivityChanged();
 }
 
 float UniversalSettings::screenWidthScale(QString screenName) const
@@ -530,7 +530,7 @@ void UniversalSettings::setScreenScales(QString screenName, float widthScale, fl
         m_screenScales[screenName].second = heightScale;
     }
 
-    emit screenScalesChanged();
+    Q_EMIT screenScalesChanged();
 }
 
 void UniversalSettings::syncSettings()

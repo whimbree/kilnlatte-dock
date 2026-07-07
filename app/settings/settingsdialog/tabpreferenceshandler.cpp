@@ -58,7 +58,7 @@ void TabPreferences::initUi()
             [ = ](int id, bool checked) {
         if (checked) {
             m_preferences.parabolicSpread = id;
-            emit dataChanged();
+            Q_EMIT dataChanged();
         }
     });
 
@@ -66,53 +66,53 @@ void TabPreferences::initUi()
             [ = ](int id, bool checked) {
         if (checked) {
             m_preferences.thicknessMarginInfluence = (id / 100.0f);
-            emit dataChanged();
+            Q_EMIT dataChanged();
         }
     });
 
     connect(m_ui->screenTrackerSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), [ = ](int i) {
         m_preferences.screensDelay = m_ui->screenTrackerSpinBox->value();
-        emit dataChanged();
+        Q_EMIT dataChanged();
     });
 
     connect(m_ui->autostartChkBox, &QCheckBox::stateChanged, this, [&]() {
         m_preferences.autostart = m_ui->autostartChkBox->isChecked();
-        emit dataChanged();
+        Q_EMIT dataChanged();
     });
 
     connect(m_ui->badges3DStyleChkBox, &QCheckBox::stateChanged, this, [&]() {
         m_preferences.badgeStyle3D = m_ui->badges3DStyleChkBox->isChecked();
-        emit dataChanged();
+        Q_EMIT dataChanged();
     });
 
     connect(m_ui->broadcastGeomChkBox, &QCheckBox::stateChanged, this, [&]() {
         m_preferences.isAvailableGeometryBroadcastedToPlasma = m_ui->broadcastGeomChkBox->isChecked();
-        emit dataChanged();
+        Q_EMIT dataChanged();
     });
 
     connect(m_ui->screenTrackerSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), [ = ](int i) {
         m_preferences.screensDelay = m_ui->screenTrackerSpinBox->value();
-        emit dataChanged();
+        Q_EMIT dataChanged();
     });
 
     connect(m_ui->metaPressChkBox, &QCheckBox::stateChanged, this, [&]() {
         m_preferences.metaPressForAppLauncher = m_ui->metaPressChkBox->isChecked();
-        emit dataChanged();
+        Q_EMIT dataChanged();
     });
 
     connect(m_ui->metaPressHoldChkBox, &QCheckBox::stateChanged, this, [&]() {
         m_preferences.metaHoldForBadges = m_ui->metaPressHoldChkBox->isChecked();
-        emit dataChanged();
+        Q_EMIT dataChanged();
     });
 
     connect(m_ui->infoWindowChkBox, &QCheckBox::stateChanged, this, [&]() {
         m_preferences.layoutsInformationWindow = m_ui->infoWindowChkBox->isChecked();
-        emit dataChanged();
+        Q_EMIT dataChanged();
     });
 
     connect(m_ui->noBordersForMaximizedChkBox, &QCheckBox::stateChanged, this, [&]() {
         m_preferences.borderlessMaximized = m_ui->noBordersForMaximizedChkBox->isChecked();
-        emit dataChanged();
+        Q_EMIT dataChanged();
     });
 
     connect(this, &TabPreferences::contextActionsChanged, this, &TabPreferences::dataChanged);
@@ -149,7 +149,7 @@ void TabPreferences::setContextMenuAlwaysActions(const QStringList &actions)
     }
 
     m_preferences.contextMenuAlwaysActions = actions;
-    emit contextActionsChanged();
+    Q_EMIT contextActionsChanged();
 }
 
 void TabPreferences::updateUi()
@@ -180,7 +180,7 @@ void TabPreferences::updateUi()
         m_ui->fullMarginInfluenceBtn->setChecked(true);
     }
 
-    emit dataChanged();
+    Q_EMIT dataChanged();
 }
 
 bool TabPreferences::hasChangedData() const
@@ -226,7 +226,7 @@ void TabPreferences::save()
     m_corona->universalSettings()->setScreenTrackerInterval(m_preferences.screensDelay);
 
     o_preferences = m_preferences;
-    emit dataChanged();
+    Q_EMIT dataChanged();
 }
 
 }

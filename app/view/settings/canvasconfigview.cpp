@@ -149,7 +149,7 @@ void CanvasConfigView::showEvent(QShowEvent *ev)
     m_screenSyncTimer.start();
     QTimer::singleShot(400, this, &CanvasConfigView::syncGeometry);
 
-    emit showSignal();
+    Q_EMIT showSignal();
 }
 
 void CanvasConfigView::focusOutEvent(QFocusEvent *ev)
@@ -218,7 +218,7 @@ void CanvasConfigView::updateEnabledBorders()
         m_enabledBorders = borders;
         m_corona->dialogShadows()->addWindow(this, m_enabledBorders);
 
-        emit enabledBordersChanged();
+        Q_EMIT enabledBordersChanged();
     }
 }
 

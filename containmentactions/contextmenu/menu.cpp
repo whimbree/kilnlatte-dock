@@ -198,14 +198,14 @@ void Menu::restore(const KConfigGroup &config)
 void Menu::requestConfiguration()
 {
     if (this->containment()) {
-        emit this->containment()->configureRequested(containment());
+        Q_EMIT this->containment()->configureRequested(containment());
     }
 }
 
 void Menu::requestWidgetExplorer()
 {
     if (this->containment()) {
-        emit this->containment()->showAddWidgetsInterface(QPointF());
+        Q_EMIT this->containment()->showAddWidgetsInterface(QPointF());
     }
 }
 

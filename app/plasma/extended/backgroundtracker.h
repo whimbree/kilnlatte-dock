@@ -44,14 +44,14 @@ public:
     QString screenName() const;
     void setScreenName(QString name);
 
-signals:
+Q_SIGNALS:
     void activityChanged();
     void currentBrightnessChanged();
     void isBusyChanged();
     void locationChanged();
     void screenNameChanged();
 
-private slots:
+private Q_SLOTS:
     void backgroundChanged(const QString &activity, const QString &screenName);
     void update();
 

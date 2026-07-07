@@ -44,7 +44,7 @@ XWindowInterface::XWindowInterface(QObject *parent)
 
     connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, [&](int desktop) {
         m_currentDesktop = QString(desktop);
-        emit currentDesktopChanged();
+        Q_EMIT currentDesktopChanged();
     });
 
     connect(KWindowSystem::self()
@@ -786,7 +786,7 @@ void XWindowInterface::windowAddedProxy(WId wid)
         return;
     }
 
-    emit windowAdded(wid);
+    Q_EMIT windowAdded(wid);
     considerWindowChanged(wid);
 }
 

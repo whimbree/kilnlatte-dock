@@ -179,8 +179,8 @@ void IconItem::setSource(const QVariant &source)
         schedulePixmapUpdate();
     }
 
-    emit sourceChanged();
-    emit validChanged();
+    Q_EMIT sourceChanged();
+    Q_EMIT validChanged();
 }
 
 QVariant IconItem::source() const
@@ -210,7 +210,7 @@ void IconItem::setLastValidSourceName(QString name)
 
     m_lastValidSourceName = name;
 
-    emit lastValidSourceNameChanged();
+    Q_EMIT lastValidSourceNameChanged();
 }
 
 void IconItem::setColorGroup(Plasma::Theme::ColorGroup group)
@@ -225,7 +225,7 @@ void IconItem::setColorGroup(Plasma::Theme::ColorGroup group)
         m_svgIcon->setColorGroup(group);
     }
 
-    emit colorGroupChanged();
+    Q_EMIT colorGroupChanged();
 }
 
 Plasma::Theme::ColorGroup IconItem::colorGroup() const
@@ -241,7 +241,7 @@ void IconItem::setOverlays(const QStringList &overlays)
     }
 
     m_overlays = overlays;
-    emit overlaysChanged();
+    Q_EMIT overlaysChanged();
 }
 
 QStringList IconItem::overlays() const
@@ -267,7 +267,7 @@ void IconItem::setActive(bool active)
         schedulePixmapUpdate();
     }
 
-    emit activeChanged();
+    Q_EMIT activeChanged();
 }
 
 bool IconItem::providesColors() const
@@ -282,7 +282,7 @@ void IconItem::setProvidesColors(const bool provides)
     }
 
     m_providesColors = provides;
-    emit providesColorsChanged();
+    Q_EMIT providesColorsChanged();
 }
 
 void IconItem::setSmooth(const bool smooth)
@@ -334,7 +334,7 @@ void IconItem::setUsesPlasmaTheme(bool usesPlasmaTheme)
     setSource(src);
 
     update();
-    emit usesPlasmaThemeChanged();
+    Q_EMIT usesPlasmaThemeChanged();
 }
 
 void IconItem::updatePolish()
@@ -398,7 +398,7 @@ void IconItem::setBackgroundColor(QColor background)
     }
 
     m_backgroundColor = background;
-    emit backgroundColorChanged();
+    Q_EMIT backgroundColorChanged();
 }
 
 QColor IconItem::glowColor() const
@@ -413,7 +413,7 @@ void IconItem::setGlowColor(QColor glow)
     }
 
     m_glowColor = glow;
-    emit glowColorChanged();
+    Q_EMIT glowColorChanged();
 }
 
 void IconItem::updateColors()
@@ -572,7 +572,7 @@ void IconItem::geometryChanged(const QRectF &newGeometry, const QRectF &oldGeome
         const auto newSize = qMin(newGeometry.size().width(), newGeometry.size().height());
 
         if (!almost_equal(oldSize, newSize, 2)) {
-            emit paintedSizeChanged();
+            Q_EMIT paintedSizeChanged();
         }
     }
 

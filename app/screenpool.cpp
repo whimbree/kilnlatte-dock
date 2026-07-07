@@ -101,7 +101,7 @@ void ScreenPool::onPrimaryOutputNameChanged(const QString &oldOutputName, const 
     Q_UNUSED(oldOutputName);
     Q_UNUSED(newOutputName);
 
-    emit primaryScreenChanged(m_primaryWatcher->primaryScreen());
+    Q_EMIT primaryScreenChanged(m_primaryWatcher->primaryScreen());
 }
 
 void ScreenPool::onScreenAdded(const QScreen *screen)
@@ -138,7 +138,7 @@ void ScreenPool::updateScreenGeometry(const int &screenId, const QRect &screenGe
     m_screensTable[scrIdStr].geometry = screenGeometry;
     save();
 
-    emit screenGeometryChanged();
+    Q_EMIT screenGeometryChanged();
 }
 
 

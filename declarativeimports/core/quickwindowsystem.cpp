@@ -28,7 +28,7 @@ QuickWindowSystem::QuickWindowSystem(QObject *parent)
                 return;
 
             m_compositing = enabled;
-            emit compositingChanged();
+            Q_EMIT compositingChanged();
         });
 
         m_compositing = KWindowSystem::compositingActive();

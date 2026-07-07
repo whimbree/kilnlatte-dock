@@ -123,7 +123,7 @@ public:
     static QList<Plasma::Types::Location> combinedFreeEdges(const QList<Plasma::Types::Location> &edges1,
                                                             const QList<Plasma::Types::Location> &edges2);
 
-signals:
+Q_SIGNALS:
     void backgroundChanged();
     void backgroundStyleChanged();
     void customBackgroundChanged();
@@ -140,7 +140,7 @@ signals:
     void textColorChanged();
     void versionChanged();
 
-protected slots:
+protected Q_SLOTS:
     void loadConfig();
     void saveConfig();
 

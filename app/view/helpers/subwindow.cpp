@@ -87,7 +87,7 @@ SubWindow::SubWindow(Latte::View *view, QString debugType) :
         connectionsHack << connect(&m_visibleHackTimer1, &QTimer::timeout, this, [&]() {
             if (!m_inDelete && m_latteView && m_latteView->layout() && !isVisible()) {
                 show();
-                emit forcedShown();
+                Q_EMIT forcedShown();
                 //qDebug() << m_debugType + ":: Enforce reshow from timer 1...";
             } else {
                 //qDebug() << m_debugType + ":: No needed reshow from timer 1...";
@@ -97,7 +97,7 @@ SubWindow::SubWindow(Latte::View *view, QString debugType) :
         connectionsHack << connect(&m_visibleHackTimer2, &QTimer::timeout, this, [&]() {
             if (!m_inDelete && m_latteView && m_latteView->layout() && !isVisible()) {
                 show();
-                emit forcedShown();
+                Q_EMIT forcedShown();
                 //qDebug() << m_debugType + ":: Enforce reshow from timer 2...";
             } else {
                 //qDebug() << m_debugType + ":: No needed reshow from timer 2...";

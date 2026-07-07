@@ -361,7 +361,7 @@ void GenericLayout::setLastConfigViewFor(Latte::View *view)
     m_lastConfigViewFor = view;
 
     if (view) {
-        emit lastConfigViewForChanged(view);
+        Q_EMIT lastConfigViewForChanged(view);
     }
 }
 
@@ -796,8 +796,8 @@ void GenericLayout::containmentDestroyed(QObject *cont)
             view->positioner()->slideOutDuringExit(containment->location());
             view->deleteLater();
 
-            emit viewEdgeChanged();
-            emit viewsCountChanged();
+            Q_EMIT viewEdgeChanged();
+            Q_EMIT viewsCountChanged();
         }
     }
 }
@@ -826,10 +826,10 @@ void GenericLayout::destroyedChanged(bool destroyed)
     }
 
     if (view) {
-        emit m_corona->availableScreenRectChangedFrom(view);
-        emit m_corona->availableScreenRegionChangedFrom(view);
-        emit viewEdgeChanged();
-        emit viewsCountChanged();
+        Q_EMIT m_corona->availableScreenRectChangedFrom(view);
+        Q_EMIT m_corona->availableScreenRegionChangedFrom(view);
+        Q_EMIT viewEdgeChanged();
+        Q_EMIT viewsCountChanged();
     }
 }
 
@@ -945,7 +945,7 @@ void GenericLayout::addView(Plasma::Containment *containment)
     latteView->show();
     //}
 
-    emit viewsCountChanged();
+    Q_EMIT viewsCountChanged();
 }
 
 void GenericLayout::toggleHiddenState(QString viewName, QString screenName, Plasma::Types::Location edge)
@@ -1036,7 +1036,7 @@ bool GenericLayout::initContainments()
         }
     }
     m_hasInitializedContainments = true;
-    emit viewsCountChanged();
+    Q_EMIT viewsCountChanged();
     return true;
 }
 
@@ -1052,7 +1052,7 @@ void GenericLayout::updateLastUsedActivity()
     if (appliedActivitiesIds.contains(Data::Layout::ALLACTIVITIESID)
             || (m_lastUsedActivity != currentId && appliedActivitiesIds.contains(currentId))) {
         m_lastUsedActivity = currentId;
-        emit lastUsedActivityChanged();
+        Q_EMIT lastUsedActivityChanged();
     }
 }
 
@@ -1084,7 +1084,7 @@ void GenericLayout::assignToLayout(Latte::View *latteView, QList<Plasma::Contain
         latteView->setLayout(this);
     }
 
-    emit viewsCountChanged();
+    Q_EMIT viewsCountChanged();
 
     //! sync the original layout file for integrity
     if (m_corona->layoutsManager()->memoryUsage() == MemoryUsage::MultipleLayouts) {
@@ -1502,7 +1502,7 @@ Data::View GenericLayout::newView(const Latte::Data::View &nextViewData)
     }
 
     Data::View result = Layouts::Storage::self()->newView(this, nextViewData);
-    emit viewEdgeChanged();
+    Q_EMIT viewEdgeChanged();
 
     return result;
 }
@@ -1566,8 +1566,8 @@ void GenericLayout::updateView(const Latte::Data::View &viewData)
 
     //! complete update circle and inform the others about the changes
     if (viewMustBeDeleted) {
-        emit viewEdgeChanged();
-        emit viewsCountChanged();
+        Q_EMIT viewEdgeChanged();
+        Q_EMIT viewsCountChanged();
     }
 
     syncLatteViewsToScreens();
