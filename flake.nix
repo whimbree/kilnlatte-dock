@@ -65,12 +65,12 @@
             # Best-effort X11 path (HAVE_X11): XCB RANDR/SHAPE/EVENT + SM per
             # the top-level CMakeLists. Qt5X11Extras is gone in Qt6; native
             # handles come from QNativeInterface::QX11Application instead.
-            xorg.libX11
-            xorg.libSM
-            xorg.libICE
-            xorg.libxcb
-            xorg.xcbutil
-            xorg.libXrandr
+            libx11
+            libsm
+            libice
+            libxcb
+            libxcb-util
+            libxrandr
           ]);
 
           # Building works from this shell as-is. Running the built binary
