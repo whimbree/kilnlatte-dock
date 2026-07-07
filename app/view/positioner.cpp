@@ -865,9 +865,9 @@ void Positioner::updatePosition(QRect availableScreenRect)
 
     m_view->setPosition(position);
 
-    if (m_view->surface()) {
-        m_view->surface()->setPosition(position);
-    }
+    //! under layer-shell the surface is placed by anchors and margins, so
+    //! there is no per-surface setPosition() left to mirror here; the
+    //! QWindow::setPosition() above still matters on X11
 }
 
 int Positioner::slideOffset() const

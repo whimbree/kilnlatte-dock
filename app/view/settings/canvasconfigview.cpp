@@ -10,7 +10,9 @@
 #include "../panelshadows_p.h"
 #include "../view.h"
 #include "../../lattecorona.h"
+#include "../../settings/universalsettings.h"
 #include "../../wm/abstractwindowinterface.h"
+#include "../../wm/waylandlayershell.h"
 
 // Qt
 #include <QQuickItem>
@@ -18,7 +20,6 @@
 
 // KDE
 #include <KWindowSystem>
-#include <KWayland/Client/plasmashell.h>
 
 // Plasma
 #include <KPackage/Package>
@@ -31,6 +32,16 @@ CanvasConfigView::CanvasConfigView(Latte::View *view, PrimaryConfigView *parent)
       m_parent(parent)
 {
     setResizeMode(QQuickView::SizeRootObjectToView);
+
+    //! the input region needs re-carving when the configure-applets mode
+    //! flips (the click-through band appears/disappears) and after a resize
+    //! (a resize resets the surface mask)
+    if (m_corona && m_corona->universalSettings()) {
+        connect(m_corona->universalSettings(), &Latte::UniversalSettings::inConfigureAppletsModeChanged,
+                this, &CanvasConfigView::updateInputRegion);
+    }
+    connect(this, &QQuickView::widthChanged, this, &CanvasConfigView::updateInputRegion);
+    connect(this, &QQuickView::heightChanged, this, &CanvasConfigView::updateInputRegion);
 
     setParentView(view);
     init();
@@ -84,21 +95,49 @@ void CanvasConfigView::syncGeometry()
 
     m_geometryWhenVisible = geometry;
 
-    setPosition(geometry.topLeft());
-
-    if (m_shellSurface) {
-        m_shellSurface->setPosition(geometry.topLeft());
+    if (KWindowSystem::isPlatformWayland()) {
+        //! layer-shell ignores setPosition(), and the Center-anchored config
+        //! from SubConfigView would drop the canvas centred on the dock's
+        //! edge; anchor it so it overlays the dock's canvas geometry exactly
+        Latte::WindowSystem::LayerShell::applyCanvasPlacement(this, m_latteView->location(), geometry, m_latteView->screenGeometry());
+    } else {
+        setPosition(geometry.topLeft());
     }
 
     setMaximumSize(geometry.size());
     setMinimumSize(geometry.size());
     resize(geometry.size());
 
+    updateInputRegion();
+
     //! after placement request to activate the main config window in order to avoid
     //! rare cases of closing settings window from secondaryConfigView->focusOutEvent
     if (m_parent && KWindowSystem::isPlatformX11()) {
         m_parent->requestActivate();
     }
+}
+
+void CanvasConfigView::updateInputRegion()
+{
+    if (!m_latteView) {
+        return;
+    }
+
+    //! never touch the surface mask before the wayland surface exists (same
+    //! guard as the sibling views' updateEffects,
+    //! https://bugs.kde.org/show_bug.cgi?id=392890)
+    if (KWindowSystem::isPlatformWayland() && !isVisible()) {
+        return;
+    }
+
+    const bool configuring = m_corona && m_corona->universalSettings()
+            && m_corona->universalSettings()->inConfigureAppletsMode();
+
+    //! STUB: Phase 5 - in configure-applets mode the whole canvas goes
+    //! click-through so pointer events reach the widgets beneath; the
+    //! rearrange-toggle chrome rect should stay interactive, but the QML
+    //! side that publishes that rect only lands with the QML migration
+    setMask(Latte::WindowSystem::LayerShell::canvasInputRegion(configuring, size(), QRect()));
 }
 
 bool CanvasConfigView::event(QEvent *e)
@@ -122,11 +161,6 @@ bool CanvasConfigView::event(QEvent *e)
 
 void CanvasConfigView::showEvent(QShowEvent *ev)
 {
-    if (m_shellSurface) {
-        //! under wayland it needs to be set again after its hiding
-        m_shellSurface->setPosition(m_geometryWhenVisible.topLeft());
-    }
-
     SubConfigView::showEvent(ev);
 
     if (!m_latteView) {
@@ -134,6 +168,11 @@ void CanvasConfigView::showEvent(QShowEvent *ev)
     }
 
     syncGeometry();
+
+    //! syncGeometry() short-circuits on unchanged geometry and its init-time
+    //! run happened before the wayland surface existed, so carve the input
+    //! region explicitly now that the surface is up
+    updateInputRegion();
 
     //! show Canvas on top of all other panels/docks and show
     //! its parent view on top afterwards
@@ -176,7 +215,7 @@ void CanvasConfigView::focusOutEvent(QFocusEvent *ev)
 
 void CanvasConfigView::hideConfigWindow()
 {
-    if (m_shellSurface) {
+    if (KWindowSystem::isPlatformWayland()) {
         //!NOTE: Avoid crash in wayland environment with qt5.9
         close();
     } else {

@@ -67,6 +67,19 @@ class VisibilityManager : public QObject
 public:
     static const QRect ISHIDDENMASK;
 
+    //! Whether a dock in visibility mode @p mode reveals itself when the
+    //! pointer reaches the screen edge. These are the modes the edge-ghost
+    //! detector arms for, so its mouse detection can slide the hidden dock
+    //! back in: the three Dodge modes and AutoHide. AlwaysVisible never
+    //! hides; the cover modes use the stacking layer instead of edge reveal.
+    static bool revealsOnScreenEdge(Latte::Types::Visibility mode)
+    {
+        return mode == Latte::Types::DodgeActive
+                || mode == Latte::Types::DodgeMaximized
+                || mode == Latte::Types::DodgeAllWindows
+                || mode == Latte::Types::AutoHide;
+    }
+
     explicit VisibilityManager(PlasmaQuick::ContainmentView *view);
     virtual ~VisibilityManager();
 

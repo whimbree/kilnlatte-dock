@@ -20,6 +20,7 @@
 #include "../../layout/genericlayout.h"
 #include "../../settings/universalsettings.h"
 #include "../../wm/abstractwindowinterface.h"
+#include "../../wm/waylandlayershell.h"
 
 // local tools
 #include "../../tools/commontools.h"
@@ -32,9 +33,6 @@
 
 // KDE
 #include <KLocalizedContext>
-#include <KLocalizedContext>
-#include <KWayland/Client/plasmashell.h>
-#include <KWayland/Client/surface.h>
 #include <KWindowEffects>
 #include <KWindowSystem>
 
@@ -139,7 +137,7 @@ void PrimaryConfigView::requestActivate()
     if (m_latteView && m_latteView->visibility()) {
         if (KWindowSystem::isPlatformX11()) {
             m_latteView->visibility()->setViewOnFrontLayer();
-        } else if (m_shellSurface) {
+        } else if (KWindowSystem::isPlatformWayland()) {
             m_corona->wm()->requestActivate(m_latteView->positioner()->trackedWindowId());
         }
     }
@@ -168,7 +166,7 @@ void PrimaryConfigView::showConfigWindow()
 
 void PrimaryConfigView::hideConfigWindow()
 {
-    if (m_shellSurface) {
+    if (KWindowSystem::isPlatformWayland()) {
         //!NOTE: Avoid crash in wayland environment with qt5.9
         close();
     } else {
@@ -404,10 +402,14 @@ void PrimaryConfigView::syncGeometry()
 
     m_geometryWhenVisible = geometry;
 
-    setPosition(position);
-
-    if (m_shellSurface) {
-        m_shellSurface->setPosition(position);
+    if (KWindowSystem::isPlatformWayland()) {
+        //! layer-shell ignores setPosition(). Anchoring the settings window
+        //! to the dock's edge welds it to whichever edge the dock had when
+        //! it opened; dropping the anchors lets the compositor centre it on
+        //! the screen, clear of the dock wherever the dock sits.
+        Latte::WindowSystem::LayerShell::setUnanchored(this);
+    } else {
+        setPosition(position);
     }
 
     setMaximumSize(size);
@@ -420,11 +422,6 @@ void PrimaryConfigView::syncGeometry()
 void PrimaryConfigView::showEvent(QShowEvent *ev)
 {
     updateAvailableScreenGeometry();
-
-    if (m_shellSurface) {
-        //! under wayland it needs to be set again after its hiding
-        m_shellSurface->setPosition(m_geometryWhenVisible.topLeft());
-    }
 
     SubConfigView::showEvent(ev);
 
@@ -642,7 +639,7 @@ void PrimaryConfigView::updateEffects()
 {
     //! Don't apply any effect before the wayland surface is created under wayland
     //! https://bugs.kde.org/show_bug.cgi?id=392890
-    if (KWindowSystem::isPlatformWayland() && !m_shellSurface) {
+    if (KWindowSystem::isPlatformWayland() && !isVisible()) {
         return;
     }
 

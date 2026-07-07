@@ -15,14 +15,13 @@
 #include "../../shortcuts/globalshortcuts.h"
 #include "../../shortcuts/shortcutstracker.h"
 #include "../../wm/abstractwindowinterface.h"
+#include "../../wm/waylandlayershell.h"
 
-// KDE
+// Qt
 #include <QQmlEngine>
 
 // KDE
 #include <KLocalizedContext>
-#include <KWayland/Client/plasmashell.h>
-#include <KWayland/Client/surface.h>
 #include <KWindowSystem>
 
 namespace Latte {
@@ -34,7 +33,12 @@ SubConfigView::SubConfigView(Latte::View *view, const QString &title, const bool
 {
     m_corona = qobject_cast<Latte::Corona *>(view->containment()->corona());
 
-    setupWaylandIntegration();
+    //! setupWaylandIntegration() deliberately does not run here: it needs a
+    //! valid m_latteView for the screen and location, and that is only
+    //! assigned later through setParentView() -> initParentView(). The old
+    //! plasma-shell surface could be created reactively on the
+    //! SurfaceCreated platform event; a layer surface must be configured
+    //! before the window is first shown, so initParentView() does it.
 
     if (KWindowSystem::isPlatformX11()) {
         m_corona->wm()->registerIgnoredWindow(WindowSystem::windowIdFromWId(winId()));
@@ -176,11 +180,18 @@ void SubConfigView::initParentView(Latte::View *view)
     QQuickItem *containmentGraphicItem = qobject_cast<QQuickItem *>(m_latteView->containment()->property("_plasma_graphicObject").value<QObject *>());
     rootContext()->setContextProperty(QStringLiteral("plasmoid"), containmentGraphicItem);
     rootContext()->setContextProperty(QStringLiteral("latteView"), m_latteView);
+
+    //! m_latteView is valid now, so the layer surface can be configured; it
+    //! has to happen before the window is first shown, so skip it when a
+    //! live config window is merely re-parented to another dock
+    if (!isVisible()) {
+        setupWaylandIntegration();
+    }
 }
 
 void SubConfigView::requestActivate()
 {
-    if (KWindowSystem::isPlatformWayland() && m_shellSurface) {
+    if (KWindowSystem::isPlatformWayland()) {
         updateWaylandId();
         m_corona->wm()->requestActivate(m_waylandWindowId);
     } else {
@@ -232,84 +243,32 @@ void SubConfigView::syncSlideEffect()
     m_corona->wm()->slideWindow(*this, slideLocation);
 }
 
-KWayland::Client::PlasmaShellSurface *SubConfigView::surface()
-{
-    return m_shellSurface;
-}
-
 void SubConfigView::setupWaylandIntegration()
 {
-    if (m_shellSurface || !KWindowSystem::isPlatformWayland() || !m_latteView || !m_latteView->containment()) {
-        // already setup
+    if (!KWindowSystem::isPlatformWayland() || !m_latteView || !m_latteView->containment()) {
         return;
     }
 
-    if (m_corona) {
-        using namespace KWayland::Client;
-        PlasmaShell *interface = m_corona->waylandCoronaInterface();
+    //! start anchored to the parent dock's edge, centered along it; the
+    //! subclasses re-place the surface from their syncGeometry() (the
+    //! settings windows drop the anchors entirely, the canvas overlays the
+    //! dock's geometry). Config windows take keyboard focus, unlike the dock.
+    namespace LS = Latte::WindowSystem::LayerShell;
+    LS::configureView(this, m_latteView->screen(), m_latteView->location(), Latte::Types::Center);
+    LS::setFocusPolicy(this, true);
 
-        if (!interface) {
-            return;
-        }
-
-        Surface *s = Surface::fromWindow(this);
-
-        if (!s) {
-            return;
-        }
-
-        qDebug() << "wayland " << title() <<  " surface was created...";
-
-        m_shellSurface = interface->createSurface(s, this);
-
-        if (m_isNormalWindow) {
-            m_corona->wm()->setViewExtraFlags(m_shellSurface, false);
-        } else {
-            m_corona->wm()->setViewExtraFlags(m_shellSurface, true);
-        }
-
-        updateWaylandId();
-        syncGeometry();
-    }
+    updateWaylandId();
+    syncGeometry();
 }
 
 void SubConfigView::showEvent(QShowEvent *ev)
 {
     QQuickView::showEvent(ev);
 
-    if (m_shellSurface) {
+    if (KWindowSystem::isPlatformWayland()) {
         //! readd shadows after hiding because the window shadows are not shown again after first showing
         m_corona->dialogShadows()->addWindow(this, m_enabledBorders);
     }
-}
-
-bool SubConfigView::event(QEvent *e)
-{
-    if (e->type() == QEvent::PlatformSurface) {
-        if (auto pe = dynamic_cast<QPlatformSurfaceEvent *>(e)) {
-            switch (pe->surfaceEventType()) {
-            case QPlatformSurfaceEvent::SurfaceCreated:
-
-                if (m_shellSurface) {
-                    break;
-                }
-
-                setupWaylandIntegration();
-                break;
-
-            case QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed:
-                if (m_shellSurface) {
-                    delete m_shellSurface;
-                    m_shellSurface = nullptr;
-                    qDebug() << "WAYLAND " << title() <<  " window surface was deleted...";
-                }
-
-                break;
-            }
-        }
-    }
-
-    return QQuickView::event(e);
 }
 
 void SubConfigView::updateWaylandId()

@@ -339,17 +339,19 @@ void WaylandInterface::setActiveEdge(QWindow *view, bool active)
         return;
     }
 
-    if (window->parentView()->surface() && window->parentView()->visibility()
-            && (window->parentView()->visibility()->mode() == Types::DodgeActive
-                || window->parentView()->visibility()->mode() == Types::DodgeMaximized
-                || window->parentView()->visibility()->mode() == Types::DodgeAllWindows
-                || window->parentView()->visibility()->mode() == Types::AutoHide)) {
+    if (window->parentView()->visibility()
+            && ViewPart::VisibilityManager::revealsOnScreenEdge(window->parentView()->visibility()->mode())) {
+        //! Under layer-shell the auto-hide reveal is driven client-side:
+        //! arming the edge ghost (un-masking it) lets its mouse detection
+        //! fire containsMouseChanged, which slides the dock in and re-hides
+        //! it on leave. The plasma-shell requestShow/HideAutoHidingPanel
+        //! protocol has no layer-shell equivalent. The old code also gated
+        //! this on parentView()->surface(), which is always null under
+        //! layer-shell, so the edge detector never armed.
         if (active) {
             window->showWithMask();
-            window->surface()->requestHideAutoHidingPanel();
         } else {
             window->hideWithMask();
-            window->surface()->requestShowAutoHidingPanel();
         }
     }
 }

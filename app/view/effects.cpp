@@ -543,7 +543,9 @@ void Effects::updateEffects()
 {
     //! Don't apply any effect before the wayland surface is created under wayland
     //! https://bugs.kde.org/show_bug.cgi?id=392890
-    if (KWindowSystem::isPlatformWayland() && !m_view->surface()) {
+    //! there is no separate plasma-shell surface to wait on anymore, so gate
+    //! on the native window handle being realized
+    if (KWindowSystem::isPlatformWayland() && !m_view->handle()) {
         return;
     }
 
