@@ -9,6 +9,7 @@
 
 // local
 #include <coretypes.h>
+#include "waylandlayershell.h"
 #include "../view/positioner.h"
 #include "../view/view.h"
 #include "../view/settings/subconfigview.h"
@@ -33,83 +34,6 @@
 using namespace KWayland::Client;
 
 namespace Latte {
-
-class Private::GhostWindow : public QQuickView
-{
-    Q_OBJECT
-
-public:
-    WindowSystem::WindowId m_winId;
-
-    GhostWindow(WindowSystem::WaylandInterface *waylandInterface)
-        : m_waylandInterface(waylandInterface) {
-        setFlags(Qt::FramelessWindowHint
-                 | Qt::WindowStaysOnTopHint
-                 | Qt::NoDropShadowWindowHint
-                 | Qt::WindowDoesNotAcceptFocus);
-
-        setColor(QColor(Qt::transparent));
-
-        connect(m_waylandInterface, &WindowSystem::AbstractWindowInterface::latteWindowAdded, this, &GhostWindow::identifyWinId);
-
-        setupWaylandIntegration();
-        show();
-    }
-
-    ~GhostWindow() {
-        m_waylandInterface->unregisterIgnoredWindow(m_winId);
-        delete m_shellSurface;
-    }
-
-    void setGeometry(const QRect &rect) {
-        if (geometry() == rect) {
-            return;
-        }
-
-        m_validGeometry = rect;
-
-        setMinimumSize(rect.size());
-        setMaximumSize(rect.size());
-        resize(rect.size());
-
-        m_shellSurface->setPosition(rect.topLeft());
-    }
-
-    void setupWaylandIntegration() {
-        using namespace KWayland::Client;
-
-        if (m_shellSurface)
-            return;
-
-        Surface *s{Surface::fromWindow(this)};
-
-        if (!s)
-            return;
-
-        m_shellSurface = m_waylandInterface->waylandCoronaInterface()->createSurface(s, this);
-        qDebug() << "wayland ghost window surface was created...";
-
-        m_shellSurface->setSkipTaskbar(true);
-        m_shellSurface->setPanelTakesFocus(false);
-        m_shellSurface->setRole(PlasmaShellSurface::Role::Panel);
-        m_shellSurface->setPanelBehavior(PlasmaShellSurface::PanelBehavior::AlwaysVisible);
-    }
-
-    KWayland::Client::PlasmaShellSurface *m_shellSurface{nullptr};
-    WindowSystem::WaylandInterface *m_waylandInterface{nullptr};
-
-    //! geometry() function under wayland does not return nice results
-    QRect m_validGeometry;
-
-public Q_SLOTS:
-    void identifyWinId() {
-        if (m_winId.isNull()) {
-            m_winId = m_waylandInterface->winIdFor("latte-dock", m_validGeometry);
-            m_waylandInterface->registerIgnoredWindow(m_winId);
-        }
-    }
-};
-
 namespace WindowSystem {
 
 WaylandInterface::WaylandInterface(QObject *parent)
@@ -229,88 +153,32 @@ void WaylandInterface::unregisterIgnoredWindow(WindowId wid)
 
 void WaylandInterface::setViewExtraFlags(QObject *view, bool isPanelWindow, Latte::Types::Visibility mode)
 {
-    KWayland::Client::PlasmaShellSurface *surface = qobject_cast<KWayland::Client::PlasmaShellSurface *>(view);
-    Latte::View *latteView = qobject_cast<Latte::View *>(view);
-    Latte::ViewPart::SubConfigView *configView = qobject_cast<Latte::ViewPart::SubConfigView *>(view);
+    //! Everything the plasma-shell surface used to carry here is expressed
+    //! differently for a layer surface: panel-ness is anchors + exclusive
+    //! zone, taskbar/switcher/virtual-desktop presence does not apply to
+    //! layer surfaces at all, and keep-above/keep-below collapse into the
+    //! stacking layer.
+    Q_UNUSED(isPanelWindow);
 
-    WindowId winId;
+    QWindow *window = qobject_cast<QWindow *>(view);
 
-    if (latteView) {
-        surface = latteView->surface();
-        winId = latteView->positioner()->trackedWindowId();
-    } else if (configView) {
-        surface = configView->surface();
-        winId = configView->trackedWindowId();
-    }
-
-    if (!surface) {
+    if (!window) {
         return;
     }
 
-    surface->setSkipTaskbar(true);
-    surface->setSkipSwitcher(true);
-
-    bool atBottom{!isPanelWindow && (mode == Latte::Types::WindowsCanCover || mode == Latte::Types::WindowsAlwaysCover)};
-
-    if (isPanelWindow) {
-        surface->setRole(PlasmaShellSurface::Role::Panel);
-        surface->setPanelBehavior(PlasmaShellSurface::PanelBehavior::AutoHide);
-    } else {
-        surface->setRole(PlasmaShellSurface::Role::Normal);
-    }
-
-    if (latteView || configView) {
-        auto w = windowFor(winId);
-        if (w && !w->isOnAllDesktops()) {
-            requestToggleIsOnAllDesktops(winId);
-        }
-
-        //! Layer to be applied
-        if (mode == Latte::Types::WindowsCanCover || mode == Latte::Types::WindowsAlwaysCover) {
-            setKeepBelow(winId, true);
-        } else if (mode == Latte::Types::NormalWindow) {
-            setKeepBelow(winId, false);
-            setKeepAbove(winId, false);
-        } else {
-            setKeepAbove(winId, true);
-        }
-    }
-
-    if (atBottom){
-        //! trying to workaround WM behavior in order
-        //!  1. View at the end MUST NOT HAVE FOCUSABILITY (issue example: clicking a single active task is not minimized)
-        //!  2. View at the end MUST BE AT THE BOTTOM of windows stack
-
-        QTimer::singleShot(50, [this, surface]() {
-            surface->setRole(PlasmaShellSurface::Role::ToolTip);
-        });
-    }
+    LayerShell::applyLayer(window, mode);
 }
 
 void WaylandInterface::setViewStruts(QWindow &view, const QRect &rect, Plasma::Types::Location location)
 {
-    const WindowId viewid = windowIdFromWId(view.winId());
-
-    if (!m_ghostWindows.contains(viewid)) {
-        m_ghostWindows[viewid] = new Private::GhostWindow(this);
-    }
-
-    auto w = m_ghostWindows[viewid];
-
-    switch (location) {
-    case Plasma::Types::TopEdge:
-    case Plasma::Types::BottomEdge:
-        w->setGeometry({rect.x() + rect.width() / 2 - rect.height(), rect.y(), rect.height() + 1, rect.height()});
-        break;
-
-    case Plasma::Types::LeftEdge:
-    case Plasma::Types::RightEdge:
-        w->setGeometry({rect.x(), rect.y() + rect.height() / 2 - rect.width(), rect.width(), rect.width() + 1});
-        break;
-
-    default:
-        break;
-    }
+    //! The ghost-window mechanism this used to drive is gone: its
+    //! PlasmaShellSurface::PanelBehavior route reserves nothing on Plasma 6
+    //! (deprecated and ignored by KWin), and a strut-reserving helper surface
+    //! also leaves a compositor-blur bar behind its own area. The view is a
+    //! layer surface now, so the exclusive zone rides on it directly. The
+    //! rect is the currently visible panel thickness, not a max-possible
+    //! expansion value - over-reserving was a real latte-dock-ng bug.
+    LayerShell::setExclusiveZone(&view, LayerShell::exclusiveZoneFor(rect, location));
 }
 
 void WaylandInterface::switchToNextVirtualDesktop()
@@ -407,7 +275,7 @@ void WaylandInterface::setWindowOnActivities(const WindowId &wid, const QStringL
 
 void WaylandInterface::removeViewStruts(QWindow &view)
 {
-    delete m_ghostWindows.take(windowIdFromWId(view.winId()));
+    LayerShell::setExclusiveZone(&view, 0);
 }
 
 WindowId WaylandInterface::activeWindow()
@@ -944,5 +812,3 @@ void WaylandInterface::windowCreatedProxy(KWayland::Client::PlasmaWindow *w)
 
 }
 }
-
-#include "waylandinterface.moc"

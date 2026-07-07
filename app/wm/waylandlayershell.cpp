@@ -65,10 +65,15 @@ LSW::Anchors anchorsFor(Plasma::Types::Location location, Latte::Types::Alignmen
 
 LSW::Layer layerFor(Latte::Types::Visibility mode)
 {
+    //! Only the two cover modes put the dock below windows; WindowsGoBelow
+    //! means windows go below THE DOCK (the X11 backend gives it keep-above).
+    //! latte-dock-qt6 mapped WindowsGoBelow to LayerBottom, which also turned
+    //! its front-layer default into bottom - do not reintroduce that.
+    //! NormalWindow (neither above nor below, WM-stacked) is not expressible
+    //! for a layer surface; LayerTop keeps such a dock usable.
     switch (mode) {
     case Latte::Types::WindowsCanCover:
     case Latte::Types::WindowsAlwaysCover:
-    case Latte::Types::WindowsGoBelow:
         return LSW::LayerBottom;
     default:
         return LSW::LayerTop;

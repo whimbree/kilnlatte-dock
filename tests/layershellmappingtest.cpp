@@ -86,11 +86,16 @@ void LayerShellMappingTest::layerByVisibilityMode()
 {
     QCOMPARE(LayerShell::layerFor(Latte::Types::WindowsCanCover), LSW::LayerBottom);
     QCOMPARE(LayerShell::layerFor(Latte::Types::WindowsAlwaysCover), LSW::LayerBottom);
-    QCOMPARE(LayerShell::layerFor(Latte::Types::WindowsGoBelow), LSW::LayerBottom);
     QCOMPARE(LayerShell::layerFor(Latte::Types::AlwaysVisible), LSW::LayerTop);
     QCOMPARE(LayerShell::layerFor(Latte::Types::AutoHide), LSW::LayerTop);
     QCOMPARE(LayerShell::layerFor(Latte::Types::DodgeActive), LSW::LayerTop);
     QCOMPARE(LayerShell::layerFor(Latte::Types::NormalWindow), LSW::LayerTop);
+
+    //! WindowsGoBelow means windows go below the dock; the X11 backend maps
+    //! it to keep-above, so the layer must be Top. latte-dock-qt6 put it in
+    //! the LayerBottom branch, which also dragged its front-layer default
+    //! down - this pins the corrected mapping.
+    QCOMPARE(LayerShell::layerFor(Latte::Types::WindowsGoBelow), LSW::LayerTop);
 }
 
 void LayerShellMappingTest::exclusiveZoneByLocation()
