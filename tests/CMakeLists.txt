@@ -23,3 +23,18 @@ set_tests_properties(layershellmappingtest PROPERTIES
 target_include_directories(layershellmappingtest PRIVATE
     ${CMAKE_SOURCE_DIR}/app
     ${CMAKE_BINARY_DIR}/app)
+
+# Headless QML checks (Phase 5, docs/TESTING.md): the compile gate stages an
+# install and compiles every package QML file in a real engine; the
+# interaction harness drives real Latte components through qmltestrunner.
+# Both need the devShell toolchain, which is how ctest runs (build-check.sh).
+add_test(NAME qmlcompilegate
+    COMMAND ${CMAKE_SOURCE_DIR}/scripts/qml-compile-gate.sh)
+set_tests_properties(qmlcompilegate PROPERTIES
+    ENVIRONMENT "BUILD=${CMAKE_BINARY_DIR}")
+
+add_test(NAME qmlinteraction
+    COMMAND ${CMAKE_SOURCE_DIR}/scripts/qml-interaction-tests.sh)
+set_tests_properties(qmlinteraction PROPERTIES
+    ENVIRONMENT "BUILD=${CMAKE_BINARY_DIR}"
+    DEPENDS qmlcompilegate)

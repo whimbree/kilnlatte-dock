@@ -923,6 +923,15 @@ applied to get latte-dock-qt6 building on Nix during live debugging.
 The bare build toolchain moved to Phase 0; this phase is the
 polished, distributable form of it.
 
+- [ ] Decide the appstream component-id question: appstreamcli 1.x
+      fails validation on org.kde.latte-dock's hyphenated rDNS id
+      (cid-rdns-contains-hyphen, found when the Phase 5 QML staging
+      briefly un-vacuumed ECM's appstreamtest). Either rename the
+      component (touches desktop file, appdata, notifyrc) or record a
+      validation override; the test is vacuous again until a real
+      install writes build/install_manifest.txt
+      Commits:
+
 - [ ] Write `default.nix` (Qt6/KF6 dependency list, matching Phase 1-3
       framework choices). Use `lib.cleanSource ./.` for `src`, not bare
       `./.` - a plain `./.` copies the *entire* working tree into the

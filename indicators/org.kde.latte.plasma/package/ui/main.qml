@@ -6,6 +6,8 @@
 import QtQuick 2.0
 
 import org.kde.plasma.core 2.0 as PlasmaCore
+import org.kde.ksvg 1.0 as KSvg
+import org.kde.plasma.plasmoid 2.0
 
 import org.kde.latte.components 1.0 as LatteComponents
 
@@ -43,10 +45,10 @@ LatteComponents.IndicatorItem {
     Loader{
         id: backLayer
         anchors.fill: parent
-        anchors.topMargin: plasmoid.location === PlasmaCore.Types.TopEdge ? indicator.screenEdgeMargin : 0
-        anchors.bottomMargin: plasmoid.location === PlasmaCore.Types.BottomEdge ? indicator.screenEdgeMargin : 0
-        anchors.leftMargin: plasmoid.location === PlasmaCore.Types.LeftEdge ? indicator.screenEdgeMargin : 0
-        anchors.rightMargin: plasmoid.location === PlasmaCore.Types.RightEdge ? indicator.screenEdgeMargin : 0
+        anchors.topMargin: Plasmoid.location === PlasmaCore.Types.TopEdge ? indicator.screenEdgeMargin : 0
+        anchors.bottomMargin: Plasmoid.location === PlasmaCore.Types.BottomEdge ? indicator.screenEdgeMargin : 0
+        anchors.leftMargin: Plasmoid.location === PlasmaCore.Types.LeftEdge ? indicator.screenEdgeMargin : 0
+        anchors.rightMargin: Plasmoid.location === PlasmaCore.Types.RightEdge ? indicator.screenEdgeMargin : 0
 
         active: level.isBackground && indicator.isTask && !indicator.isEmptySpace
         sourceComponent: TaskBackLayer{}
@@ -56,10 +58,10 @@ LatteComponents.IndicatorItem {
     Loader{
         id: appletBackLayer
         anchors.fill: parent
-        anchors.topMargin: plasmoid.location === PlasmaCore.Types.TopEdge ? indicator.screenEdgeMargin : 0
-        anchors.bottomMargin: plasmoid.location === PlasmaCore.Types.BottomEdge ? indicator.screenEdgeMargin : 0
-        anchors.leftMargin: plasmoid.location === PlasmaCore.Types.LeftEdge ? indicator.screenEdgeMargin : 0
-        anchors.rightMargin: plasmoid.location === PlasmaCore.Types.RightEdge ? indicator.screenEdgeMargin : 0
+        anchors.topMargin: Plasmoid.location === PlasmaCore.Types.TopEdge ? indicator.screenEdgeMargin : 0
+        anchors.bottomMargin: Plasmoid.location === PlasmaCore.Types.BottomEdge ? indicator.screenEdgeMargin : 0
+        anchors.leftMargin: Plasmoid.location === PlasmaCore.Types.LeftEdge ? indicator.screenEdgeMargin : 0
+        anchors.rightMargin: Plasmoid.location === PlasmaCore.Types.RightEdge ? indicator.screenEdgeMargin : 0
 
         active: level.isBackground && indicator.isApplet && !indicator.isEmptySpace
         sourceComponent: AppletBackLayer{}
@@ -84,7 +86,7 @@ LatteComponents.IndicatorItem {
                 width: parent.width * (Math.min(indicator.progress, 100) / 100)
                 clip: true
 
-                PlasmaCore.FrameSvgItem {
+                KSvg.FrameSvgItem {
                     id: progressFrame
                     width: background.width
                     height: background.height
@@ -109,19 +111,19 @@ LatteComponents.IndicatorItem {
     function taskPrefix(prefix) {
         var effectivePrefix;
 
-        if (plasmoid.location === PlasmaCore.Types.LeftEdge) {
+        if (Plasmoid.location === PlasmaCore.Types.LeftEdge) {
             effectivePrefix = "west-" + prefix;
         }
 
-        if (plasmoid.location === PlasmaCore.Types.TopEdge) {
+        if (Plasmoid.location === PlasmaCore.Types.TopEdge) {
             effectivePrefix = "north-" + prefix;
         }
 
-        if (plasmoid.location === PlasmaCore.Types.RightEdge) {
+        if (Plasmoid.location === PlasmaCore.Types.RightEdge) {
             effectivePrefix = "east-" + prefix;
         }
 
-        if (plasmoid.location === PlasmaCore.Types.BottomEdge) {
+        if (Plasmoid.location === PlasmaCore.Types.BottomEdge) {
             effectivePrefix = "south-" + prefix;
         }
 

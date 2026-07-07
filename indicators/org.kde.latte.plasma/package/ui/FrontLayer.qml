@@ -7,6 +7,8 @@ import QtQuick 2.7
 
 import org.kde.plasma.plasmoid 2.0
 import org.kde.plasma.core 2.0 as PlasmaCore
+import org.kde.ksvg 1.0 as KSvg
+import org.kde.kirigami 2.20 as Kirigami
 
 Item {
     anchors.fill: parent
@@ -19,12 +21,12 @@ Item {
         Item{
             id: clickedCenter
 
-            readonly property int center: plasmoid.formFactor === PlasmaCore.Types.Horizontal ? parent.width/2 : parent.height/2
+            readonly property int center: Plasmoid.formFactor === PlasmaCore.Types.Horizontal ? parent.width/2 : parent.height/2
 
             states:[
                 State {
                     name: "bottom"
-                    when: (plasmoid.location === PlasmaCore.Types.BottomEdge)
+                    when: (Plasmoid.location === PlasmaCore.Types.BottomEdge)
 
                     AnchorChanges {
                         target: clickedCenter
@@ -34,7 +36,7 @@ Item {
                 },
                 State {
                     name: "left"
-                    when: (plasmoid.location === PlasmaCore.Types.LeftEdge)
+                    when: (Plasmoid.location === PlasmaCore.Types.LeftEdge)
 
                     AnchorChanges {
                         target: clickedCenter
@@ -44,7 +46,7 @@ Item {
                 },
                 State {
                     name: "right"
-                    when: (plasmoid.location === PlasmaCore.Types.RightEdge)
+                    when: (Plasmoid.location === PlasmaCore.Types.RightEdge)
 
                     AnchorChanges {
                         target: clickedCenter
@@ -54,7 +56,7 @@ Item {
                 },
                 State {
                     name: "top"
-                    when: (plasmoid.location === PlasmaCore.Types.TopEdge)
+                    when: (Plasmoid.location === PlasmaCore.Types.TopEdge)
 
                     AnchorChanges {
                         target: clickedCenter
@@ -72,7 +74,7 @@ Item {
             radius: width/2
             height: width
 
-            color: theme.highlightColor
+            color: Kirigami.Theme.highlightColor
         }
     }
     
@@ -116,46 +118,46 @@ Item {
     Connections {
         target: level
         enabled: root.clickedAnimationEnabled
-        onMousePressed: {
+        function onMousePressed(x, y, button) {
             var fixedX = 0;
             var fixedY = 0;
 
-            if (plasmoid.formFactor === PlasmaCore.Types.Horizontal) {
+            if (Plasmoid.formFactor === PlasmaCore.Types.Horizontal) {
                 fixedX = x - clickedCenter.center;
             } else {
-                if (plasmoid.location === PlasmaCore.Types.RightEdge) {
+                if (Plasmoid.location === PlasmaCore.Types.RightEdge) {
                    fixedX = relevantItem.width - x;
                 } else {
                    fixedX = x;
                 }
             }
 
-            if (plasmoid.formFactor === PlasmaCore.Types.Vertical) {
+            if (Plasmoid.formFactor === PlasmaCore.Types.Vertical) {
                 fixedY = y - clickedCenter.center;
             } else {
-                 if (plasmoid.location === PlasmaCore.Types.BottomEdge) {
+                 if (Plasmoid.location === PlasmaCore.Types.BottomEdge) {
                     fixedY = relevantItem.height - y;
                  } else {
                     fixedY = y;
                  }
             }
 
-            if (plasmoid.formFactor === PlasmaCore.Types.Horizontal) {
+            if (Plasmoid.formFactor === PlasmaCore.Types.Horizontal) {
                 clickedCenter.anchors.horizontalCenterOffset = fixedX;
             } else {
-                if (plasmoid.location === PlasmaCore.Types.LeftEdge) {
+                if (Plasmoid.location === PlasmaCore.Types.LeftEdge) {
                     clickedCenter.anchors.leftMargin = fixedX;
-                } else if (plasmoid.location === PlasmaCore.Types.RightEdge) {
+                } else if (Plasmoid.location === PlasmaCore.Types.RightEdge) {
                     clickedCenter.anchors.rightMargin = fixedX;
                 }
             }
 
-            if (plasmoid.formFactor === PlasmaCore.Types.Vertical) {
+            if (Plasmoid.formFactor === PlasmaCore.Types.Vertical) {
                 clickedCenter.anchors.verticalCenterOffset = fixedY;
             } else {
-                if (plasmoid.location === PlasmaCore.Types.BottomEdge) {
+                if (Plasmoid.location === PlasmaCore.Types.BottomEdge) {
                     clickedCenter.anchors.bottomMargin = fixedY;
-                } else if (plasmoid.location === PlasmaCore.Types.TopEdge) {
+                } else if (Plasmoid.location === PlasmaCore.Types.TopEdge) {
                     clickedCenter.anchors.topMargin = fixedY;
                 }
             }
@@ -169,10 +171,10 @@ Item {
 
     Loader {
         anchors.fill: parent
-        anchors.topMargin: plasmoid.location === PlasmaCore.Types.TopEdge ? indicator.screenEdgeMargin : 0
-        anchors.bottomMargin: plasmoid.location === PlasmaCore.Types.BottomEdge ? indicator.screenEdgeMargin : 0
-        anchors.leftMargin: plasmoid.location === PlasmaCore.Types.LeftEdge ? indicator.screenEdgeMargin : 0
-        anchors.rightMargin: plasmoid.location === PlasmaCore.Types.RightEdge ? indicator.screenEdgeMargin : 0
+        anchors.topMargin: Plasmoid.location === PlasmaCore.Types.TopEdge ? indicator.screenEdgeMargin : 0
+        anchors.bottomMargin: Plasmoid.location === PlasmaCore.Types.BottomEdge ? indicator.screenEdgeMargin : 0
+        anchors.leftMargin: Plasmoid.location === PlasmaCore.Types.LeftEdge ? indicator.screenEdgeMargin : 0
+        anchors.rightMargin: Plasmoid.location === PlasmaCore.Types.RightEdge ? indicator.screenEdgeMargin : 0
 
         visible: !indicator.isApplet && indicator.isGroup
         sourceComponent: Item{
@@ -185,14 +187,14 @@ Item {
                 height: width
             }
 
-            PlasmaCore.SvgItem {
+            KSvg.SvgItem {
                 id: arrow
 
                 implicitWidth: 0.25 * iconBox.width
                 implicitHeight: implicitWidth
 
                 svg: groupSvg
-                elementId: elementForLocation(plasmoid.location)
+                elementId: elementForLocation(Plasmoid.location)
 
                 readonly property QtObject groupSvg: indicator.resources && indicator.resources.svgs.length > 0 ? indicator.resources.svgs[0] : null
 
@@ -214,7 +216,7 @@ Item {
             states: [
                 State {
                     name: "bottom"
-                    when: plasmoid.location === PlasmaCore.Types.BottomEdge
+                    when: Plasmoid.location === PlasmaCore.Types.BottomEdge
                     AnchorChanges {
                         target: arrow
                         anchors.top: undefined; anchors.left: undefined; anchors.right: undefined; anchors.bottom: arrow.parent.bottom;
@@ -223,7 +225,7 @@ Item {
                 },
                 State {
                     name: "top"
-                    when: plasmoid.location === PlasmaCore.Types.TopEdge
+                    when: Plasmoid.location === PlasmaCore.Types.TopEdge
                     AnchorChanges {
                         target: arrow
                         anchors.top: arrow.parent.top; anchors.left: undefined; anchors.right: undefined; anchors.bottom: undefined;
@@ -232,7 +234,7 @@ Item {
                 },
                 State {
                     name: "left"
-                    when: plasmoid.location === PlasmaCore.Types.LeftEdge
+                    when: Plasmoid.location === PlasmaCore.Types.LeftEdge
                     AnchorChanges {
                         target: arrow
                         anchors.top: undefined; anchors.left: arrow.parent.left; anchors.right: undefined; anchors.bottom: undefined;
@@ -241,7 +243,7 @@ Item {
                 },
                 State {
                     name: "right"
-                    when: plasmoid.location === PlasmaCore.Types.RightEdge
+                    when: Plasmoid.location === PlasmaCore.Types.RightEdge
                     AnchorChanges {
                         target: arrow
                         anchors.top: undefined; anchors.left: undefined; anchors.right: arrow.parent.right; anchors.bottom: undefined;
