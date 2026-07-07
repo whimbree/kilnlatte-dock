@@ -661,6 +661,10 @@ welcome but not required.
       buffers are attached; analogclock loads, the tasks plasmoid
       correctly waits for Phase 6; found and fixed a startup segfault
       in winIdFor() and three latteView-null QML errors)
+      Follow-up under live verification: the surface maps and the
+      scene paints (confirmed on-screen via --graphics debug frames),
+      but the panel background and applet visuals do not draw yet -
+      tracked as the first Phase 6-cadence live item
 
 ### Phase 6: Task manager subsystem
 
