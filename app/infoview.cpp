@@ -14,19 +14,22 @@
 
 // Qt
 #include <QQuickItem>
+#include <QRandomGenerator>
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QScreen>
 
 // KDE
 #include <KLocalizedContext>
-#include <KDeclarative/KDeclarative>
 #include <KWindowSystem>
+#if HAVE_X11
+#include <KX11Extras>
+#endif
 #include <KWayland/Client/plasmashell.h>
 #include <KWayland/Client/surface.h>
 
 // Plasma
-#include <Plasma/Package>
+#include <KPackage/Package>
 
 namespace Latte {
 
@@ -36,7 +39,7 @@ InfoView::InfoView(Latte::Corona *corona, QString message, QScreen *screen, QWin
       m_message(message),
       m_screen(screen)
 {
-    m_id = QString::number(qrand() % 1000);
+    m_id = QString::number(QRandomGenerator::global()->bounded(1000));
 
     setTitle(validTitle());
 
@@ -77,11 +80,11 @@ void InfoView::init()
 {
     rootContext()->setContextProperty(QStringLiteral("infoWindow"), this);
 
-    KDeclarative::KDeclarative kdeclarative;
-    kdeclarative.setDeclarativeEngine(engine());
-    kdeclarative.setTranslationDomain(QStringLiteral("latte-dock"));
-    kdeclarative.setupContext();
-    kdeclarative.setupEngine(engine());
+    //! KDeclarative's engine setup is gone in KF6; the piece Latte needs from
+    //! it is the i18n() context for the QML side
+    auto *localizedContext = new KLocalizedContext(engine());
+    localizedContext->setTranslationDomain(QStringLiteral("latte-dock"));
+    engine()->rootContext()->setContextObject(localizedContext);
 
     auto source = QUrl::fromLocalFile(m_corona->kPackage().filePath("infoviewui"));
     setSource(source);
@@ -96,7 +99,7 @@ QString InfoView::validTitle() const
     return "#layoutinfowindow#" + m_id;
 }
 
-Plasma::FrameSvg::EnabledBorders InfoView::enabledBorders() const
+KSvg::FrameSvg::EnabledBorders InfoView::enabledBorders() const
 {
     return m_borders;
 }
@@ -215,7 +218,17 @@ bool InfoView::event(QEvent *e)
 
 void InfoView::setOnActivities(QStringList activities)
 {
-    KWindowSystem::setOnActivities(winId(), activities);
+#if HAVE_X11
+    if (KWindowSystem::isPlatformX11()) {
+        KX11Extras::setOnActivities(winId(), activities);
+        return;
+    }
+#endif
+    //! STUB: Phase 4 - KF6 moved WId-based setOnActivities to KX11Extras and
+    //! there is no equivalent call for Wayland here yet; the info window shows
+    //! on all activities until the window-system backend phase decides whether
+    //! per-activity placement needs a wayland implementation
+    Q_UNUSED(activities);
 }
 
 }

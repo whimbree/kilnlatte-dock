@@ -19,11 +19,6 @@
 #include <config-latte.h>
 #if HAVE_X11
 #include <QTimer> //Used only in x11 case
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-#include <private/qtx11extras_p.h>
-#else
-#include <QX11Info>
-#endif
 #include <xcb/randr.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_event.h>
@@ -52,10 +47,12 @@ PrimaryOutputWatcher::PrimaryOutputWatcher(QObject *parent)
     : QObject(parent)
 {
 #if HAVE_X11
-    if (KWindowSystem::isPlatformX11()) {
+    const auto *x11App = qGuiApp->nativeInterface<QNativeInterface::QX11Application>();
+
+    if (KWindowSystem::isPlatformX11() && x11App) {
         m_primaryOutputName = qGuiApp->primaryScreen()->name();
         qGuiApp->installNativeEventFilter(this);
-        const xcb_query_extension_reply_t *reply = xcb_get_extension_data(QX11Info::connection(), &xcb_randr_id);
+        const xcb_query_extension_reply_t *reply = xcb_get_extension_data(x11App->connection(), &xcb_randr_id);
         m_xrandrExtensionOffset = reply->first_event;
         setPrimaryOutputName(qGuiApp->primaryScreen()->name());
         connect(qGuiApp, &QGuiApplication::primaryScreenChanged, this, [this](QScreen *newPrimary) {
@@ -112,11 +109,7 @@ void PrimaryOutputWatcher::setupRegistry()
     m_registry->setup();
 }
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-bool PrimaryOutputWatcher::nativeEventFilter(const QByteArray &eventType, void *message, long int *result)
-#else
 bool PrimaryOutputWatcher::nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result)
-#endif
 {
     Q_UNUSED(result);
 #if HAVE_X11

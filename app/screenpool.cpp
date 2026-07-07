@@ -20,14 +20,6 @@
 #include <KLocalizedString>
 #include <KWindowSystem>
 
-// X11
-#if HAVE_X11
-#include <QtX11Extras/QX11Info>
-#include <xcb/xcb.h>
-#include <xcb/randr.h>
-#include <xcb/xcb_event.h>
-#endif
-
 namespace Latte {
 
 const int ScreenPool::FIRSTSCREENID;
