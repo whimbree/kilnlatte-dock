@@ -101,14 +101,11 @@
         "Name[uk]": "контейнер Латте",
         "Name[zh_CN]": "Latte 容器",
         "Name[zh_TW]": "Latte 容器",
-        "ServiceTypes": [
-            "Plasma/Applet",
-            "Plasma/Containment"
-        ],
         "Website": "https://userbase.kde.org/LatteDock"
     },
     "NoDisplay": true,
     "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-API-Minimum-Version": "6.0",
     "X-Plasma-ContainmentType": "Panel",
     "X-Plasma-MainScript": "ui/main.qml"
 }

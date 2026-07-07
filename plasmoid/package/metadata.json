@@ -106,13 +106,11 @@
         "Name[uk]": "Завдання Латте",
         "Name[zh_CN]": "Latte 任务管理器",
         "Name[zh_TW]": "Latte 工作",
-        "ServiceTypes": [
-            "Plasma/Applet"
-        ],
         "Version": "0.1",
         "Website": "https://userbase.kde.org/LatteDock"
     },
     "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-API-Minimum-Version": "6.0",
     "X-Plasma-MainScript": "ui/main.qml",
     "X-Plasma-Provides": [
         "org.kde.plasma.multitasking"

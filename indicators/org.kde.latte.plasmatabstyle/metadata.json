@@ -104,11 +104,9 @@
         "Name[uk]": "Стиль вкладок Плазми",
         "Name[zh_CN]": "Plasma 标签页风格",
         "Name[zh_TW]": "Plasma 分頁樣式",
-        "ServiceTypes": [
-            "Latte/Indicator"
-        ],
         "Version": "0.1"
     },
     "X-Latte-MainScript": "ui/main.qml",
-    "X-Plasma-API": "declarativeappletscript"
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-API-Minimum-Version": "6.0"
 }

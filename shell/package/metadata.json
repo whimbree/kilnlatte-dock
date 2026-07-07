@@ -105,12 +105,10 @@
         "Name[uk]": "Оболонка Латте",
         "Name[zh_CN]": "Latte Shell",
         "Name[zh_TW]": "Latte Shell",
-        "ServiceTypes": [
-            "Plasma/Shell"
-        ],
         "Website": "https://userbase.kde.org/LatteDock"
     },
     "Keywords": "shell",
+    "X-Plasma-API-Minimum-Version": "6.0",
     "Keywords[ar]": "الصدَفة",
     "Keywords[az]": "üzlük",
     "Keywords[ca@valencia]": "intèrpret d'ordres",

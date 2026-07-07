@@ -110,13 +110,11 @@
         "Name[uk]": "Латте",
         "Name[zh_CN]": "Latte",
         "Name[zh_TW]": "Latte",
-        "ServiceTypes": [
-            "Latte/Indicator"
-        ],
         "Version": "0.1"
     },
     "X-Latte-ConfigUi": "config/config.qml",
     "X-Latte-ConfigXml": "config/main.xml",
     "X-Latte-MainScript": "ui/main.qml",
-    "X-Plasma-API": "declarativeappletscript"
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-API-Minimum-Version": "6.0"
 }
