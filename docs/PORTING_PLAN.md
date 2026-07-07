@@ -912,5 +912,5 @@ polished, distributable form of it.
 
 ## Status
 
-Not started. Phase 0 (build environment + testing ground rules) is
-next.
+Phase 0 done (toolchain devShell, build check, testing standard).
+Phase 1 (build system migration) is next.
