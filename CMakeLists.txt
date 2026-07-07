@@ -45,6 +45,11 @@ remove_definitions(-DQT_NO_CAST_FROM_BYTEARRAY)
 find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED NO_MODULE
     COMPONENTS Core DBus Gui Qml Quick Widgets)
 
+include(CTest)
+if(BUILD_TESTING)
+    find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS Test)
+endif()
+
 find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS
     Archive Config CoreAddons Crash DBusAddons GlobalAccel GuiAddons
     I18n IconThemes KIO NewStuff Notifications Package Service Svg WindowSystem
@@ -163,5 +168,9 @@ add_subdirectory(containment)
 add_subdirectory(icons)
 add_subdirectory(plasmoid)
 add_subdirectory(shell)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
 
 ki18n_install(po)

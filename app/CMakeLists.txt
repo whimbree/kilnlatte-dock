@@ -5,7 +5,6 @@ set(lattedock-app_SRCS
     lattecorona.cpp
     screenpool.cpp
     primaryoutputwatcher.cpp
-    main.cpp    
     coretypes.h
 )
 
@@ -55,11 +54,16 @@ ecm_add_qtwayland_client_protocol(lattedock-app_SRCS
     BASENAME kde-primary-output-v1
 )
 
-add_executable(latte-dock ${lattedock-app_SRCS})
+# everything except main() lives in an object library so the tests can link
+# the real compiled code instead of re-building or mocking it
+add_library(lattedock-core OBJECT ${lattedock-app_SRCS})
+
+add_executable(latte-dock main.cpp)
+target_link_libraries(latte-dock lattedock-core)
 
 include(FakeTarget.cmake)
 
-target_link_libraries(latte-dock
+target_link_libraries(lattedock-core PUBLIC
     Qt6::DBus
     Qt6::Quick
     Qt6::Qml
@@ -90,7 +94,7 @@ target_link_libraries(latte-dock
 
 
 if(HAVE_X11)
-    target_link_libraries(latte-dock
+    target_link_libraries(lattedock-core PUBLIC
         ${X11_LIBRARIES}
         ${XCB_LIBRARIES}
     )

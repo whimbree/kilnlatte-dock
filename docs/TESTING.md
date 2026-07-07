@@ -40,9 +40,19 @@ how large this class is; expect the same here.
 
 Adopt latte-dock-qt6's three-piece shape, adapted rather than copied:
 
+- **C++ behavioral tests** (`tests/`, ctest, ran by
+  `scripts/build-check.sh`) - link the real compiled application code
+  through the `lattedock-core` object library instead of mocking or
+  re-building it, redirect XDG paths at throwaway temp dirs, run
+  offscreen. First occupant: the `Importer::uniqueLayoutName`
+  regression test pinning the QRegExp -> QRegularExpression
+  copy-suffix behavior. (This piece firmed up at the Phase 2 compile
+  milestone.)
 - **Headless QML interaction harness** - drives real package QML
-  components offscreen with honest mock contexts. Lands together with
-  the first code that compiles (end of Phase 2), grows with each phase.
+  components offscreen with honest mock contexts. Deliberately
+  deferred to Phase 5: the package QML is still unported Plasma
+  5-style code until then, and a harness exercising code that is
+  about to be rewritten tests nothing worth keeping.
 - **Coverage ratchet** - fails the build check on regression below the
   recorded baseline. Baseline gets recorded once the harness produces
   its first honest number; ratchet thresholds only ever move up.

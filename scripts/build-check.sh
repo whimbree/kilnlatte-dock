@@ -31,4 +31,6 @@ check() {
 check build -DWITH_X11=ON
 check build-no-x11 -DWITH_X11=OFF
 
+ctest --test-dir "$repo/build" --output-on-failure
+
 echo "build-check: OK"
