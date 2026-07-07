@@ -96,31 +96,34 @@ testing standard adopted during stabilization can't shape any test
 written before it. Both belong before the first porting commit, not
 in Phases 10-11 where they originally sat.
 
-- [ ] Minimal reproducible Qt6/KF6 toolchain: a Nix devShell (or the
+- [x] Minimal reproducible Qt6/KF6 toolchain: a Nix devShell (or the
       Docker image, matching the verification pattern already built
       for latte-dock-ng) with the full Phase 1 dependency list
       available to `find_package`. Just enough to build - the
       polished packaging (flake outputs, overlay, NixOS module) stays
       in Phase 11
-      Commits:
-- [ ] One-command build check (script or make target) runnable
+      Commits: 14980059 (flake devShell, nixos-unstable pin, Qt 6.11.1)
+- [x] One-command build check (script or make target) runnable
       per-commit once Phase 2's compile milestone lands - cheap
       insurance across a 100+-item port. Once Phase 4 introduces the
       `HAVE_X11` option it must build both ON and OFF, since the
       author only runs Wayland and an untested `#ifdef` path rots in
       weeks otherwise
-      Commits:
-- [ ] Write the "honest coverage" testing standard doc now (no test
+      Commits: 6c0134bc (`scripts/build-check.sh`; expected to fail
+      until the Phase 1/2 milestones - that failing run is the Phase 1
+      work loop)
+- [x] Write the "honest coverage" testing standard doc now (no test
       that doesn't assert something real/observable), modeled on
       latte-dock-qt6's documented standard (`5fcaa9f1`/`c903921d` in
       its history), which explicitly bans gaming the metric
-      Commits:
-- [ ] Decide the test-infrastructure shape while it can still grow
+      Commits: c221f6e1 (`docs/TESTING.md`)
+- [x] Decide the test-infrastructure shape while it can still grow
       with the code: coverage-ratchet baseline (fails on regression),
       headless QML interaction-test harness skeleton. The
       e2e/screenshot harness needs a runnable dock and stays in
       Phase 10
-      Commits:
+      Commits: c221f6e1 (decision recorded in `docs/TESTING.md`;
+      harness/ratchet code lands with the Phase 2 compile milestone)
 
 ### Phase 1: Build system migration
 
