@@ -191,22 +191,24 @@ belongs in a later phase instead.
 
 - [ ] `QString::SkipEmptyParts` -> `Qt::SkipEmptyParts`
       Commits:
-- [ ] `foreach` -> range-for (verify no mutate-during-iteration/detach
+- [x] `foreach` -> range-for (verify no mutate-during-iteration/detach
       semantics changed per site)
-      Commits:
+      Commits: d7801e30 (all six sites verified read-only)
 - [ ] `QMouseEvent`/`QWheelEvent::pos()` -> `position().toPoint()`
       Commits:
-- [ ] `QRegExp` -> `QRegularExpression` - **not always behavior-
+- [x] `QRegExp` -> `QRegularExpression` - **not always behavior-
       identical**: latte-dock-qt6 needed a dedicated regression test
       after this subtly changed the " - [0-9]+" copy-suffix match in
       `Importer::uniqueLayoutName`. Verify each nontrivial pattern,
       don't assume equivalence
-      Commits:
-- [ ] Drop the removed `QDesktopWidget` include and its usages
-      Commits:
-- [ ] `emit`/`signals`/`slots` -> `Q_EMIT`/`Q_SIGNALS`/`Q_SLOTS` (KDE
+      Commits: 6baf2603 (all five sites are the same copy-suffix
+      pattern, converted to the form latte-dock-qt6 regression-tested;
+      the pinning unit test lands with the Phase 2 test harness)
+- [x] Drop the removed `QDesktopWidget` include and its usages
+      Commits: 16f47bf1 (include only, there were no usages)
+- [x] `emit`/`signals`/`slots` -> `Q_EMIT`/`Q_SIGNALS`/`Q_SLOTS` (KDE
       compiler settings strictness)
-      Commits:
+      Commits: 46484d25
 - [ ] Wrap bare string literals in `QStringLiteral`/`QLatin1String`
       (`QT_NO_CAST_FROM_ASCII`/`_BYTEARRAY` - latte-dock-ng wrapped
       ~720 sites doing this). Sequencing freedom: if this churn is
@@ -217,13 +219,13 @@ belongs in a later phase instead.
       Commits:
 - [ ] C-style casts -> `static_cast<>()`
       Commits:
-- [ ] `qrand` -> `QRandomGenerator`
-      Commits:
-- [ ] `QButtonGroup::idToggled` rename (from the removed
+- [x] `qrand` -> `QRandomGenerator`
+      Commits: 478efa54 (single site, infoview)
+- [x] `QButtonGroup::idToggled` rename (from the removed
       `buttonToggled`/similar Qt5 signal)
-      Commits:
-- [ ] `ManagedTextureNode` -> `QSGSimpleTextureNode`
-      Commits:
+      Commits: 1ae47bd6
+- [x] `ManagedTextureNode` -> `QSGSimpleTextureNode`
+      Commits: ef7e26f9 (single site, IconItem; adds setOwnsTexture)
 - [ ] `QDBusInterface` -> `QDBusMessage`/`QDBusConnection::call()`
       throughout - Qt 6.8+ deprecated the `serviceOwnerChanged` signal
       `QDBusInterface` connects to internally, otherwise every D-Bus
@@ -921,8 +923,30 @@ polished, distributable form of it.
 
 ## Status
 
-Phases 0-1 done: toolchain devShell, build check, testing standard,
-and the CMake migration (configures cleanly against Qt 6.11.1 /
-KF 6.27.0 / libplasma 6.7.2, both X11 variants). Phase 2 (mechanical
-source conversion) is next; the build check now fails at compile, as
-expected, and Phase 2's job is to make it pass.
+Phases 0-1 done. Phases 2-3 well underway, interleaved as expected
+(the compile milestone needs the compile-blocking subset of the KF6
+API migration). All five QML/plugin library targets compile and link;
+the latte-dock app target is mid-port. Remaining compile surface, in
+order of size:
+
+- the WindowId refactor (Phase 4 item, pulled forward because Qt6
+  removed QVariant comparison operators, breaking every
+  QMap<WindowId,...> and numeric validity check): adopt
+  latte-dock-ng's proven design of WindowId = QByteArray (wayland
+  PlasmaWindow::uuid(), X11 ids as number strings), validity =
+  !isEmpty(), and convert the ~19 internalId() sites in
+  waylandinterface plus every id assignment/check in the trackers,
+  sub-windows, config views, positioner and main/child detection
+- xwindowinterface.cpp QX11Info -> QNativeInterface (best-effort X11
+  path, same pattern as primaryoutputwatcher)
+- view.cpp bundle: SkipEmptyParts, setClearBeforeRendering (gone in
+  Qt6 RHI), KWindowSystem::forceActiveWindow/setOnAllDesktops ->
+  KX11Extras, containment actions, runningActivitiesChanged
+- tracker Q_PROPERTY pointer metatypes need fully-defined types
+  (include real headers instead of forward declarations in tracker
+  headers; Qt 6.11 moc enforces it)
+- assorted signal/slot compatibility static asserts
+
+Everything committed so far keeps the plugin targets green; the
+milestone commit at the end of this stretch is the one that must
+build everything.
