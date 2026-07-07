@@ -1080,7 +1080,9 @@ ContainmentItem {
 
     //! It is used in order to slide-in the latteView on startup
     onInStartupChanged: {
-        if (!inStartup) {
+        //! latteView can still be null here on Plasma 6: the C++ View
+        //! wrapper is injected after the containment graphic object exists
+        if (!inStartup && latteView) {
             latteView.positioner.startupFinished();
             latteView.positioner.slideInDuringStartup();
             visibilityManager.slotMustBeShown();

@@ -322,6 +322,12 @@ Item{
     }
 
     function updateInputGeometry() {
+        //! latteView is still null when this runs during startup, before the
+        //! C++ View wrapper is injected
+        if (!latteView) {
+            return;
+        }
+
         // VisibilityManager.qml tries to workaround faulty onEntered() signals from ParabolicMouseArea
         // by specifying inputThickness when ParabolicEffect is applied. (inputThickness->animated scenario)
         var animated = (animations.needBothAxis.count>0);
@@ -455,6 +461,12 @@ Item{
 
         ScriptAction{
             script: {
+                //! latteView is still null when the hiding animation fires
+                //! during startup, before the C++ View wrapper is injected
+                if (!latteView) {
+                    return;
+                }
+
                 latteView.visibility.isHidden = true;
 
                 if (root.behaveAsPlasmaPanel && latteView.positioner.slideOffset !== 0) {
@@ -480,7 +492,9 @@ Item{
                 }
             }
 
-            latteView.visibility.slideOutFinished();
+            if (latteView) {
+                latteView.visibility.slideOutFinished();
+            }
             manager.updateInputGeometry();
 
             if (root.inStartup) {
