@@ -48,11 +48,25 @@ Adopt latte-dock-qt6's three-piece shape, adapted rather than copied:
   regression test pinning the QRegExp -> QRegularExpression
   copy-suffix behavior. (This piece firmed up at the Phase 2 compile
   milestone.)
-- **Headless QML interaction harness** - drives real package QML
-  components offscreen with honest mock contexts. Deliberately
-  deferred to Phase 5: the package QML is still unported Plasma
-  5-style code until then, and a harness exercising code that is
-  about to be rewritten tests nothing worth keeping.
+- **Headless QML checks** (landed at the Phase 5 milestone, two ctest
+  entries):
+  - `qmlcompilegate` (`scripts/qml-compile-gate.sh`) stages a cmake
+    install and compiles every package QML file in a real engine via
+    `Qt.createComponent` - type resolution and property-assignment
+    existence for lazy, interaction-only components included. Skips
+    (and reports) files needing the running app's private module or
+    plasma-workspace's private shell module.
+  - `qmlinteraction` (`scripts/qml-interaction-tests.sh`) runs
+    `tests/qml/tst_*.qml` through qmltestrunner against the staged
+    Latte modules, so module registration and type resolution are part
+    of every test. First occupant: `tst_shadoweditem.qml`.
+  Both source `scripts/lib-qml-env.sh`, which assembles the import
+  path from the devShell's pinned module set - the user profile's
+  QML2_IMPORT_PATH and the engine's ambient defaults resolve modules
+  from foreign Qt builds on this host and must not leak in.
+- **Live-run script** - `scripts/run-staged.sh` starts the staged dock
+  against the live Wayland session with a throwaway XDG_CONFIG_HOME;
+  this is the vehicle for the per-phase live verification cadence.
 - **Coverage ratchet** - fails the build check on regression below the
   recorded baseline. Baseline gets recorded once the harness produces
   its first honest number; ratchet thresholds only ever move up.

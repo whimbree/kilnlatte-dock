@@ -459,58 +459,62 @@ welcome but not required.
 
 ### Phase 5: QML controls & rendering migration
 
-- [ ] `PlasmaComponents 2.0` -> `3.0` everywhere on the load path (2.0
+- [x] `PlasmaComponents 2.0` -> `3.0` everywhere on the load path (2.0
       is removed in Plasma 6 - an unresolved import hard-fails the
       *whole* QML load, not just the missing control)
-      Commits:
-- [ ] `PlasmaCore.FrameSvgItem`/`SvgItem`/`Svg` -> the `KSvg` module
+      Commits: b474adad (plus 523e04a4
+      for the three indicator packages the compile gate caught still
+      on Plasma 5 QML)
+- [x] `PlasmaCore.FrameSvgItem`/`SvgItem`/`Svg` -> the `KSvg` module
       (`org.kde.ksvg`) - moved out of `org.kde.plasma.core`
-      Commits:
-- [ ] Drop `QtQuick.Controls.Styles.Plasma` and `QtQuick.Dialogs 1.x`
+      Commits: b474adad, 523e04a4
+- [x] Drop `QtQuick.Controls.Styles.Plasma` and `QtQuick.Dialogs 1.x`
       imports
-      Commits:
-- [ ] Remove `ExclusiveGroup` usage everywhere - it's gone in Controls
+      Commits: b474adad (EffectsConfig moved to the
+      Qt6 QtQuick.Dialogs, which is a different, live module)
+- [x] Remove `ExclusiveGroup` usage everywhere - it's gone in Controls
       2, and in both forks' experience every button using one already
       had `checked` driven by an external binding (the group was dead
       weight); drive exclusivity from data directly
-      Commits:
-- [ ] `Slider.minimumValue`/`maximumValue` -> `from`/`to`; drop
+      Commits: b474adad
+- [x] `Slider.minimumValue`/`maximumValue` -> `from`/`to`; drop
       `tickmarksEnabled` (no Controls 2 equivalent)
-      Commits:
-- [ ] Collapse frameless/empty-title `GroupBox` wrappers to plain
+      Commits: b474adad
+- [x] Collapse frameless/empty-title `GroupBox` wrappers to plain
       `ColumnLayout` (Controls 2 `GroupBox` has no `flat` property)
-      Commits:
-- [ ] Replace `tooltip`/`iconSource`/`iconName` properties (removed
+      Commits: b474adad
+- [x] Replace `tooltip`/`iconSource`/`iconName` properties (removed
       from Controls 2 `Button`/`ComboBox`/`ToolButton`) with
       `icon.name` plus the `QQC2.ToolTip` attached property
       (`text:`, `visible: hovered`)
-      Commits:
-- [ ] `TabBar.currentTab` -> `currentIndex`/`currentItem`
-      Commits:
-- [ ] Stop redeclaring `implicitWidth`/`implicitHeight` on custom
+      Commits: b474adad
+- [x] `TabBar.currentTab` -> `currentIndex`/`currentItem`
+      Commits: b474adad
+- [x] Stop redeclaring `implicitWidth`/`implicitHeight` on custom
       controls (`final` on Qt6 base controls - both forks hit this as
       a *compile failure*, not a misbehavior, on
       `TextField`/`ExternalShadow`/`HeaderSwitch`); bind instead
-      Commits:
-- [ ] Detect a `ListModel` by probing for `.get()`, not
+      Commits: b474adad
+- [x] Detect a `ListModel` by probing for `.get()`, not
       `Array.isArray()` - a Qt6 sequence-type model needs the `.get()`
       branch
-      Commits:
-- [ ] Replace removed `PlasmaExtras.ScrollArea` with `QtQuick Controls
+      Commits: b474adad (ComboBox probes typeof
+      model.get === "function")
+- [x] Replace removed `PlasmaExtras.ScrollArea` with `QtQuick Controls
       ScrollView` everywhere it's used
-      Commits:
-- [ ] Port context menus from `PlasmaComponents` `ContextMenu`/
+      Commits: b474adad
+- [x] Port context menus from `PlasmaComponents` `ContextMenu`/
       `MenuItem` (removed) to `org.kde.plasma.extras`'s `Menu`/
       `MenuItem`; hold each item's `Connections` and submenu as named
       properties since `QMenuItem` has no default property anymore
-      Commits:
-- [ ] Replace bare `theme`/`units` global context properties (removed)
+      Commits: b474adad
+- [x] Replace bare `theme`/`units` global context properties (removed)
       with explicit `Kirigami.Theme`/`Kirigami.Units`
-      Commits:
-- [ ] Replace removed `ColorScope` accessors with `Kirigami`/`KSvg`
+      Commits: b474adad
+- [x] Replace removed `ColorScope` accessors with `Kirigami`/`KSvg`
       theming directly
-      Commits:
-- [ ] Build a `ShadowedItem`-style wrapper component (`MultiEffect`
+      Commits: b474adad
+- [x] Build a `ShadowedItem`-style wrapper component (`MultiEffect`
       preconfigured as a drop shadow, normalizing the old pixel radius
       into `MultiEffect`'s 0..1 `shadowBlur`) to replace
       `QtGraphicalEffects` drop shadows - **verify the QML type
@@ -518,35 +522,41 @@ welcome but not required.
       has an unresolved `LatteComponents.ShadowedItem is not a type`
       bug with exactly this shape of component, never root-caused this
       session
-      Commits:
-- [ ] Port glow/saturation/colorize/brightness effects (task icon
+      Commits: b474adad (the wrapper), 523e04a4
+      (tests/qml/tst_shadoweditem.qml resolves the type through the
+      real module import and pins the px->shadowBlur math - the
+      resolution check the fork never had)
+- [x] Port glow/saturation/colorize/brightness effects (task icon
       states, tooltip masks) from `QtGraphicalEffects` to
       `QtQuick.Effects`'s `MultiEffect`
-      Commits:
-- [ ] Port scroll-edge shadows, scroll-opacity masks, glow-point
+      Commits: b474adad (containment/
+      declarativeimports side; the tasks plasmoid's copies are Phase 6)
+- [x] Port scroll-edge shadows, scroll-opacity masks, glow-point
       corner/band gradients to `QtQuick.Shapes` gradients
-      Commits:
-- [ ] Rewrite icon badge masking (info/progress cutouts) using
+      Commits: b474adad
+- [x] Rewrite icon badge masking (info/progress cutouts) using
       `MultiEffect`'s `maskEnabled`+`maskInverted` from the start - the
       legacy inline GLSL `ShaderEffect` approach **does not compile
       under Qt6 RHI** ("shaders must be preprocessed using qsb"), don't
       port the old shader path first
-      Commits:
-- [ ] Fix bridge/interface discovery to check the applet item itself
+      Commits: b474adad (containment side; the tasks
+      plasmoid's badges are Phase 6)
+- [x] Fix bridge/interface discovery to check the applet item itself
       first (not just its children) for the `latteBridge` property -
       `AppletQuickItem::itemForApplet()` returns the applet's QML root
       (the `PlasmoidItem`) directly on Plasma 6, one level higher than
       Plasma 5's wrapping. Without this, Latte-aware applets (the tasks
       plasmoid) never receive the bridge and silently run with zoom/
       abilities disabled
-      Commits:
-- [ ] Replace removed `applet.action(name)` calls with
+      Commits: b474adad (AppletIdentifier.js probes the
+      applet root first)
+- [x] Replace removed `applet.action(name)` calls with
       `Plasmoid.internalAction(name)` / `applet.plasmoid.internalAction(name)`
       - the removed method throws a `TypeError` that can abort an
       entire handler (both Configure and Remove broke this way in one
       fork)
-      Commits:
-- [ ] Build plasmoid configuration access correctly from the start:
+      Commits: b474adad
+- [x] Build plasmoid configuration access correctly from the start:
       `AppletQuickItem` has **no static `configuration` property on
       Plasma 6** (latte-dock-ng discovered this after merging our PR,
       via its own `ed0afd054`/`94f87ba66`/`eabf7c89a`). Build a
@@ -564,8 +574,14 @@ welcome but not required.
       through one is invisible to the other, which is exactly how
       latte-dock-ng's Tasks config tab silently did nothing for a long
       time despite looking wired up
-      Commits:
-- [ ] Defer any `QQmlContext`/`QQmlEngine` access performed from applet-
+      Commits: 33830b2c (deviation: the containment
+      configuration resolves through the applet chain
+      PlasmoidItem.plasmoid -> configuration - Plasma 6's Applet
+      carries the map, so no second KConfigLoader is ever built and
+      the single-loader rule holds by construction; the indicator
+      package config kept its own KConfigLoader from Phase 3 since
+      indicators are not applets)
+- [x] Defer any `QQmlContext`/`QQmlEngine` access performed from applet-
       configuration code (e.g. an `appletConfiguration()`-style
       accessor) until the config page actually opens, not during early
       containment initialization - latte-dock-ng's `2b0963186` found
@@ -577,30 +593,35 @@ welcome but not required.
       (latte-dock-ng used ~1-2s `QTimer::singleShot`, retried until the
       graphic object is available) rather than assuming it exists
       synchronously
-      Commits:
-- [ ] Read dock location changes through `containment.plasmoid`
+      Commits: 33830b2c (appletConfiguration() is only
+      called from config-page paths; nothing reads engine state during
+      early containment init - verified against the live startup run)
+- [x] Read dock location changes through `containment.plasmoid`
       (`locationChanged` and `location` moved to the backing applet -
       the containment graphic object no longer emits it itself)
-      Commits:
-- [ ] Handle the `appletAdded` signal's new `QRectF` geometry hint
+      Commits: b474adad
+- [x] Handle the `appletAdded` signal's new `QRectF` geometry hint
       (was `(int x, int y)`) - detect the shape (`typeof x === "object"`)
       or move position logic to C++ entirely; a naive handler assuming
       the old signature silently defaults to (0,0), landing new widgets
       at the wrong end of the dock with no error
-      Commits:
-- [ ] Audit `Containment.onAppletAdded`/`onAppletRemoved` and other
+      Commits: b474adad (main.qml reads
+      geometryHint.x/y)
+- [x] Audit `Containment.onAppletAdded`/`onAppletRemoved` and other
       signal handlers for whether they need explicit
       `function(applet, rect)` parameters instead of Qt6's deprecated
       implicit parameter injection - verify each one against a real
       running dock, this is inconsistent across signal types
-      Commits:
-- [ ] Convert every `DropArea` `onDragEnter`/`onDragMove`/`onDrop`
+      Commits: b474adad (explicit parameters
+      everywhere; per-handler live verification continues through
+      Phases 6-8 as each subsystem is driven)
+- [x] Convert every `DropArea` `onDragEnter`/`onDragMove`/`onDrop`
       handler from `function onDrop(event) {...}` form (does **not**
       connect to the signal in Qt6, silently becomes a dead method - both
       forks independently found this) to the arrow-function/binding
       form: `onDrop: (event) => {...}`
-      Commits:
-- [ ] Audit every `when:`-gated `Binding` for whether it needs
+      Commits: b474adad
+- [x] Audit every `when:`-gated `Binding` for whether it needs
       `restoreMode: Binding.RestoreNone` - Qt6's default changed to
       `RestoreBindingOrValue`, so any transient-gated binding (drag/
       reorder, relocation, edit-mode transition, screen-gap animation,
@@ -609,29 +630,37 @@ welcome but not required.
       forks hit this *repeatedly*, in different subsystems, discovered
       piecemeal - do this as one deliberate audit pass, not as bugs
       come in
-      Commits:
-- [ ] Contract-test each `Qt.MidButton`/`Qt.MiddleButton` site
+      Commits: b474adad (47 annotations),
+      cbf198fd (the deliberate single pass over the remaining 55
+      sites; the tasks plasmoid is excluded until Phase 6)
+- [x] Contract-test each `Qt.MidButton`/`Qt.MiddleButton` site
       individually rather than blanket-renaming - latte-dock-ng found
       at least one site where keeping the *old* `Qt.MidButton` name was
       required (the new name caused C++/QML double-handling of the same
       event)
-      Commits:
-- [ ] Replace the `KWindowSystem` creatable-QML-element usage in the
+      Commits: b474adad (the two EnvironmentActions
+      sites keep Qt.MidButton deliberately - renaming caused C++/QML
+      double-handling in latte-dock-ng)
+- [x] Replace the `KWindowSystem` creatable-QML-element usage in the
       widget explorer with the KF6 singleton form
-      Commits:
-- [ ] Rebuild `AppletDelegate` (widget explorer entry) around the
+      Commits: b474adad
+- [x] Rebuild `AppletDelegate` (widget explorer entry) around the
       current upstream Plasma 6 layout (instance-count badge, remove/
       uninstall buttons) - both forks did a substantial rewrite here,
       not an incremental patch; load its context menus from
       `org.kde.plasma.extras`
-      Commits:
-- [ ] Milestone: **first runnable dock** - starts under a live
+      Commits: b474adad
+- [x] Milestone: **first runnable dock** - starts under a live
       Plasma 6 Wayland session and renders a panel with at least one
       non-tasks applet (tasks needs Phase 6). From this point the
       per-phase verification cadence from the top of this section
       applies: drive each phase's subsystem in a running session
       before ticking its last box
-      Commits:
+      Commits: 5059840e (protocol-verified: KWin
+      configures the layer surface at 2560x256 on the bottom edge and
+      buffers are attached; analogclock loads, the tasks plasmoid
+      correctly waits for Phase 6; found and fixed a startup segfault
+      in winIdFor() and three latteView-null QML errors)
 
 ### Phase 6: Task manager subsystem
 
@@ -987,11 +1016,13 @@ polished, distributable form of it.
 
 ## Status
 
-Phases 0-2 done, Phase 3 nearly done, Phase 4 done. 49 of 127 items
-ticked. The compile milestone holds: the full tree configures, compiles
-and links in both WITH_X11 variants via `scripts/build-check.sh`
-(Qt 6.11.1 / KF 6.27.0 / libplasma 6.7.2), ctest green (importer
-regression + layer-shell mapping tests).
+Phases 0-2 done, Phase 3 nearly done, Phases 4 and 5 done. 80 of 128
+items ticked. **The first runnable milestone is reached**: the dock
+starts under the live Plasma 6 Wayland session (KWin 6.6.5), creates
+its wlr-layer-shell surface, gets configured by the compositor at
+2560x256 on the bottom edge, attaches buffers and renders, with the
+analogclock applet loaded. `scripts/run-staged.sh` reproduces the run
+(throwaway config home, staged install, sanitized session env).
 
 Phase 4 summary: every Latte window is a wlr-layer-shell surface now
 and the plasma-shell surface path is deleted. The mapping between
@@ -1007,12 +1038,26 @@ down; the X11 backend gives the mode keep-above). The KWin D-Bus
 activation/peek item folded into Phase 6 where its only invocation
 site (the tasks backend) will exist.
 
+Phase 5 summary: the whole QML load path (shell package, containment
+package, Latte QML modules, the three indicator packages) is on
+Plasma 6 / Qt6 Quick; the tasks plasmoid deliberately stays Plasma 5
+until Phase 6 and fails its applet load cleanly. Testing grew two
+ctest entries: a compile gate that loads all 91 package QML files in a
+real engine (it caught the indicator packages the main sweep missed)
+and the qmltestrunner interaction harness whose first occupant pins
+ShadowedItem's type resolution and math. Live startup found and fixed
+a winIdFor() segfault (window management not yet announced) and three
+latteView-null QML errors.
+
 Still open from Phases 2-3, all deliberately deferred hygiene: the
 ~720-site QStringLiteral wrap (compiler flags stubbed off),
 C-style-cast cleanup, QDBusInterface -> QDBusMessage conversion. Open
-Phase 4-adjacent stubs: wayland skipTaskBar for dialogs, per-activity
-placement for the info window, the canvas interactive-chrome rect
-(all waiting on Phase 5 QML or Phase 8 decisions).
+stubs: wayland skipTaskBar for dialogs, per-activity placement for the
+info window, the canvas interactive-chrome rect (the QML side now
+exists in the fork's shape but wiring waits for edit-mode live testing
+in Phase 7), activity stopping (Phase 8 decision).
 
-Nothing has been run yet; the first runnable milestone is end of
-Phase 5 (QML load path next).
+From here on the per-phase verification cadence applies: each phase's
+subsystem gets driven in the live session before its last box is
+ticked. Next: Phase 6, the task manager subsystem (vendor-vs-shim
+decision first).
