@@ -45,7 +45,7 @@
 
 // KDe
 #include <KActionCollection>
-#include <KActivities/Consumer>
+#include <PlasmaActivities/Consumer>
 #include <KWayland/Client/plasmashell.h>
 #include <KWayland/Client/surface.h>
 #include <KWindowSystem>

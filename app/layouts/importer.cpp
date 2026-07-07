@@ -18,6 +18,7 @@
 #include "../tools/commontools.h"
 
 // Qt
+#include <QRegularExpression>
 #include <QFile>
 #include <QLatin1String>
 
@@ -740,7 +741,7 @@ QString Importer::layoutTemplateSystemFilePath(const QString &name)
 
 QString Importer::uniqueLayoutName(QString name)
 {
-    int pos_ = name.lastIndexOf(QRegExp(QString(" - [0-9]+")));
+    int pos_ = name.lastIndexOf(QRegularExpression(QStringLiteral(" - [0-9]+")));
 
     if (layoutExists(name) && pos_ > 0) {
         name = name.left(pos_);
@@ -811,7 +812,7 @@ QStringList Importer::checkRepairMultipleLayoutsLinkedFile()
 
     QStringList updatedLayouts;
 
-    for(const auto &layoutName : linkedLayoutContainmentGroups.uniqueKeys()) {
+    for(const auto &layoutName : linkedLayoutContainmentGroups.keys()) {
         if (layoutName != Layout::MULTIPLELAYOUTSHIDDENNAME && layoutExists(layoutName)) {
             updatedLayouts << layoutName;
             KSharedConfigPtr layoutFilePtr = KSharedConfig::openConfig(layoutUserFilePath(layoutName));

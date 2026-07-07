@@ -30,6 +30,7 @@
 // KDE
 #include <KMessageBox>
 #include <KLocalizedString>
+#include <KPackage/Package>
 #include <KNotification>
 
 namespace Latte {

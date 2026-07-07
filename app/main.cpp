@@ -36,7 +36,6 @@
 #include <KLocalizedString>
 #include <KAboutData>
 #include <KDBusService>
-#include <KQuickAddons/QtQuickSettings>
 
 //! COLORS
 #define CNORMAL  "\e[0m"
@@ -84,7 +83,6 @@ int main(int argc, char **argv)
         qunsetenv("QT_QPA_PLATFORM");
     }
 
-    KQuickAddons::QtQuickSettings::init();
 
     KLocalizedString::setApplicationDomain("latte-dock");
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("latte-dock")));
@@ -251,10 +249,11 @@ int main(int argc, char **argv)
     }
 
     //! disable restore from session management
+    //! Qt6 removed fallback session management entirely, so only the
+    //! QSessionManager hints below remain relevant.
     //! based on spectacle solution at:
     //!   - https://bugs.kde.org/show_bug.cgi?id=430411
     //!   - https://invent.kde.org/graphics/spectacle/-/commit/8db27170d63f8a4aaff09615e51e3cc0fb115c4d
-    QGuiApplication::setFallbackSessionManagementEnabled(false);
 
     auto disableSessionManagement = [](QSessionManager &sm) {
         sm.setRestartHint(QSessionManager::RestartNever);

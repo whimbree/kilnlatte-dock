@@ -6,7 +6,7 @@
 #include "tasktools.h"
 #include <config-latte.h>
 
-#include <KActivities/ResourceInstance>
+#include <PlasmaActivities/ResourceInstance>
 #include <KApplicationTrader>
 #include <KConfigGroup>
 #include <KDesktopFile>

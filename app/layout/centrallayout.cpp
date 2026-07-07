@@ -21,7 +21,7 @@
 
 // KDE
 #include <KConfigGroup>
-#include <KActivities/Consumer>
+#include <PlasmaActivities/Consumer>
 
 
 namespace Latte {

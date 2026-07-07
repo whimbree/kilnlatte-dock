@@ -478,9 +478,9 @@ bool SettingsDialog::saveChanges()
 
         KMessageBox::ButtonCode result = saveChangesConfirmation(saveChangesText);
 
-        if (result == KMessageBox::Yes) {
+        if (result == KMessageBox::PrimaryAction) {
             save();
-        } else if (result == KMessageBox::No) {
+        } else if (result == KMessageBox::SecondaryAction) {
             reset();
         } else {
             return false;

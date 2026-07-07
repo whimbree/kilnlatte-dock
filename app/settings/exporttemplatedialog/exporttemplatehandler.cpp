@@ -294,11 +294,11 @@ void ExportTemplateHandler::save()
 
 bool ExportTemplateHandler::overwriteConfirmation(const QString &fileName)
 {
-    return (KMessageBox::warningYesNo(m_dialog,
+    return (KMessageBox::warningTwoActions(m_dialog,
                                       i18n("The file \"%1\" already exists. Do you wish to overwrite it?", fileName),
                                       i18n("Overwrite File?"),
                                       KStandardGuiItem::overwrite(),
-                                      KStandardGuiItem::cancel()) == KMessageBox::Yes);
+                                      KStandardGuiItem::cancel()) == KMessageBox::PrimaryAction);
 }
 
 }

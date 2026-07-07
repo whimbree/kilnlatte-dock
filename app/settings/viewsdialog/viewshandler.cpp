@@ -269,7 +269,7 @@ void ViewsHandler::save()
 {
     int viewsforremoval = m_viewsController->viewsForRemovalCount();
 
-    if (viewsforremoval <=0 || removalConfirmation(viewsforremoval) == KMessageBox::Yes) {
+    if (viewsforremoval <=0 || removalConfirmation(viewsforremoval) == KMessageBox::PrimaryAction) {
         m_viewsController->save();
     }
 }
@@ -461,18 +461,18 @@ void ViewsHandler::onCurrentLayoutIndexChanged(int row)
         if (hasChangedData()) { //new layout was chosen but there are changes
             KMessageBox::ButtonCode result = saveChangesConfirmation();
 
-            if (result == KMessageBox::Yes) {
+            if (result == KMessageBox::PrimaryAction) {
                 int removalviews = m_viewsController->viewsForRemovalCount();
                 KMessageBox::ButtonCode removalresponse = removalConfirmation(removalviews);
 
-                if (removalresponse == KMessageBox::Yes) {
+                if (removalresponse == KMessageBox::PrimaryAction) {
                     switchtonewlayout = true;
                     m_lastConfirmedLayoutIndex = row;
                     m_viewsController->save();
                 } else {
                     //do nothing
                 }
-            } else if (result == KMessageBox::No) {
+            } else if (result == KMessageBox::SecondaryAction) {
                 switchtonewlayout = true;
                 m_lastConfirmedLayoutIndex = row;
             } else if (result == KMessageBox::Cancel) {
@@ -516,18 +516,18 @@ void ViewsHandler::updateWindowTitle()
 KMessageBox::ButtonCode ViewsHandler::removalConfirmation(const int &viewsCount)
 {
     if (viewsCount<=0) {
-        return KMessageBox::No;
+        return KMessageBox::SecondaryAction;
     }
 
     if (hasChangedData() && viewsCount>0) {
-        return KMessageBox::warningYesNo(m_dialog,
+        return KMessageBox::warningTwoActions(m_dialog,
                                          i18np("You are going to <b>remove 1</b> dock or panel completely from your layout.<br/>Would you like to continue?",
                                                "You are going to <b>remove %1</b> docks and panels completely from your layout.<br/>Would you like to continue?",
                                                viewsCount),
                                          i18n("Approve Removal"));
     }
 
-    return KMessageBox::No;
+    return KMessageBox::SecondaryAction;
 }
 
 KMessageBox::ButtonCode ViewsHandler::saveChangesConfirmation()

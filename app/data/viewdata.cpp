@@ -229,7 +229,7 @@ View::operator QString() const
     result += QString::number(maxLength) + "%";
 
     result += " || ";
-    result += "{" + subcontainments + "}";
+    result += "{" + QString(subcontainments) + "}";
 
     return result;
 }
