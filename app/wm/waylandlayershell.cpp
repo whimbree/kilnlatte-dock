@@ -267,6 +267,23 @@ void applyCanvasPlacement(QWindow *window, Plasma::Types::Location location,
     }
 }
 
+void applyFixedGeometry(QWindow *window, const QRect &geometry, const QRect &screenGeometry)
+{
+    if (LSW *ls = LSW::get(window)) {
+        //! a pop-up surface reserves nothing; a stale exclusive edge from the
+        //! parent-dock anchoring would both hold a strut and, if not among the
+        //! anchors below, make the compositor kill the surface
+        ls->setExclusiveEdge(LSW::AnchorNone);
+        //! anchor the top-left corner and drive the position with margins; the
+        //! two anchored edges are what let the margins take effect (a margin on
+        //! an unanchored edge is ignored), and the window's explicit size
+        //! carries width/height
+        ls->setAnchors(LSW::Anchors(LSW::AnchorTop) | LSW::AnchorLeft);
+        ls->setMargins(QMargins(geometry.x() - screenGeometry.x(),
+                                geometry.y() - screenGeometry.y(), 0, 0));
+    }
+}
+
 QRegion canvasInputRegion(bool inConfigureAppletsMode, const QSize &canvasSize,
                           const QRect &interactiveChrome)
 {

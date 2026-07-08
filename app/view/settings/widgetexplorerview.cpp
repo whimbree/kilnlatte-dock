@@ -10,6 +10,7 @@
 #include "../view.h"
 #include "../../lattecorona.h"
 #include "../../wm/abstractwindowinterface.h"
+#include "../../wm/waylandlayershell.h"
 
 // local tools
 #include "../../tools/commontools.h"
@@ -132,10 +133,17 @@ void WidgetExplorerView::syncGeometry()
 
     m_geometryWhenVisible = geometry;
 
-    //! under wayland the surface keeps the edge-anchored centered placement
-    //! from SubConfigView::setupWaylandIntegration(); setPosition() only
-    //! means something on X11
-    setPosition(geometry.topLeft());
+    if (KWindowSystem::isPlatformWayland()) {
+        //! KWin ignores setPosition() for layer surfaces; without this the
+        //! surface keeps the parent-dock edge anchoring (bottom-centered) that
+        //! SubConfigView::setupWaylandIntegration() set. Re-anchor it to the
+        //! screen's top-left so it lands as the left-hand panel the slide-in
+        //! effect (Slide::Left) already implies.
+        namespace LS = Latte::WindowSystem::LayerShell;
+        LS::applyFixedGeometry(this, geometry, m_latteView->screenGeometry());
+    } else {
+        setPosition(geometry.topLeft());
+    }
 
     setMaximumSize(geometry.size());
     setMinimumSize(geometry.size());

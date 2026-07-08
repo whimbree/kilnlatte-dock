@@ -118,6 +118,13 @@ CanvasPlacement canvasPlacement(Plasma::Types::Location location,
 void applyCanvasPlacement(QWindow *window, Plasma::Types::Location location,
                           const QRect &canvasGeometry, const QRect &screenGeometry);
 
+//! Pin @p window to the top-left of its output, offset by margins so it lands
+//! at @p geometry exactly, carrying no exclusive zone. KWin ignores
+//! setPosition() for layer surfaces, so a pop-up config surface that wants a
+//! specific spot (the widget explorer's left panel) must anchor to two edges
+//! and drive the offset with margins; the surface's own size does the rest.
+void applyFixedGeometry(QWindow *window, const QRect &geometry, const QRect &screenGeometry);
+
 //! The input region (window-local, for QWindow::setMask) the edit-mode
 //! canvas should catch pointer events in. The canvas overlays the dock and
 //! sits above it, so whatever it grabs never reaches the widgets beneath.
