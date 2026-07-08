@@ -22,6 +22,41 @@
         (system: f nixpkgs.legacyPackages.${system});
     in
     {
+      packages = forAllSystems (pkgs: rec {
+        latte-dock = pkgs.kdePackages.callPackage ./package.nix { };
+        default = latte-dock;
+      });
+
+      # Lets other flakes pull the dock in with `overlays.default`, resolving
+      # its Qt6/KF6 inputs from whatever nixpkgs the consumer runs (not this
+      # flake's dev pin).
+      overlays.default = final: prev: {
+        latte-dock = final.kdePackages.callPackage ./package.nix { };
+      };
+
+      nixosModules.default = { config, lib, pkgs, ... }:
+        let
+          cfg = config.programs.latte-dock;
+        in
+        {
+          options.programs.latte-dock = {
+            enable = lib.mkEnableOption "the latte-dock Plasma 6 port";
+            package = lib.mkOption {
+              type = lib.types.package;
+              default = pkgs.kdePackages.callPackage ./package.nix { };
+              defaultText = lib.literalExpression "pkgs.kdePackages.callPackage ./package.nix { }";
+              description = "The latte-dock package to install.";
+            };
+          };
+
+          config = lib.mkIf cfg.enable {
+            # System-wide install so the .desktop lands in a path KWin's
+            # KApplicationTrader scans (needed for the window-management gate)
+            # and the KPackage plasmoids/shell/indicators are found.
+            environment.systemPackages = [ cfg.package ];
+          };
+        };
+
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
