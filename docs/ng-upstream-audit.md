@@ -31,7 +31,7 @@ so "HAVE" means the specific fix is present in our file, not just that the file
 exists. Where our port deliberately took latte-dock-qt6's QML instead of ng's,
 that is called out.
 
-**Progress: 223 / 249 audited.**
+**Progress: 235 / 249 audited.**
 
 Tally through 139: 71 CHECK · 23 SKIP · 17 HAVE · 17 ADOPT-candidate (ADOPT+PORT)
 · 7 N/A · 4 GAP. Most commits are ng-did-it-differently (expected). The value is
@@ -300,3 +300,15 @@ the hotplug surface-recreate. Our port still calls `recreateView`; worth auditin
 | 62a0e6e7c | 2026-07-03 | fix: expand middle-button interception to cover all event types | CHECK | Middle-button-in-edit-mode cluster (see 565ffed9e); broadens the interception beyond press to all event types. |
 | 8594b8a59 | 2026-07-03 | fix: convert DragDropArea handlers to Qt6 binding syntax | HAVE | Our `DragDropArea.qml` already uses the arrow-binding form (see fe4e1154b/80bb966c8). |
 | 319232fc4 | 2026-07-03 | fix: convert TaskMouseArea handlers to Qt6 binding syntax | HAVE | Our `TaskMouseArea.qml` already uses correct Qt6 forms: `function onPressed(mouse)` inside `Connections` (61-62) and `onPressed: (mouse) => {}` direct handlers (142/176/239). |
+| a34009b93 | 2026-07-03 | fix: convert EnvironmentActions MouseArea handlers to Qt6 binding syntax | HAVE | `EnvironmentActions.qml` already uses arrow-binding handlers (52/58/75). |
+| 64e583df0 | 2026-07-03 | fix: convert AudioStream MouseArea handlers to Qt6 binding syntax | HAVE | Our `AudioStream.qml:95` already uses `onWheel: (wheel) => {}`. |
+| 129ffb9d9 | 2026-07-03 | fix: convert ComboBox MouseArea onPositionChanged to Qt6 binding syntax | HAVE | `declarativeimports/components/ComboBox.qml` already uses arrow-binding handlers (120/138/368). |
+| 00f88fed4 | 2026-07-03 | fix: convert CanvasConfiguration MouseArea onWheel to Qt6 binding syntax | HAVE | `CanvasConfiguration.qml:134` already uses `onWheel: (wheel) => {}`. |
+| 9ba6fc017 | 2026-07-03 | fix: convert containment main.qml MouseArea handlers to Qt6 binding syntax | HAVE | Our `containment/main.qml` has no stale `function on...` direct handlers. |
+| 3a1aeaf53 | 2026-07-04 | fix: add LSP config and guard EnvironmentActions against null trackers | CHECK | `.clangd` is N/A. The real fix: guard `EnvironmentActions` against a null `windowsTracker`/`lastActiveWindow`. Our `EnvironmentActions.qml:149` dereferences `selectedWindowsTracker.lastActiveWindow.isValid` with **no null guard** — if `lastActiveWindow` is null this throws. Small robustness fix worth taking. |
+| f0cbbac77 | 2026-07-03 | fix: add compat shims for KIconThemes, KGuiAddons, KCoreAddons, KArchive | N/A | ng ships header/`compat/` shims to build against older KF6 releases. Our nix build pins proper KF6 versions, so we don't need them. |
+| 1f6e0148e | 2026-07-03 | fix: refresh default.nix metadata | N/A | ng's own `default.nix`. Their packaging, separate from our flake. |
+| f69312a2c | 2026-07-03 | feat: add thin flake.nix wrapping default.nix | N/A | ng's own `flake.nix` (the ng NixOS packaging, which we maintain separately in the ng repo, not here). |
+| 33390d702 | 2026-07-03 | feat: add NixOS build verification to the Docker pipeline | N/A | ng CI (Docker + verify scripts). |
+| b6693e7c4 | 2026-07-04 | fix: route containment wheel events to audio badge for volume adjustment | CHECK (priority) | **This is the Phase 8 containment→plasmoid wheel bridge that REVIEW_NOTES deferred as live-only.** ng routes wheel events from the containment through to the task's audio badge so scrolling over a playing task changes its volume (`containment/main.qml` + `plasmoid/main.qml` + `TaskIcon.qml`). Our AudioStream badge (`TaskIcon.qml:308`) has its own `onWheel` (`AudioStream.qml:95`), but whether the containment actually delivers the wheel into it is the open Phase 8 question. Use this as the reference implementation; live-test scroll-over-badge volume. |
+| b5f4a2649 | 2026-07-04 | feat: add volume level bar and percentage indicator on audio badge | CHECK | Optional UX feat: draw a volume-level bar + percentage on the audio badge (`AudioStream.qml`). Our audio badge is a mute/stream indicator with no level bar. Adopt only if we want the richer badge; pairs with b6693e7c4 (the wheel-to-volume interaction it visualizes). |
