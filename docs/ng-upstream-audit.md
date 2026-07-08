@@ -31,7 +31,7 @@ so "HAVE" means the specific fix is present in our file, not just that the file
 exists. Where our port deliberately took latte-dock-qt6's QML instead of ng's,
 that is called out.
 
-**Progress: 67 / 249 audited.**
+**Progress: 91 / 249 audited.**
 
 **Emerging finding (after 13):** ng and our port solved the same original
 independently, so most ng commits describe changes we simply did differently or
@@ -116,3 +116,27 @@ actually right before we take it.
 | 0b8e35460 | 2026-05-31 | feat: GitHub release workflow, CPack RPM/DEB/pacman | N/A | ng CI/packaging; our nix build is separate. |
 | 8631fcf69 | 2026-05-31 | fix: scrollbar for Edit Dock advanced settings | SKIP | Config-dialog UI convenience. |
 | 542b717b9 | 2026-05-31 | feat: lower Plasma min to 6.5.0, Mageia support | HAVE | Our `CMakeLists.txt:18` already sets `PLASMA_MIN_VERSION 6.5.0`; Mageia N/A. |
+| cbb4eb9f3 | 2026-06-01 | fix: panel-resize ghosting/jagged edges at high opacity | CHECK | `effects.h` `effectiveBackgroundOpacity` + update on change. Verify our dock doesn't ghost during resize at high opacity. |
+| 29a515f59 | 2026-06-02 | fix: LatteCore.Dialog → PlasmaCore.AppletPopup for P6 popups | ADOPT? | **Our `shell/…/CompactApplet.qml` still uses `LatteCore.Dialog`.** ng moved applet config popups to `AppletPopup`. Relevant to the applet-config popup issues (blank/sizing). Big change (new AboutPlugin/AppletConfiguration); evaluate as the fix for P6 popup compat. |
+| 1173af2dd | 2026-06-03 | fix: applet config dialog blank window + popup sizing | CHECK | Pairs with 29a515f59. We have `internalAction("configure")` in CompactApplet but verify applet config windows aren't blank / mis-sized. |
+| d1aa231b7 | 2026-06-03 | fix: restore popup resize for Application Menu | SKIP | Narrow app-menu popup tweak. |
+| cce2a546f | 2026-06-03 | fix: remove recursive setVisible(false) in hideEvent (stack overflow) | HAVE | Our `primaryconfigview.cpp:465` hideEvent has no recursive `setVisible(false)` (different mode-change logic). We don't have this crash. |
+| 5b1c8d821 | 2026-06-05 | fix: proper struts for AlwaysVisible via LayerShellQt | HAVE | We have `setViewStruts` (waylandinterface/xwindowinterface) + LayerShellQt exclusive-zone struts — our own AlwaysVisible strut impl. |
+| 9cab741c2 | 2026-06-06 | fix: respect background radius in Modern dock style | SKIP | Modern-style config. |
+| a4c6e77f6 | 2026-06-06 | fix: allow disabling shadows in Modern dock style | SKIP | Modern-style config. |
+| a505038b2 | 2026-06-07 | fix: All Corners button for Classic and Modern | SKIP | Modern-style/background-corners config. |
+| 30a1bd247 | 2026-06-07 | fix: disable Radius slider when All Corners off | SKIP | Config-UI enable state. |
+| 8b6bc030b | 2026-06-07 | fix: widget explorer follows system theme all schemes | CHECK | Directly related to my widget-explorer left-edge fix. ng also sets `PlasmaShellSurface::Role::AppletPopup` on the explorer. Verify our explorer themes correctly + evaluate the AppletPopup role vs our layer-shell approach. |
+| a118b91dc | 2026-06-07 | fix: debounce parabolic nullifier to stop zoom flicker | CHECK | `m_parabolicItemNullifier.setInterval(80)`. Verify our parabolic zoom doesn't flicker moving between icons; small debounce is a cheap ADOPT if it does. |
+| 74e58dcbb | 2026-06-07 | fix: clip main layout so zoomed items don't overlap adjacent | CHECK | One-liner `clip: true`. Not in our containment main.qml. Verify zoomed icons don't bleed into adjacent layouts. |
+| e9a579ac1 | 2026-06-07 | fix: edit-mode tooltip stability + ruler theme | CHECK | Edit-mode polish cluster. |
+| 3c7c1e03c | 2026-06-07 | fix: zoomed items block clicks on adjacent icons | CHECK | ng raises launcher/tray `z:20` so zoom doesn't eat clicks. Verify our zoomed tasks don't block adjacent launcher/tray clicks. |
+| 917022cf5 | 2026-06-07 | fix: unify widget explorer title/button theme | CHECK | Widget-explorer theming cluster (with 8b6bc030b); tied to the explorer fix. |
+| cf5a78d28 | 2026-06-08 | fix: make Get New Widgets popup menu visible | CHECK | KNS "Get New Widgets" popup; related to the KNS gap below. |
+| 97b701a70 | 2026-06-08 | fix: current panel thickness for struts + ghost window on correct screen | CHECK | Strut correctness + associating the strut ghost window with the right screen (multi-screen). Verify our strut sits on the correct output. |
+| d3ca82919 | 2026-06-08 | fix: restore native KNS download via SharedQmlEngine | GAP | 483-line `knscompat.cpp` — we have **no `knscompat`**. "Get New Widgets/Indicators" downloads from store.kde.org likely don't work in our port. Decide if we want KNS download at all. |
+| 433dc683a | 2026-06-09 | fix: null-safe guards for patched DrawerHandle/HandleButton | SKIP | Guards for ng's patched Kirigami drawer QML copies; ng-specific compat shims. |
+| 8fabb8cc9 | 2026-06-09 | fix: explicit QML runtime deps in packaging | HAVE | Our `package.nix` already lists `kirigami`/`knewstuff` (and the wider QML set). |
+| 90c9a0ca7 | 2026-06-09 | fix: opacity instead of visible for applet container | CHECK | Edit-mode applet-container visibility via opacity binding. Verify our applet show/hide in edit mode. |
+| db748f0dd | 2026-06-09 | fix: full panel thickness for classic-style struts | CHECK | Strut-thickness cluster; verify our classic strut reserves the full thickness. |
+| c917f7936 | 2026-06-09 | fix: prevent parabolic zoom jitter cursor between icons | ADOPT? | Our `parabolic.cpp` has `m_currentParabolicItem` switching but **no `MIN_SWITCH_INTERVAL`/`lastSwitchTimer` debounce** ng added. The journal flagged zoom/reorder jitter — this is a strong candidate. Verify + adopt the switch-interval guard. |
