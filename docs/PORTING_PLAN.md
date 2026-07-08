@@ -634,13 +634,21 @@ welcome but not required.
       cbf198fd (the deliberate single pass over the remaining 55
       sites; the tasks plasmoid is excluded until Phase 6)
 - [x] Contract-test each `Qt.MidButton`/`Qt.MiddleButton` site
-      individually rather than blanket-renaming - latte-dock-ng found
-      at least one site where keeping the *old* `Qt.MidButton` name was
-      required (the new name caused C++/QML double-handling of the same
-      event)
-      Commits: b474adad (the two EnvironmentActions
-      sites keep Qt.MidButton deliberately - renaming caused C++/QML
-      double-handling in latte-dock-ng)
+      individually rather than blanket-renaming.
+      CORRECTION 2026-07-08: the earlier "keep Qt.MidButton deliberately"
+      decision was WRONG. `Qt.MidButton` was removed from the QML Qt enum in
+      Qt6, so it reads as `undefined` and every `mouse.button === Qt.MidButton`
+      comparison was always false - task middle-click actions, the middle-click
+      click animation, and the empty-area close-active-window were all silently
+      dead. All sites are now `Qt.MiddleButton` (TaskMouseArea, ClickedAnimation,
+      EnvironmentActions). The "C++/QML double-handling" the old note feared is
+      handled properly instead of by keeping a broken enum: EnvironmentActions
+      accepts the middle button only while `closeActiveWindowEnabled` is on, so
+      when it is off the middle-click falls through to the containment's own
+      middle-click action rather than being swallowed. ng reached the same
+      conclusion in 613ddcc3b ("Qt.MidButton ... removed in Qt 6"); ng delegates
+      the empty-area close to a C++ handler we don't have, so we keep our QML
+      handler with conditional acceptance. See docs/ng-upstream-audit.md finding A.
 - [x] Replace the `KWindowSystem` creatable-QML-element usage in the
       widget explorer with the KF6 singleton form
       Commits: b474adad

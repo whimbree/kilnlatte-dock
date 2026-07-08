@@ -41,7 +41,13 @@ Loader {
 
     sourceComponent: MouseArea{
         id: mainArea
-        acceptedButtons: Qt.LeftButton | Qt.MidButton
+        //! Qt.MidButton was removed in Qt6 (it read as undefined, so the old
+        //! `Qt.LeftButton | Qt.MidButton` silently accepted LeftButton only).
+        //! Accept the middle button only while the close-active-window feature
+        //! is on, so that when it is off the middle-click still falls through
+        //! to the containment's own middle-click action instead of being
+        //! swallowed here.
+        acceptedButtons: Qt.LeftButton | (root.closeActiveWindowEnabled ? Qt.MiddleButton : Qt.NoButton)
         hoverEnabled: true
 
         property bool wheelIsBlocked: false
@@ -50,7 +56,7 @@ Loader {
         property int lastPressY: -1
 
         onClicked: (mouse) => {
-            if (root.closeActiveWindowEnabled && mouse.button === Qt.MidButton) {
+            if (root.closeActiveWindowEnabled && mouse.button === Qt.MiddleButton) {
                 selectedWindowsTracker.lastActiveWindow.requestClose();
             }
         }

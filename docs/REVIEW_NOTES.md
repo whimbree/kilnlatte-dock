@@ -184,5 +184,26 @@ per-item work the plan describes - I did not want to blind-swap more
 interactive subsystems I can't verify, or tick items the plan's own cadence
 says aren't done until driven live.
 
+### Middle-click was dead (`Qt.MidButton` undefined in Qt6) - FIXED 2026-07-08
+Found during the ng upstream audit (docs/ng-upstream-audit.md finding A) and
+fixed the same day. `Qt.MidButton` was removed from the QML Qt enum in Qt6, so
+it evaluated to `undefined`; every `mouse.button === Qt.MidButton` was always
+false. Consequences before the fix: task middle-click actions (close / new
+instance / paste, whatever `middleClickAction` is set to) never fired, the
+middle-click ClickedAnimation never played, and the empty-area
+close-active-window did nothing. Renamed all sites to `Qt.MiddleButton`:
+`plasmoid/.../task/TaskMouseArea.qml` (3), `.../animations/ClickedAnimation.qml`
+(1), `containment/.../layouts/EnvironmentActions.qml` (2). EnvironmentActions now
+accepts the middle button only when `closeActiveWindowEnabled` is on, so with the
+feature off the middle-click falls through to the containment's own middle-click
+action instead of being swallowed (this is the "double-handling" the old
+PORTING_PLAN note wrongly tried to avoid by keeping the broken enum). **Human
+test:** middle-click a task (should run the configured middle-click action);
+enable "close active window on middle-click" and middle-click an empty dock area
+(should close the active window); with that setting off, a configured containment
+middle-click action should still fire. Not bundled: ng also flips the
+`middleClickAction` default from NewInstance(2) to Close(1) - left our default
+alone (it is a UX preference, not part of the bug).
+
 ## Resolved
 (none yet)
