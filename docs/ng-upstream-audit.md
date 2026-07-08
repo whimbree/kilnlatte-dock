@@ -31,7 +31,7 @@ so "HAVE" means the specific fix is present in our file, not just that the file
 exists. Where our port deliberately took latte-dock-qt6's QML instead of ng's,
 that is called out.
 
-**Progress: 151 / 249 audited.**
+**Progress: 163 / 249 audited.**
 
 Tally through 139: 71 CHECK · 23 SKIP · 17 HAVE · 17 ADOPT-candidate (ADOPT+PORT)
 · 7 N/A · 4 GAP. Most commits are ng-did-it-differently (expected). The value is
@@ -228,3 +228,15 @@ the hotplug surface-recreate. Our port still calls `recreateView`; worth auditin
 | 4db3cfdf5 | 2026-06-18 | build: move low-risk CMake config into modules | N/A | ng CMake refactor. |
 | 09faa7d09 | 2026-06-18 | fix: allow isolated KNS compat user QML root | SKIP | KNS compat env (GAP — no KNS in our port). |
 | c42d3355d | 2026-06-18 | fix: reject relative KNS compat user QML root | SKIP | KNS compat hardening (GAP). |
+| a7e7091f2 | 2026-06-18 | fix: harden KNS compat override paths | SKIP | KNS compat path hardening (GAP — no KNS in our port). |
+| 8e9dd600e | 2026-06-18 | fix: find Qt CoreTools before KDE install dirs | N/A | ng CMake find-order for their autotests. |
+| c25b877b0 | 2026-06-18 | fix: smooth task icon zoom | ADOPT? | One-liner: ng uncomments `roundToIconSize: false` on the task icon so hover-zoom scales smoothly on current Kirigami. Ours is still commented (`TaskIcon.qml:80`). Cheap, matches the parabolic-jitter cluster. Verify Kirigami version behaves, then uncomment. |
+| 8a1106784 | 2026-06-18 | feat: prefer GPU Qt Quick rendering | CHECK | ng calls `QQuickWindow::setGraphicsApi(OpenGL)` unless `QT_QUICK_BACKEND`/`QSG_RHI_BACKEND`/`QT_OPENGL` is set, to avoid RHI picking software rendering. We don't set it (`main.cpp` has no `setGraphicsApi`). Low priority; adopt if the dock ever renders via software on some GPU. |
+| 3c773a7a5 | 2026-06-19 | fix: stabilize get new widgets dialog | SKIP | KNS compat versioning + drawer QML (GAP — no KNS). |
+| 0fbf9d000 | 2026-06-19 | fix: translate widget explorer labels | N/A | ng shell WidgetExplorer i18n contexts (ng's own shell view). |
+| 8f0ad2581 | 2026-06-19 | feat: add Plasma launcher dock action | SKIP | ng-specific kicker/launcher `.desktop` action + `launcherhelper`; not in our design. |
+| 338a92c81 | 2026-06-19 | fix: stabilize widget explorer external dialogs | CHECK | Two parts: (a) keep Add Widgets alive while an external widget dialog is open — relevant to our explorer; (b) synthesize a Wayland env for KNS from a sparse dev shell — GAP (KNS). Our `widgetexplorerview.cpp` differs. Verify our explorer survives opening an external dialog; the KNS half is N/A. |
+| 7f91f3888 | 2026-06-19 | fix: harden install cleanup paths | N/A | ng install/uninstall shell scripts. |
+| ef2989ec2 | 2026-06-19 | fix: refresh task icons on icon theme changes | GAP | ng adds `forceRefreshTaskIconSource()` (clear source + `Qt.callLater` rebind) in TaskIcon and `QIcon::setThemeName` + `QPixmapCache::clear()` in `environment.cpp` so task icons repaint live on an icon-theme switch. We have **neither** (`TaskIcon.qml` has no forceRefresh; `environment.cpp` has no setThemeName/QPixmapCache). Real behavior gap: our task icons likely go stale until restart on icon-theme change. Worth adopting. |
+| 0f3d89d3c | 2026-06-19 | fix: scale audio badges with task zoom | N/A~ | Part of ng's audio-badge rework: `parabolicZoom`/`maximumBadgeSize` props so the badge grows with hover-zoom. Our `AudioStream.qml` has none of these props (different design). Only relevant if we adopt ng's audio-badge structure wholesale. |
+| 2d5d4408e | 2026-06-21 | fix: handle cancellable session shutdown | HAVE | We already carry ng's **final** clean pattern: a `disableSessionManagement` lambda on both `commitDataRequest`/`saveStateRequest` that only sets `RestartNever` and never quits during a still-cancellable logout (`main.cpp:259-262`). This commit is ng deleting the very polling/`isShuttingDown` hack we also don't have. Minor: ng also sets `Qt::AA_DisableSessionManager` which we don't — cheap to add but not required. |
