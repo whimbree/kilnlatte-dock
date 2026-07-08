@@ -31,7 +31,7 @@ so "HAVE" means the specific fix is present in our file, not just that the file
 exists. Where our port deliberately took latte-dock-qt6's QML instead of ng's,
 that is called out.
 
-**Progress: 127 / 249 audited.**
+**Progress: 139 / 249 audited.**
 
 **Emerging finding (after 13):** ng and our port solved the same original
 independently, so most ng commits describe changes we simply did differently or
@@ -176,3 +176,15 @@ actually right before we take it.
 | a66c24145 | 2026-06-15 | fix: eliminate ghost window artifact during mode switches | CHECK | Ghost-window artifact on Dodge↔AlwaysVisible switch (exactly the modes I toggled). We have the ghost window; verify no flash on mode switch. |
 | 30637c1cd | 2026-06-16 | fix: prevent dock collapse when adding fillWidth applets | HAVE~ | We have `inNormalFillCalculationsState` in our Layouter. Verify adding a fillWidth widget doesn't collapse the dock. |
 | 2146e5564 | 2026-06-16 | fix: quit() in commitDataRequest to prevent logout hang | CHECK | Our `main.cpp:261` sets `RestartNever` on `commitDataRequest` but ng additionally forces `quit()` to avoid a logout hang. Verify our dock doesn't hang logout; cheap ADOPT if it does. |
+| a9c200fe2 | 2026-06-16 | fix: align shutdown with Plasma panel pattern, fix double-free | ADOPT? | ng's `flushDelete` (deleteLater + `sendPostedEvents(DeferredDelete)`) for ordered teardown is **absent in our `main.cpp`**. This is a strong candidate for our **KSvg static-destructor exit crash** (see REVIEW_NOTES) — proper deferred-delete flush at shutdown. Evaluate. |
+| 911dd1a59 | 2026-06-16 | fix: remove redundant LayerShellQt::Window::setScreen() | CHECK | Our `waylandlayershell.cpp:168` still calls `ls->setScreen()` (plus `window->setScreen()` at 166). ng found the LayerShellQt one redundant/harmful. Given our hotplug findings, worth revisiting whether that call helps or hurts. |
+| f6ca45a75 | 2026-06-16 | fix: install indicator package structure for KF6 | HAVE | We have `app/packageplugins/indicator/indicatorpackage.cpp` — the indicator packagestructure plugin. |
+| e787da77e | 2026-06-17 | fix: quiet compiler warnings | SKIP | Warning cleanup. |
+| 0b29b63cb | 2026-06-17 | fix: silence remaining build warnings | SKIP | Warning cleanup. |
+| d26645a48 | 2026-06-18 | fix: avoid panel overlap for edge-aligned docks | CHECK | New `viewgeometryhelpers.h` (132 lines) we don't have; positions left/right edge docks to avoid overlapping a Plasma panel. Verify our edge-aligned docks don't overlap panels. |
+| 4ec686ce2 | 2026-06-18 | fix: clean Latte runtime warnings | SKIP | Runtime log-noise filter. |
+| fb7f2f5de | 2026-06-18 | fix: restore widget undo position | HAVE~ | Our `containment/plugin/layoutmanager.cpp` has scheduled-destruction handling. Verify widget remove→undo restores the original index. |
+| 174314979 | 2026-06-18 | fix: stabilize applet popup sizing | CHECK | Applet-popup sizing (CompactApplet/PulseAudio). Pairs with 29a515f59/43f86bd09. |
+| a53e0adc3 | 2026-06-18 | fix: keep launcher applet popups resizable | CHECK | Applet-popup resize; same popup cluster. |
+| a4abdcd01 | 2026-06-18 | fix: harden KNS compatibility overrides | SKIP | Extends ng's KNS compat (which we don't have — see d3ca82919 GAP). |
+| 63d575107 | 2026-06-18 | build: document relaxed warning flags | N/A | ng build-flag doc. |
