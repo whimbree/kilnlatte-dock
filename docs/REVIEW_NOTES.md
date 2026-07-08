@@ -22,6 +22,22 @@ static dtors. Low priority (only bites when launching a duplicate), but it is
 a real crash. **Human/dev check:** reproduce by launching a second instance,
 then decide whether to fix teardown order or short-circuit the duplicate-exit.
 
+### Packaging (flake packages.default) follow-ups
+The nix package builds, wraps, and passes the KWin enumeration gate (verified
+live 2026-07-07: the wrapped binary authorized only by its own installed
+`.desktop` enumerates all windows). Two loose ends, neither blocking:
+- Runtime warning `Could not find plugin plasma5support/dataengine/
+  plasma_engine_mpris2`. That dataengine is not present anywhere in the store,
+  so the tasks media/audio badge and the Spotify media-control overlay have no
+  backend in the packaged build. Identify which kdePackages input ships the
+  mpris2 dataengine (or the Plasma 6 replacement API) and add it, or wire the
+  plasmoid to the current media API. Enumeration and the dock itself are
+  unaffected.
+- Build log: `cmake -E touch: failed to update <out>//nix/store/<out>/share/
+  icons/hicolor` (doubled path). Harmless (icon cache index), but it points at
+  an install rule using an absolute path under DESTDIR. Worth a look when
+  touching the icon install.
+
 ### Enumeration ("missing running apps") root cause: KWin permission gate (dev build only)
 Not a code bug. KWin gates `org_kde_plasma_window_management` (libtaskmanager's
 window source) behind a `.desktop` match: the canonicalized first token of an
