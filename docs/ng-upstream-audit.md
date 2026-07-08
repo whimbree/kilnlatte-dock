@@ -1,20 +1,29 @@
 # Upstream ng commit audit
 
-Walk ruizhi-lab/latte-dock-ng's substantive commits and decide, per commit,
-whether this from-scratch port already has the change, should port it, or can
-skip it. Goal: don't miss a useful upstream fix.
+**Relationship (important):** our port is an independent Plasma 6/Qt6 port
+forked from **latte-dock proper** (mvourlakos' original); every P6 change here
+was driven by us. ng is a *separate* independent port of the same original, of
+**uncertain quality** ("was it all done right?" is open). ng is NOT upstream to
+us and we did not fork from it. So this is not a catch-up/gap audit — a change
+being absent here is not a deficiency. The job is to mine ng's commits for
+genuinely good fixes worth adopting into our port, judging each on its own
+merit and checking whether ng actually got it right before taking it.
 
 **Upstream at audit time:** `origin/main` @ `e94a9ce95` (v1.2.24, 2026-07-05).
 439 commits since the 2026-05-03 history reset ("Latte Dock NG maintained by
 Ruizhi"). 249 are substantive (fix / feat / build / ui); test-only, release,
 chore, docs, ci and pure refactor are excluded per the agreed scope.
 
-**Verdicts:**
-- **HAVE** — our port already has the equivalent change or behavior.
-- **PORT** — missing and worth porting (actionable follow-up).
-- **SKIP** — missing but not needed (ng-specific, superseded by our design, or irrelevant).
-- **N/A** — test-only / infra / does not apply to the port.
-- **CHECK** — needs a closer code or live look before deciding.
+**Verdicts (merit-based, not gap-based):**
+- **HAVE** — our port already achieves this (independently); nothing to do.
+- **ADOPT** — ng's change is a genuine improvement/fix we should take (and looks correct).
+- **SKIP** — not worth taking: an ng-specific design choice, superseded by our
+  approach, irrelevant to us, or where ng's fix looks wrong/dubious.
+- **N/A** — test-only / infra / does not apply.
+- **CHECK** — evaluate on merit (and verify ng got it right) before deciding.
+
+Earlier rows use "PORT"; read it as "ADOPT". A verdict is a judgement on whether
+the *idea* is worth adopting, not whether we are "missing" it.
 
 Our port paths mirror ng's (`plasmoid/package/contents/ui/...`, `app/view/...`),
 so "HAVE" means the specific fix is present in our file, not just that the file
@@ -23,13 +32,14 @@ that is called out.
 
 **Progress: 13 / 249 audited.**
 
-**Emerging finding (after 13):** only 1 of the first 13 (`internalAction`) is
-present. Our port appears to predate ng's May–July 2026 fix wave (indicator
-theming, communicator/P6 bridge, audio-badge input handlers, context-menu
-hardening, hover-highlight). Expect many PORT/CHECK verdicts. If this holds, the
-takeaway is less "cherry-pick a few fixes" and more "our port branched early and
-is materially behind ng on task/indicator polish" — which bears on the
-fork-adoption decision.
+**Emerging finding (after 13):** ng and our port solved the same original
+independently, so most ng commits describe changes we simply did differently or
+not at all — that is expected, not a gap. The useful output is the subset where
+ng fixed a real bug we plausibly also have (candidate ADOPTs so far: audio-badge
+stuck highlight, context-menu null-guard, indicator panel-contrast theming,
+indicator user-package override) and the CHECKs where we must verify our own
+behavior. Each ADOPT still needs a look at whether ng's implementation is
+actually right before we take it.
 
 ## Audit log
 
