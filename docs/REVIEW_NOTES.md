@@ -8,19 +8,28 @@ decision the driver shouldn't make alone.
 
 ## Open
 
-### Dock surface stops painting after a display power/hotplug event
-Reproduced 2026-07-08 while driving screenshots via `kscreen-doctor --dpms on`.
-On a `screen count changed` event (monitor sleep/wake, DPMS on/off, output
-hotplug) the view re-runs reconsiderScreen()/syncGeometry() and keeps a correct
-geometry (DP-2, BottomEdge, 2560x1440) and its reserved strut (available rect
-2560x1353), but the layer-shell surface stops rendering - the dock is invisible
-with its space still reserved. A fresh process start on a *stable* display
-paints fine; the vanish is triggered specifically by the display event. Likely
-the view needs to re-commit/re-map its wlr-layer-surface (or re-attach a buffer)
-on screen change, not just recompute geometry. This is the same "reserves strut
-but no pixels" shape as the initial DodgeActive confusion, but here visibility
-is AlwaysVisible, so it is a real repaint/remap bug. **Human repro:** let the
-monitor sleep and wake (or unplug/replug) and watch the dock disappear.
+### Dock blank-after-display-churn: could NOT reproduce as a monitor-sleep bug
+Initially suspected a display-event repaint bug (dock keeps its strut but stops
+painting). Retested 2026-07-08: a plain monitor sleep/wake does NOT do this. On
+this hardware `kscreen-doctor --dpms off/on` (single and 3x rapid) leaves the
+QScreen intact, so `reconsiderScreen()` early-returns without a
+`setScreenToFollow()`, the surface is never touched, and the dock stays visible
+through every cycle. The blank I saw earlier was almost certainly self-inflicted
+test churn (rapid DPMS + killing kscreenlocker_greet + unlock loops), not a
+user-facing sleep bug. If a real "dock vanishes" is ever reported, the thing to
+chase is the lock-screen/greeter path, not DPMS.
+
+A separate, real scenario is genuine output hotplug (unplug/replug an external
+monitor, laptop dock/undock): that DOES destroy+recreate the QScreen and call
+`setScreenToFollow()`, and whether the layer surface re-maps cleanly there is a
+fair question. It could not be tested here: KWin refuses to disable the only
+output ("Disabling all outputs through configuration changes is not allowed"),
+and there is no second monitor to unplug. A guarded platform-surface recreate in
+`setScreenToFollow()` was prototyped and then dropped (commit reverted) because
+it was unverifiable on this single-monitor box and this setup never hits the
+case. If multi-monitor support is exercised later and the dock is seen to go
+blank on hotplug, reintroduce a recreate (destroy()+show()) in
+`setScreenToFollow()`, gated to a visible past-startup view.
 
 ### Widget instantiation via config verified OK (no qt6-style crash)
 2026-07-08: injected `org.kde.plasma.digitalclock` and a second
