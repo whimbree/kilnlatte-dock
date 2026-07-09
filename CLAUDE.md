@@ -103,6 +103,28 @@ stale checkboxes."
   drive the failure, read it, then remove the instrumentation. Guessing
   and clamping is how bandaids accrete.
 
+### Regression discipline
+
+- Know a change's blast radius before making it, especially environment,
+  launcher, build and plugin/module-resolution changes. Adding a directory
+  to `QML2_IMPORT_PATH`, `QT_PLUGIN_PATH`, `XDG_DATA_DIRS` or the like is
+  never "narrow": it can shadow ANY same-named module or plugin the process
+  already resolves. A broad append of the system Qt6 QML tree once replaced
+  the dock's right-click menu with the stock task menu, because Latte's
+  `import org.kde.taskmanager` then resolved from the system copy instead of
+  Latte's pinned one. If you must expose extra modules/plugins, allow-list
+  the specific leaves (or symlink them into a private tree), never add a
+  shared root that also carries components we ship our own copies of.
+- Verify causation, do not assume it. When something regresses, isolate the
+  one variable and prove it - revert it alone and retest, or read the actual
+  loaded state - before "fixing" the suspected cause. Two wrong guesses in a
+  row cost more than one measurement. The launcher QML-path change and the
+  QT_PLUGIN_PATH gap were distinct faults; only reverting and re-reading the
+  running process's env told them apart.
+- After a fix, confirm it against the real running artifact (logs, the live
+  dock), not just "it builds". A green build says nothing about whether the
+  menu came back.
+
 ### Stub tracking
 
 Anything stubbed to keep a phase moving - a function returning a
