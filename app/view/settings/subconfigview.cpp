@@ -24,9 +24,6 @@
 #include <KLocalizedContext>
 #include <KWindowSystem>
 
-// Plasma
-#include <PlasmaQuick/AppletQuickItem>
-
 namespace Latte {
 namespace ViewPart {
 
@@ -213,14 +210,17 @@ void SubConfigView::initParentView(Latte::View *view)
 
     viewconnections << connect(m_latteView->positioner(), &ViewPart::Positioner::canvasGeometryChanged, this, &SubConfigView::syncGeometry);
 
-    //! Assign app interfaces to be accessible through the containment graphic
-    //! item. On Plasma 6 the _plasma_graphicObject property is gone; the item is
-    //! resolved through AppletQuickItem. Without this the "plasmoid" context
-    //! property is null, so the config QML's root Loader (active: plasmoid &&
-    //! plasmoid.configuration && latteView) never loads and the edit panel has
-    //! no content or size.
-    QQuickItem *containmentGraphicItem = PlasmaQuick::AppletQuickItem::itemForApplet(m_latteView->containment());
-    rootContext()->setContextProperty(QStringLiteral("plasmoid"), containmentGraphicItem);
+    //! The config QML reads plasmoid.configuration, plasmoid.location and
+    //! plasmoid.formFactor. On Plasma 5 the _plasma_graphicObject was one
+    //! object carrying both the graphics and those data properties; Plasma 6
+    //! splits them: AppletQuickItem::itemForApplet() is the graphics item and
+    //! exposes .plasmoid (the applet) but NOT .configuration. The object that
+    //! actually has configuration/location/formFactor is the Plasma::Applet
+    //! (here the containment). Binding "plasmoid" to the graphics item left
+    //! plasmoid.configuration undefined, so the canvas Loader
+    //! (active: plasmoid && plasmoid.configuration && latteView) never loaded
+    //! the blueprint and every settings binding read from undefined.
+    rootContext()->setContextProperty(QStringLiteral("plasmoid"), m_latteView->containment());
     rootContext()->setContextProperty(QStringLiteral("latteView"), m_latteView);
 
     //! m_latteView is valid now, so the layer surface can be configured; it

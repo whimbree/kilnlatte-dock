@@ -56,9 +56,12 @@ Loader {
                 return 1;
             }
 
-            //! Track the dock's real background opacity (what the edit-mode wheel now changes) so the
-            //! blueprint preview matches what you scroll. -1 means the theme default (treat as opaque).
-            return plasmoid.configuration.panelTransparency === -1 ? 1 : plasmoid.configuration.panelTransparency / 100;
+            //! The blueprint is the edit-mode indicator ("you are editing this dock"), so it must
+            //! stay visible even when the dock's own background is set fully transparent. Track the
+            //! dock's real background opacity (what the edit-mode wheel changes) so scrolling still
+            //! previews it, but never below a visible floor. -1 means the theme default (opaque).
+            var tracked = plasmoid.configuration.panelTransparency === -1 ? 1 : plasmoid.configuration.panelTransparency / 100;
+            return Math.max(0.5, tracked);
         }
 
         property real offset: {
