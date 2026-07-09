@@ -875,6 +875,30 @@ before implementing, not just before merging.
       `DragHandler`-driven drag no matter how it's layered
       Commits:
 
+Qt5-faithful edit mode blueprint (decided live 2026-07-09, see
+docs/session-handoff-editmode-blueprint.md for the measurements and
+reasoning): the blueprint grid must live inside the dock window, since
+two wlr-layer surfaces cannot be interleaved (no dock > grid >
+wallpaper stacking across the dock and CanvasConfigView surfaces).
+
+- [x] Step 1: draw the blueprint inside the containment, between the
+      dock background and the layouts container, driven by editMode
+      Commits: d68b8e8d
+- [ ] Step 2: grow the dock to `latteView.editThickness` in edit mode
+      (computed in app/view/view.cpp but consumed nowhere in QML - the
+      port dropped that wiring); wire it through Metrics/
+      MetricsPrivate/VisibilityManager. Expect iteration on mask,
+      strut and input region
+      Commits:
+- [ ] Step 3: stop CanvasConfiguration.qml drawing its own grid so
+      there is only one blueprint; the canvas keeps its other jobs
+      (settings chrome, input carving in configure-applets mode)
+      Commits:
+- [ ] UX: when the rearrange toggle is centered, open the settings
+      window to the right side instead of also centered
+      (app/view/settings/primaryconfigview.cpp)
+      Commits:
+
 ### Phase 8: Layout/config persistence, session shutdown, multi-screen
 
 - [ ] Implement session shutdown/logout handling as one deliberate
