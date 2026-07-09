@@ -79,6 +79,30 @@ stale checkboxes."
   in (e.g. from watching the reference forks' ongoing work) rather than
   treating either as fixed once written.
 
+### Failures and root cause
+
+- Never silently swallow a failure. A quiet early-return, an empty
+  catch, a `?:` that hides a null, a clamp that papers over a bad value -
+  all worse than the failure itself, because they turn a loud, findable
+  bug into a silent, wrong-behaviour one that surfaces somewhere far away.
+  If something cannot proceed, say so: `qWarning()`/`qCritical()` with
+  enough context to act on, or fail loudly. Silence is not error handling.
+- A degenerate value is a symptom, not a thing to guard away. A zero-size
+  window, a null containment, an empty action list, an index of -1 - none
+  of these are normal states to clamp back into range. Ask what produced
+  it and why, and fix it there. `if (size.isEmpty()) return;` at the point
+  of use is a bandaid; the bug is whatever handed you an empty size.
+- Trace every failure to its root cause before writing a fix. "It stopped
+  crashing" is not "it is fixed" if the fix is a guard downstream of the
+  real defect. Prefer the fix at the origin. If a guard is genuinely the
+  right layer (e.g. a real optional that is legitimately absent), say why
+  in a comment, so it reads as a deliberate contract and not a patch over
+  something not understood.
+- When you cannot see why from the code, instrument and reproduce - add
+  temporary logging that prints the actual values at the actual moment,
+  drive the failure, read it, then remove the instrumentation. Guessing
+  and clamping is how bandaids accrete.
+
 ### Stub tracking
 
 Anything stubbed to keep a phase moving - a function returning a
