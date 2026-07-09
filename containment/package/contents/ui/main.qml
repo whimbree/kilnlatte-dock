@@ -824,6 +824,45 @@ ContainmentItem {
             }
         }
 
+        //! Edit mode blueprint, drawn inside the containment as in Qt5 Latte. It cannot
+        //! live in the canvas config window: that is a separate layer surface and wayland
+        //! cannot stack dock > grid > wallpaper across two surfaces, so the grid must be
+        //! behind the applets in the dock window itself.
+        Image {
+            id: editBlueprint
+            anchors.fill: parent
+            fillMode: Image.Tile
+            source: latteView && latteView.layout ? latteView.layout.background : ""
+
+            visible: opacity > 0
+            //! Hidden in configure-applets mode: there the canvas window overlays the dock
+            //! and carves its input region over the widgets, the same reason the canvas
+            //! hides its own grid in that mode.
+            opacity: root.editMode && !root.inConfigureAppletsMode ? maxOpacity : 0
+
+            readonly property real maxOpacity: {
+                //! No compositor, no real transparency, show the blueprint solid.
+                if (!LatteCore.WindowSystem.compositingActive) {
+                    return 1;
+                }
+
+                //! Track the dock background opacity the edit-mode wheel changes, but never
+                //! below a visible floor since the blueprint is the edit-mode indicator.
+                //! -1 means the theme default (opaque). Same logic as the canvas grid in
+                //! CanvasConfiguration.qml so both grids match until the canvas one is removed.
+                var tracked = Plasmoid.configuration.panelTransparency === -1 ? 1 : Plasmoid.configuration.panelTransparency / 100;
+                return Math.max(0.5, tracked);
+            }
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: animations.duration.large
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+        }
+
         Layouts.LayoutsContainer {
             id: layoutsContainer
         }
