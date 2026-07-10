@@ -68,6 +68,14 @@ stale checkboxes."
 
 ## Working agreements
 
+- Behavior is Qt5-faithful: when the port and Qt5 Latte disagree on how
+  something behaves (defaults, semantics, what a control adjusts, what
+  is drawn where), Qt5 Latte is the spec unless a platform constraint
+  genuinely forces a change - and then the deviation gets a comment
+  saying what forced it. Both reference forks reinterpreted behaviors
+  in ways users notice (e.g. edit-mode grid opacity rewired from
+  editBackgroundOpacity to panelTransparency); read the Qt5 source
+  before accepting a fork's version of any behavior.
 - Never add Co-Authored-By or other AI attribution to commits (global
   preference, not specific to this repo).
 - No em-dashes, no AI-sounding marketing-style phrasing in docs, commit
