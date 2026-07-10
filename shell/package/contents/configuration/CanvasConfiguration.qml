@@ -44,24 +44,15 @@ Loader {
 
         readonly property real appliedOpacity: imageTiler.opacity
         readonly property real maxOpacity: {
-            //! Rearranging widgets: the canvas overlays the dock and its input region is carved away
-            //! over the widgets (CanvasConfigView::updateInputRegion), so the blueprint must be
-            //! transparent too -- otherwise it paints over the very widgets you are trying to see and move.
-            if (universalSettings.inConfigureAppletsMode) {
-                return 0;
-            }
-
-            //! No compositor -> no real transparency, so show the blueprint solid.
-            if (!LatteCore.WindowSystem.compositingActive) {
+            //! Mirrors the containment blueprint's opacity (that is the grid the user
+            //! actually sees; this window's own tiler no longer renders). SettingsOverlay
+            //! picks its text contrast from imageTiler.opacity, so the value must track
+            //! the real grid.
+            if (universalSettings.inConfigureAppletsMode || !LatteCore.WindowSystem.compositingActive) {
                 return 1;
             }
 
-            //! The blueprint is the edit-mode indicator ("you are editing this dock"), so it must
-            //! stay visible even when the dock's own background is set fully transparent. Track the
-            //! dock's real background opacity (what the edit-mode wheel changes) so scrolling still
-            //! previews it, but never below a visible floor. -1 means the theme default (opaque).
-            var tracked = plasmoid.configuration.panelTransparency === -1 ? 1 : plasmoid.configuration.panelTransparency / 100;
-            return Math.max(0.5, tracked);
+            return plasmoid.configuration.editBackgroundOpacity;
         }
 
         property real offset: {
@@ -135,9 +126,11 @@ Loader {
             hoverEnabled: true
 
             property bool wheelIsBlocked: false;
-            readonly property int opacityStep: 5
-            readonly property string tooltip: i18nc("opacity for the dock background under edit mode, %1 is opacity percentage",
-                                                    "You can use mouse wheel to change the dock background opacity of %1%", plasmoid.configuration.panelTransparency === -1 ? 100 : plasmoid.configuration.panelTransparency)
+            //! Qt5 semantics: the wheel adjusts the edit-mode grid opacity
+            //! (editBackgroundOpacity), not the dock's own background setting.
+            readonly property real opacityStep: 0.1
+            readonly property string tooltip: i18nc("opacity for the edit mode background, %1 is opacity percentage",
+                                                    "You can use mouse wheel to change the edit background opacity of %1%", Math.round(plasmoid.configuration.editBackgroundOpacity * 100))
 
             onWheel: (wheel) => {
                 processWheel(wheel);
@@ -154,13 +147,12 @@ Loader {
 
                 var angle = wheel.angleDelta.y / 8;
 
-                //! -1 = theme default (treated as fully opaque); start from 100 so the first scroll steps down.
-                var current = plasmoid.configuration.panelTransparency === -1 ? 100 : plasmoid.configuration.panelTransparency;
+                var current = plasmoid.configuration.editBackgroundOpacity;
 
                 if (angle > 10) {
-                    plasmoid.configuration.panelTransparency = Math.min(100, current + opacityStep);
+                    plasmoid.configuration.editBackgroundOpacity = Math.min(1, current + opacityStep);
                 } else if (angle < -10) {
-                    plasmoid.configuration.panelTransparency = Math.max(0, current - opacityStep);
+                    plasmoid.configuration.editBackgroundOpacity = Math.max(0, current - opacityStep);
                 }
             }
 

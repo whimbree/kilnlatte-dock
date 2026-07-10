@@ -843,23 +843,20 @@ ContainmentItem {
             readonly property int thickness: latteView ? latteView.editThickness : 0
 
             visible: opacity > 0
-            //! Hidden in configure-applets mode: there the canvas window overlays the dock
-            //! and carves its input region over the widgets, the same reason the canvas
-            //! hides its own grid in that mode.
-            opacity: root.editMode && !root.inConfigureAppletsMode ? maxOpacity : 0
+            //! Qt5 semantics: solid while rearranging widgets (the grid is the rearrange
+            //! backdrop) and without compositing (no real transparency); otherwise the
+            //! editBackgroundOpacity setting, which the mouse wheel adjusts in edit mode,
+            //! so the dock background stays visible through the grid.
+            opacity: {
+                if (!root.editMode) {
+                    return 0;
+                }
 
-            readonly property real maxOpacity: {
-                //! No compositor, no real transparency, show the blueprint solid.
-                if (!LatteCore.WindowSystem.compositingActive) {
+                if (root.inConfigureAppletsMode || !LatteCore.WindowSystem.compositingActive) {
                     return 1;
                 }
 
-                //! Track the dock background opacity the edit-mode wheel changes, but never
-                //! below a visible floor since the blueprint is the edit-mode indicator.
-                //! -1 means the theme default (opaque). Same logic as the canvas grid in
-                //! CanvasConfiguration.qml so both grids match until the canvas one is removed.
-                var tracked = Plasmoid.configuration.panelTransparency === -1 ? 1 : Plasmoid.configuration.panelTransparency / 100;
-                return Math.max(0.5, tracked);
+                return Plasmoid.configuration.editBackgroundOpacity;
             }
 
             Behavior on opacity {
