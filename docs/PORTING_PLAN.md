@@ -883,17 +883,24 @@ wallpaper stacking across the dock and CanvasConfigView surfaces).
 
 - [x] Step 1: draw the blueprint inside the containment, between the
       dock background and the layouts container, driven by editMode
-      Commits: d68b8e8d
+      Commits: d68b8e8d, d72ee0cd (fill-the-window was wrong: the
+      window carries parabolic zoom headroom, so the grid must be
+      sized to editThickness at the screen edge like Qt5's visual)
 - [ ] Step 2: grow the dock to `latteView.editThickness` in edit mode
       (computed in app/view/view.cpp but consumed nowhere in QML - the
       port dropped that wiring); wire it through Metrics/
       MetricsPrivate/VisibilityManager. Expect iteration on mask,
-      strut and input region
+      strut and input region. May be partly moot: the mask already
+      exposes the full window in edit mode and the window is taller
+      than editThickness, so evaluate what actually remains (struts,
+      input region, slide animation) before wiring anything
       Commits:
-- [ ] Step 3: stop CanvasConfiguration.qml drawing its own grid so
+- [x] Step 3: stop CanvasConfiguration.qml drawing its own grid so
       there is only one blueprint; the canvas keeps its other jobs
-      (settings chrome, input carving in configure-applets mode)
-      Commits:
+      (settings chrome, input carving in configure-applets mode).
+      Done early, out of order: the canvas stacks in front of the
+      dock, so its opaque grid hid every applet once step 1 landed
+      Commits: 608a509e
 - [ ] UX: when the rearrange toggle is centered, open the settings
       window to the right side instead of also centered
       (app/view/settings/primaryconfigview.cpp)
