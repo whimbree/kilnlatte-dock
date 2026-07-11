@@ -64,10 +64,26 @@ void Parabolic::onEvent(QEvent *e)
     switch (e->type()) {
 
     case QEvent::Leave:
+        m_lastMouseMovePos.reset();
         setCurrentParabolicItem(nullptr);
         break;
     case QEvent::MouseMove:
         if (auto me = dynamic_cast<QMouseEvent *>(e)) {
+            //! While the parabolic layout animates, the view receives MouseMove
+            //! events at frame rate whose window position has not changed (the
+            //! ITEMS moved under a stationary pointer, not the pointer). Mapping
+            //! those into the moving item's coordinates below turns item motion
+            //! into fake mouse motion: the zoom re-centers, the layout shifts,
+            //! more events arrive, and the whole dock oscillates indefinitely
+            //! (observed self-sustaining for 33s, walking the hover across four
+            //! tasks and tearing the window previews down with it). Only a real
+            //! pointer movement may drive the parabolic effect.
+            if (m_lastMouseMovePos && *m_lastMouseMovePos == me->windowPos()) {
+                break;
+            }
+
+            m_lastMouseMovePos = me->windowPos();
+
             if (m_currentParabolicItem) {
                 QPointF internal = m_currentParabolicItem->mapFromScene(me->windowPos());
 

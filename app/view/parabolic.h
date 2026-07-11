@@ -6,6 +6,9 @@
 #ifndef VIEWPARABOLIC_H
 #define VIEWPARABOLIC_H
 
+// C++
+#include <optional>
+
 // Qt
 #include <QEvent>
 #include <QObject>
@@ -46,6 +49,10 @@ private:
     QPointer<QQuickItem> m_currentParabolicItem;
 
     QPointF m_lastOrphanParabolicMove;
+
+    //! last MouseMove window position that was actually processed; empty
+    //! after a Leave so the first move of the next entry always passes
+    std::optional<QPointF> m_lastMouseMovePos;
 
     QTimer m_parabolicItemNullifier;
 };
