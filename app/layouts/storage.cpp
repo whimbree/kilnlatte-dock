@@ -612,7 +612,23 @@ QList<Plasma::Containment *> Storage::importLayoutFile(const Layout::GenericLayo
 
     QList<Plasma::Containment *> importedViews;
 
+    //! importLayout() triggers containmentAdded handlers synchronously (view
+    //! creation and friends) and a containment can be DESTROYED before this
+    //! loop runs; touching such a pointer crashed inside pluginMetaData()
+    //! (dangling containment, coredumps 02:06 and 02:57 on 2026-07-11, race
+    //! not yet root-caused). The corona's containment list only holds live
+    //! objects and contains() compares pointer values without dereferencing,
+    //! so it is a safe liveness filter until the deleter is identified.
+    const auto livecontainments = layout->corona()->containments();
+
     for (const auto containment : newContainments) {
+        if (!livecontainments.contains(containment)) {
+            qWarning() << "importLayoutFile: a containment imported from" << file
+                       << "was destroyed during the import; skipping it. The deleter"
+                       << "is still unidentified, look for destroyContainment logs right above.";
+            continue;
+        }
+
         if (isLatteContainment(containment)) {
             importedViews << containment;
         }

@@ -1622,6 +1622,11 @@ void GenericLayout::destroyContainment(Plasma::Containment *containment)
         return;
     }
 
+    //! breadcrumb for the importLayoutFile dangling-containment race: if a
+    //! crash or the import guard fires right after this line, this was the
+    //! deleter
+    qDebug() << "layout:" << name() << "destroying containment:" << containment->id();
+
     containment->setImmutability(Plasma::Types::Mutable);
     containment->destroy();
 }
