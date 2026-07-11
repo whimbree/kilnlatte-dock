@@ -152,6 +152,21 @@ sits on that same output). This is the first concrete Phase 8 multi-screen
 work item; do it WITH the dual-monitor setup live, per the plan's warning
 that both reference forks fought multi-screen repeatedly.
 
+## Duplicate-dock + add-widget crash (NEW, open, no core)
+
+User duplicated their dock, then added a widget to it; latte crashed and
+KCrash itself crashed while handling it (log: 'KCrash: appFilePath points
+to nullptr!', crashRecursionCounter = 2), so there is NO core. The log
+fingerprint: at duplication time a storm of
+'org.kde.sync ... configuration syncing was not established, configuration
+object was missing!' (app/view/containmentinterface.cpp:1034) for every
+applet id of the clone; the same failure again for the newly added
+widget's id right before the crash, then CompactApplet.qml binding errors
+and death. Points straight at the cloned-view config-sync machinery, same
+territory as the Phase 8 'cloned-view applet-order sync' item. To get a
+backtrace next time: reproduce under
+LATTE_RUN_WRAPPER='gdb -batch -ex run -ex bt --args' via restart-staged.sh.
+
 ## Dock exits ~20s after screen lock/unlock cycles (open, now well-scoped)
 
 Twice observed: a screen remove/re-add cycle (lock or dpms), handled cleanly
