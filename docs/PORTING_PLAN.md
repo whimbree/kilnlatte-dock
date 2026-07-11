@@ -432,14 +432,19 @@ welcome but not required.
       exclusive-edge-is-always-anchored unit test), cf05d856
       (applyCanvasPlacement clears the exclusive edge and carves the
       configure-applets click-through input region; the interactive
-      chrome rect is stubbed until the Phase 5 QML lands)
+      chrome rect was stubbed there and completed in 5e873329),
+      ec5d2316 (zone -1 so the overlay is not pushed off the edge by
+      the dock's own strut)
 - [x] Center settings windows via layer-shell margins instead of
       anchoring them to the dock's edge (anchored, they stick to
       whichever edge the dock had when they *opened*, not the current
       one)
       Commits: cf05d856 (deviation: the settings windows drop their
       anchors entirely and let the compositor centre them - simpler
-      than margin math and equally clear of the dock's current edge)
+      than margin math and equally clear of the dock's current edge),
+      superseded for the primary window by 0d92f007 (pinned to the
+      right end; compositor-centering put it mid-screen over the
+      widgets being edited)
 - [x] Seed a legal initial size for any layer-shell surface whose
       anchors don't span an axis it has zero size on yet (a single-edge
       Center dock, or an as-yet-unsized edge helper) - the first
@@ -909,10 +914,16 @@ wallpaper stacking across the dock and CanvasConfigView surfaces).
       Done early, out of order: the canvas stacks in front of the
       dock, so its opaque grid hid every applet once step 1 landed
       Commits: 608a509e
-- [ ] UX: when the rearrange toggle is centered, open the settings
+- [x] UX: when the rearrange toggle is centered, open the settings
       window to the right side instead of also centered
-      (app/view/settings/primaryconfigview.cpp)
-      Commits:
+      (app/view/settings/primaryconfigview.cpp). Grew on user request
+      into the full edit-chrome layout: settings window pinned right
+      (wayland was compositor-centering it mid-screen), ruler flush
+      with the blueprint top, rearrange toggle at the left end, canvas
+      overlay no longer pushed off the edge by the dock's own strut
+      Commits: ec5d2316 (exclusive-zone opt-out), 0d92f007 (settings
+      window right), 374461cb (ruler + toggle), 5e873329 (toggle stays
+      clickable in configure-applets mode, completes cf05d856 stub)
 
 ### Phase 8: Layout/config persistence, session shutdown, multi-screen
 

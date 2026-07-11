@@ -1,9 +1,11 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-10. HEAD is 87060e36 on main (plus the docs commit that
-adds this file), working tree clean. A staged dock is running against the real
-user config via scripts/restart-staged.sh.
+Last updated 2026-07-11 (early morning). Edit-mode layout work is COMMITTED
+and live-verified (see "Edit mode layout" below). A staged dock is running
+against the THROWAWAY config (build/_runconfig), NOT --user-config: the real
+user layout currently triggers a startup hang (see "iconSize startup hang"
+below).
 
 ## What landed this session (all committed, all live-verified with screenshots)
 
@@ -50,41 +52,117 @@ Crash + infrastructure:
   live verification (see below).
 - fcedce40 docs: Qt5-faithful behavior agreement recorded in CLAUDE.md.
 
-## Current task (in progress, NOT started in code): hover preview jitter
+## Hover preview jitter: ROOT CAUSE CONFIRMED LIVE, fix proposed, awaiting go
 
-User report: hover an app icon, the preview appears; move the cursor a little
-left or right and the preview disappears and reappears in a slightly different
-spot. The user's instinct is right: it is the parabolic icon zoom repositioning
-things under the cursor. This was a "describe the problem" question, so the next
-step is to confirm root cause and propose a fix, not to have already fixed it.
+Reproduced with fakepointer + temporary QML logging (instrumentation added,
+driven, read, then removed; tree carries none of it). The user's symptom
+(preview disappears and reappears in a different spot when nudging the cursor)
+is the visible edge of a parabolic-zoom feedback loop that runs even with a
+COMPLETELY STATIONARY pointer:
 
-What was confirmed by reading the code (not yet fully root-caused or fixed):
+1. Hover a task, zoom animates, preview shows. While anything animates, the
+   view receives a stream of MouseMove events at frame rate with an unchanged
+   pointer position (~83 events/s measured; Qt6 frame-synchronous synthetic
+   hover delivery, exact producer still to be pinned down in one rebuild).
+2. app/view/parabolic.cpp onEvent maps each event's windowPos into the CURRENT
+   parabolic item's coordinates and queues parabolicMove(item-local x,y) via
+   Qt::QueuedConnection. The item is moving/scaling, so the item-local x keeps
+   drifting (logged mx 76 -> 42 with the cursor pinned at one spot).
+3. ParabolicEventsArea.qml onParabolicMove feeds that drifting x into
+   calculateParabolicScales, which re-centers the zoom, which shifts the
+   layout under the cursor, which produces more synthetic moves. The system
+   oscillates instead of converging (one storm self-sustained for 33s; another
+   walked the hover across tasks 4 -> 3 -> 2 -> 0 with zero pointer input,
+   KWin raising each task's window via highlightWindows on the way).
+4. Preview symptom: each boundary crossing fires exited/entered, show()
+   re-anchors the popup to the new task (content + size + anchor all change);
+   when the churn drops the cursor into a gap for >300ms, hidePreviewWinTimer
+   fires forcePreviewsHiding and the preview vanishes, then re-hover shows it
+   at the new anchor. That is exactly "disappears and reappears elsewhere".
+5. Dialog layer makes it worse but is NOT the driver: with the Qt.ToolTip flag,
+   every parabolic frame emits anchoredTooltipPositionChanged ->
+   Dialog::updateGeometry() -> setPosition(popupPosition(visualParent, size())),
+   racing PlasmaQuick's own syncToMainItemSize repositioning. Logged the window
+   position flapping between two values (e.g. x=959 computed from the stale
+   QWindow::size() vs x=681 from the new mainItem size) every ~10ms while the
+   on-screen popup stayed at the first mapped position.
 
-- Preview show/hide lives in plasmoid/.../task/TaskMouseArea.qml onEntered
-  (line 65) / onExited (line 100). onExited calls root.hidePreview() which runs
-  windowsPreviewDlg.hide() -> a 300ms debounce (hidePreviewWinTimer,
-  plasmoid/.../main.qml:424). onEntered with previews already visible calls
-  taskItem.showPreviewWindow() immediately.
-- windowsPreviewDlg.show(taskItem) (main.qml:388) sets activeItem = taskItem and
-  the popup anchors to that task's visualParent (set in TaskItem.qml:493). So
-  the popup follows whichever task is activeItem.
-- Mechanism (hypothesis, needs confirming live): as the cursor moves, parabolic
-  zoom animates icon positions/sizes. The hovered icon (or a neighbor) shifts
-  under the cursor, the cursor crosses a MouseArea boundary, onExited fires on
-  one task and onEntered on the next, show() re-anchors the popup to the new
-  task's moved geometry -> the "reappear in a slightly different spot". Even
-  same-task, the anchor geometry moves as zoom animates.
-- Related and probably the same defect surface: the OLD backlog item "preview
-  tooltip mispositions on fast re-hover" -> declarativeimports/core/dialog.cpp
-  popupPosition() computes a global point and calls setPosition(), which wayland
-  ignores/handles poorly instead of using a proper xdg_popup positioner. The
-  janky reposition is likely this.
+Proposed fix (waiting for user go):
+- Primary, in Parabolic::onEvent: remember the last windowPos and DROP
+  MouseMove-derived parabolic updates whose window position has not changed.
+  Item movement under a stationary pointer then stops masquerading as mouse
+  movement, the loop cannot sustain, and real pointer-driven behavior is
+  untouched (Qt5/X11-faithful: those synthetic events did not reach this path
+  there). Implementation step 1 is a qDebug print of windowPos in onEvent to
+  confirm constancy during a storm, then the guard.
+- Secondary cleanup, same defect surface as the old "mispositions on fast
+  re-hover" backlog item: Dialog::updateGeometry() computes with the stale
+  QWindow::size() while syncToMainItemSize uses the new mainItem size; make
+  updateGeometry use the mainItem size (or skip while a resize is pending).
+- The PORTING_PLAN Phase 7 "always-visible MouseArea, synchronous parabolic
+  calc" note (latte-dock-ng 0deca9e18) is the structural long-term shape, but
+  the windowPos dedupe is the minimal Qt5-faithful cut and can land first.
 
-Starting points for the fix: (a) the 300ms hidePreviewWinTimer debounce; (b) the
-show()/showPreviewWindow reposition path re-anchoring on every entered; (c)
-dialog.cpp popupPosition() wayland anchoring. Note PORTING_PLAN Phase 7 already
-has an "always-visible MouseArea, synchronous parabolic calc" note from
-latte-dock-ng (its 0deca9e18) for the zoom-stutter class; read it first.
+## Edit mode layout (user-requested, COMMITTED, live-verified)
+
+User request: rearrange button to the LEFT, settings panel to the RIGHT, the
+Maximum Length ruler aligned with the top of the blueprint. Root causes found
+with a KWin-script window dump (see verification loop below):
+
+- The canvas config window was pushed 88px off the screen edge by the dock's
+  own exclusive zone (measured: canvas at y=1206 instead of 1294 for
+  editThickness=146), so ruler + button floated above the blueprint.
+  Layer-shell zone 0 means "respect other surfaces' struts"; an overlay must
+  opt out with zone -1.
+- The settings window used LayerShell::setUnanchored, so the compositor
+  centered it mid-screen (measured at (1015,380)), nowhere near the dock.
+
+Landed as:
+- ec5d2316 fix(wm): applyCanvasPlacement and applyFixedGeometry now
+  setExclusiveZone(-1) so both land exactly where computed.
+- 0d92f007 feat(settings): settings window pinned right via
+  applyFixedGeometry (wayland setUnanchored had it compositor-centered
+  mid-screen); horizontal docks use the right-end placement in both modes.
+- 374461cb feat(shell): ruler thicknessMargin 0 for horizontal docks (flush
+  with the blueprint inner edge), rearrange button anchored left just below
+  (bottom dock) / above (top dock) the ruler. Vertical docks unchanged.
+- 5e873329 fix(settings): completes the cf05d856 STUB. In configure-applets
+  mode the whole canvas was click-through, so unclicking the rearrange
+  toggle fell through to the dock, the settings window lost focus and edit
+  mode closed entirely (user-reported). updateInputRegion now reads the
+  QML-published rearrangeToggleRect and keeps that rect interactive.
+
+All verified live with KWin-script geometry dumps + the screenshot loop:
+canvas at (0,1294) 2560x146 == the blueprint band, settings at (2031,7)
+flush right with its bottom on the blueprint top, ruler line is the grid's
+top boundary, toggle at the left under it, and the rearrange toggle
+round-trip keeps edit mode open (user-confirmed working).
+
+One quirk seen only with fakepointer, not reproduced with a real mouse:
+the click that ENTERS rearrange mode shrinks the input mask mid-click, and
+the synthetic release seemed to get lost once, leaving the Button stuck
+pressed so the next synthetic click was a no-op. If a real-mouse report of
+"first unclick needs two clicks" ever comes in, start there.
+
+## iconSize startup hang (NEW, root cause bisected, code fix pending)
+
+The port hangs at startup at 100% CPU (main thread, event loop starved, dbus
+times out) when the layout contains iconSize=78. Bisected live: user layout
+in a throwaway config hangs; same layout minus iconSize=78 starts; iconSize=64
+starts; 78 alone re-adds the hang. gdb backtrace (child run, since yama
+blocks attach): a QML bound-signal handler triggered from the
+Q_EMIT visibilityChanged() in View::setContainment (view.cpp:180 area) never
+returns, i.e. a binding/handler cascade that never settles. Suspect surface:
+viewTypeInQuestion / behaveAsPlasmaPanel / background.isGreaterThanItemThickness
+flip-flopping once the icon size crosses a threshold between 64 and 78. The
+log always freezes on the same line: 'Updating visibility mode ::
+AlwaysVisible' right before indicator QML would load.
+
+IMPORTANT: the REAL user layout (~/.config/latte/"My Layout.layout.latte")
+acquired iconSize=78 at 22:20:35 on 07-10, written when a staged dock was
+killed while edit mode was open. Until the loop is fixed in code (preferred;
+CLAUDE.md failure rules: fix the origin, do not clamp), --user-config runs
+will hang. Do not silently edit the user's config; ask, or fix the code first.
 
 ## The live-verification loop (the big infrastructure win, use it every time)
 
