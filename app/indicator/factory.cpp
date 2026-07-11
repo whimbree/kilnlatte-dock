@@ -212,10 +212,18 @@ void Factory::removeIndicatorRecords(const QString &path)
         m_plugins.remove(pluginId);
         m_pluginUiPaths.remove(pluginId);
 
+        //! Built-in indicators (default/plasma/plasmatabstyle) are never added to
+        //! the custom lists (see reload()), so a watched built-in path resolves to
+        //! -1 here - it happens whenever the install tree is rewritten under a
+        //! running dock and KDirWatch delivers the removals. Qt6's removeAt(-1)
+        //! is a hard assert where Qt5 tolerated it.
         int pos = m_customPluginIds.indexOf(pluginId);
 
-        m_customPluginIds.removeAt(pos);
-        m_customPluginNames.removeAt(pos);
+        if (pos >= 0) {
+            m_customPluginIds.removeAt(pos);
+            m_customPluginNames.removeAt(pos);
+        }
+
         m_customLocalPluginIds.removeAll(pluginId);
 
         m_indicatorsPaths.removeAll(path);
