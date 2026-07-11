@@ -72,6 +72,21 @@ int main(int argc, char **argv)
 
     QQuickWindow::setDefaultAlphaBuffer(true);
 
+    //! Default to the single-threaded scenegraph render loop. Qt 6.11's
+    //! threaded loop races layer/ShaderEffect teardown across Latte's many
+    //! windows: reproducible SIGSEGV in QSGBatchRenderer::buildRenderLists
+    //! during QSGRhiLayer::grab whenever effect sources churn (edit-mode
+    //! toggles on an overflowing dock, context-menu open/dismiss while
+    //! window previews churn, widget adds). Two invalid-provider effects
+    //! were fixed outright, but the race also fires through valid layered
+    //! effects; with the basic loop the whole class is gone (verified with
+    //! previously 100%-reproducible recipes). Plasmashell itself shipped on
+    //! the basic loop for years, and dock surfaces are small, so the cost
+    //! is acceptable. Respect an explicit user override.
+    if (!qEnvironmentVariableIsSet("QSG_RENDER_LOOP")) {
+        qputenv("QSG_RENDER_LOOP", "basic");
+    }
+
     qputenv("QT_WAYLAND_DISABLE_FIXED_POSITIONS", {});
     const bool qpaVariable = qEnvironmentVariableIsSet("QT_QPA_PLATFORM");
     detectPlatform(argc, argv);
