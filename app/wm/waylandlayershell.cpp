@@ -262,6 +262,11 @@ void applyCanvasPlacement(QWindow *window, Plasma::Types::Location location,
         //! may not be among the overlay anchors, and the compositor kills the
         //! surface for that ("exclusive edge is not of the anchors").
         ls->setExclusiveEdge(LSW::AnchorNone);
+        //! zone -1 opts out of OTHER surfaces' exclusive zones. With the
+        //! default zone 0 the compositor pushes the canvas off the screen
+        //! edge by the dock's own strut, so the edit chrome (ruler, header)
+        //! floats above the blueprint instead of overlaying it.
+        ls->setExclusiveZone(-1);
         ls->setAnchors(placement.anchors);
         ls->setMargins(placement.margins);
     }
@@ -274,6 +279,10 @@ void applyFixedGeometry(QWindow *window, const QRect &geometry, const QRect &scr
         //! parent-dock anchoring would both hold a strut and, if not among the
         //! anchors below, make the compositor kill the surface
         ls->setExclusiveEdge(LSW::AnchorNone);
+        //! zone -1 opts out of other surfaces' exclusive zones: the caller
+        //! computed @p geometry in absolute screen coordinates, so letting
+        //! the compositor shift the surface off a strut would misplace it
+        ls->setExclusiveZone(-1);
         //! anchor the top-left corner and drive the position with margins; the
         //! two anchored edges are what let the margins take effect (a margin on
         //! an unanchored edge is ignored), and the window's explicit size
