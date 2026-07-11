@@ -181,21 +181,10 @@ Column {
                 id:previewThumbLoader
                 anchors.fill: parent
                 anchors.margins: Math.max(2, thumbnailSourceItem.shadowPx)
-                active: LatteCore.WindowSystem.isPlatformX11 || (root.plasma520 && LatteCore.WindowSystem.isPlatformWayland)
                 visible: !albumArtImage.visible && !thumbnailSourceItem.isMinimized
-                source:  {
-                    if (LatteCore.WindowSystem.isPlatformWayland) {
-                        if (root.plasmaAtLeast526) {
-                            return "PipeWireThumbnail.5.26.qml";
-                        } else if (root.plasmaAtLeast525) {
-                            return "PipeWireThumbnail.5.25.qml";
-                        } else if (root.plasmaAtLeast524) {
-                            return "PipeWireThumbnail.5.24.qml";
-                        }
-                    }
-
-                    return "PlasmaCoreThumbnail.qml";
-                }
+                //! The Plasma 5 version ladder (5.24/5.25/5.26 variants) is dead on a
+                //! Plasma 6-only port; wayland always takes the kpipewire path.
+                source: LatteCore.WindowSystem.isPlatformWayland ? "PipeWireThumbnail.qml" : "PlasmaCoreThumbnail.qml"
 
                 LatteComponents.ShadowedItem {
                     anchors.fill: previewThumbLoader.item
