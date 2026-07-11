@@ -884,7 +884,7 @@ before implementing, not just before merging.
       Commits:
 
 Qt5-faithful edit mode blueprint (decided live 2026-07-09, see
-docs/session-handoff-editmode-blueprint.md for the measurements and
+docs/session-handoff.md for the measurements and
 reasoning): the blueprint grid must live inside the dock window, since
 two wlr-layer surfaces cannot be interleaved (no dock > grid >
 wallpaper stacking across the dock and CanvasConfigView surfaces).
