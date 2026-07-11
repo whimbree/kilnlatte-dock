@@ -851,6 +851,23 @@ PlasmoidItem {
             border.color: "blue"
         } */
 
+        //! The MultiEffect below samples this as its mask texture. It must live
+        //! OUTSIDE scrollableList: as a child it sat inside the very subtree the
+        //! effect's layer grabs, and that self-referential grab crashed the
+        //! render thread (SIGSEGV in QSGBatchRenderer::buildRenderLists during
+        //! QSGRhiLayer::grab, always right after "Texture t1 is not assigned a
+        //! valid texture provider") whenever layer.enabled flipped with
+        //! contentsExceed churn - entering edit mode, adding a widget, or any
+        //! relayout of an overflowing dock. Kept invisible and out of layout,
+        //! only its texture feeds the mask.
+        TasksLayout.ScrollOpacityMask {
+            id: scrollMask
+            width: scrollableList.width
+            height: scrollableList.height
+            visible: false
+            layer.enabled: true
+        }
+
         TasksLayout.ScrollableList {
             id: scrollableList
             width: !root.vertical ? length : thickness
@@ -860,23 +877,21 @@ PlasmoidItem {
 
             //onCurrentPosChanged: console.log("CP :: "+ currentPos + " icW:"+icList.width + " rw: "+root.width + " w:" +width);
 
-            layer.enabled: contentsExceed && root.scrollingEnabled
+            //! Gated on the scrolling SETTING, deliberately NOT on contentsExceed:
+            //! flipping layer.enabled while the render thread has layer grabs in
+            //! flight is a crash (SIGSEGV in buildRenderLists during
+            //! QSGRhiLayer::grab; reproduced on demand by toggling edit mode with
+            //! an overflowing dock, since edit mode resizes the dock and churns
+            //! contentsExceed). A settings-driven gate never flips at runtime.
+            //! Visuals are identical while content fits: the mask is fully opaque
+            //! at rest (both ScrollOpacityMask gradients evaluate to white).
+            layer.enabled: root.scrollingEnabled
             layer.effect: MultiEffect {
                 maskEnabled: true
                 maskSource: scrollMask
                 maskThresholdMin: 0.0
                 maskSpreadAtMin: 1.0
                 autoPaddingEnabled: false
-            }
-
-            //! MultiEffect needs the mask as a live layered source it can sample;
-            //! kept invisible and out of layout, only its texture feeds the mask.
-            TasksLayout.ScrollOpacityMask {
-                id: scrollMask
-                width: scrollableList.width
-                height: scrollableList.height
-                visible: false
-                layer.enabled: true
             }
 
             Binding {
