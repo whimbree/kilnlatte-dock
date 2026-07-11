@@ -732,7 +732,15 @@ into C++. There is no drop-in replacement to import.
       through the newest version-ladder rung
       (PipeWireThumbnail.5.26.qml); the dead 5.24/5.25 rungs are
       compile-gate-skipped. The DodgeActive stale-texture crash class
-      is a live-verification watch item for the Phase 10 sweep
+      is a live-verification watch item for the Phase 10 sweep.
+      c25cb3e1 - the 5.26 rung still carried the kpipewire 5 contract
+      (enabled flipped from C++), which kpipewire 6 dropped: previews
+      rendered as icon fallbacks at opacity 0. Whole ladder replaced
+      with plasma-desktop 6's PipeWireThumbnail.qml shape, plus winId
+      int->var in ToolTipWindowMouseArea (wayland ids are QString
+      UUIDs). Verified live via scripts/tools/fakepointer.c hover loop:
+      real thumbnails for unminimized windows, icon fallback for
+      minimized ones (upstream behavior)
 - [x] Grouped-task click activation: fall back to real window cycling
       (`activateNextTask()`) unconditionally rather than assuming a
       window-effect-based path is reliable; skip phantom toplevels
