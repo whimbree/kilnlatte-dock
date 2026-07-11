@@ -916,6 +916,15 @@ wallpaper stacking across the dock and CanvasConfigView surfaces).
 
 ### Phase 8: Layout/config persistence, session shutdown, multi-screen
 
+- [ ] Dock visibility across screen lock/unlock (observed live
+      2026-07-10, not yet root-caused): a dock that lives through a
+      kscreenlocker cycle can stay invisible after unlock even though
+      the process is healthy and reacting to pointer events (an
+      edit-mode mustBeShown revived it); a dock STARTED under a locked
+      screen stalls for minutes before "Adding View" runs. Reproduce
+      with loginctl lock-session/unlock-session and the screenshot
+      loop, then trace the visibility/startup state machine
+      Commits:
 - [ ] Implement session shutdown/logout handling as one deliberate
       pattern rather than iterating - latte-dock-ng's end state (worth
       adopting as the *starting* implementation, not rediscovering):
