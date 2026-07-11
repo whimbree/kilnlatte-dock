@@ -939,6 +939,43 @@ multi-view, multi-monitor setup.
       verified with a 15-toggle gauntlet
       Commits: df747ebf (fix), ee745859 (fakepointer rightclick used to
       reproduce headlessly)
+- [x] The rest of the crash family behind the scroll-fade fix: Qt6
+      MultiEffect does not auto-wrap plain Items (Qt5 Colorize and
+      DropShadow did), so the applet colorizer and both applet shadow
+      variants had INVALID samplers since the port: effects rendered
+      nothing (blank colorized applets, no applet shadows) and the
+      invalid providers corrupted the scenegraph on representation
+      churn (reproduces on the basic loop too, so corruption, not a
+      race). Reliable reproducer was a broken Comic Strip applet whose
+      representation flapped error/default on every focus change.
+      User-verified stable after the fix set
+      Commits: 73da8400 (providers), c7200e3d (basic render loop
+      default, which made the corruption debuggable), df747ebf and
+      e88af680 (the two dead-effect removals found on the way)
+- [ ] Harden CompactApplet against representation churn: plasma 6
+      destroys/recreates compact representations at runtime (observed
+      live: rep -> null -> new DefaultCompactRepresentation) while
+      CompactApplet.qml keeps parent/anchors/size bindings on the old
+      item and never detaches it; also audit its Qt5-style popupWindow
+      fullRepresentation reparenting against Plasma 6 AppletQuickItem
+      ownership (plasmashell moved applet popups to AppletPopup)
+      Commits:
+- [ ] Expose plasma applets' PRIVATE QML modules to the dock (user hit
+      it live: 'module org.kde.private.desktopcontainment.folder is not
+      installed'; ALL third-party applets error in the staged run while
+      working under plasmashell). Likely the reason broken applets like
+      Comic Strip churn representations at all. Approach per the earlier
+      regression note: allow-list leaf modules (or staged-first ordered
+      path), never append the shared system QML root, which shadowed
+      the pinned org.kde.taskmanager and killed the context menu
+      Commits:
+- [ ] Duplicated docks: applets come out in a DIFFERENT ORDER than the
+      original (user-observed live) - matches the ng-documented
+      applet-order sync defect class. Note: live config mirroring
+      (e.g. pinned tasks appearing on the copy) is NOT expected for
+      duplicates, only for screens-group clones; document that
+      distinction somewhere user-visible
+      Commits:
 - [ ] Verify duplicated/cloned docks actually establish applet config
       sync after the initial 'org.kde.sync ... was not established'
       storm (the 1s retry in ContainmentInterface should log 'delayed
