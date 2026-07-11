@@ -351,6 +351,10 @@ PlasmoidItem {
         mainItem: toolTipDelegate
         visible: false
 
+        //! center on the hovered task; the applets-layout clamp would shove a
+        //! wide preview for a task near the dock's end sideways off its icon
+        respectsAppletsLayoutGeometry: false
+
         property bool signalSent: false
         property Item activeItem: null
 
