@@ -186,6 +186,16 @@ from here, not a re-read of the whole history:
   Less active than latte-dock-ng so far; same check pattern applies if
   it picks back up:
   `cd ~/Projects/latte-dock-qt6 && git fetch origin && git log --oneline 9003f33a..origin/main`
+- **plasma-desktop** (KDE upstream, not a fork): the vendored
+  task-manager backend in `plasmoid/plugin/` (backend, smartlauncher*)
+  derives from `applets/taskmanager/` there, which keeps evolving
+  inside KDE's C++ applet. At every sync pass, also diff upstream's
+  files against our copies and port their fixes:
+  `curl -s "https://invent.kde.org/api/v4/projects/plasma%2Fplasma-desktop/repository/files/applets%2Ftaskmanager%2Fbackend.cpp/raw?ref=master" | diff - plasmoid/plugin/backend.cpp`
+  (ours carries deliberate extensions - KWin D-Bus watcher,
+  showAudioStreamOsd - so expect a stable base diff; look for NEW
+  upstream hunks. See docs/taskmanager-integration-research.md for the
+  vendor-vs-integrate analysis and the decision record.)
 
 ## Current status
 

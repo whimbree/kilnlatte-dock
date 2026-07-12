@@ -4,6 +4,11 @@
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
+//! Vendored from plasma-desktop applets/taskmanager (Kai Uwe Broulik's
+//! smart launchers), adopted 2026-07-07 (commit 14c973b3); Plasma 6 ships no
+//! public module for Unity-API launcher badges. At reference-fork sync time,
+//! diff upstream's file against this one to port their fixes.
+
 #pragma once
 
 #include <QObject>

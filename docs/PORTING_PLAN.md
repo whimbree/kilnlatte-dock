@@ -1324,16 +1324,23 @@ polished, distributable form of it.
       2-3): upstream latte-dock has had no real development since
       2022 (only po/docbook syncs since), so find out whether the
       invent.kde.org repo still accepts MRs and whether anyone
-      reviews there. Two upstream-facing decisions in this plan are
-      big enough to sink an unannounced mega-MR regardless: X11
-      demoted to a best-effort, author-untested path (softer than the
-      forks' outright removal, but still a support-level change
-      upstream would need to own) and the Phase 6 task manager
-      vendoring. Raise the direction with KDE (an issue or draft MR
-      describing this plan) before the work is done, not after. If upstream turns out to be dead for review purposes,
-      the fallback is publishing this fork as a maintained
-      continuation - every item below still pays off as code quality
-      work either way
+      reviews there. REFRAMED 2026-07-12 (user call: latte-dock
+      upstream is dead for practical purposes, and ng's
+      scope-narrowing decisions will NOT be repeated here): plan for
+      the maintained-continuation outcome, with a latte-dock MR as
+      the long-shot upside rather than the goal. The outreach that
+      matters goes to the LIVING KDE repos and survives either way:
+      pitch plasma-workspace on a public libtaskmanager API for the
+      task-manager backend helpers (jump-list/places/recent-doc
+      actions, smart-launcher badge tracking) - see
+      docs/taskmanager-integration-research.md; the evidence is that
+      three independent ports all vendor the same plasma-desktop
+      file, and ng's attempt to shrink that vendor cost four user
+      features plus silent breakage (itemized in the research doc).
+      X11 support-level remains the other direction question if a
+      latte-dock submission ever becomes real. Keep vendored-file
+      provenance/SPDX clean so the code survives KDE review in any
+      venue
       Commits:
 - [ ] Pass over the whole diff for KDE coding style compliance
       Commits:
