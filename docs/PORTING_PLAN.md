@@ -1137,13 +1137,25 @@ multi-view, multi-monitor setup.
       removed - all 75 reads undefined, controls showed defaults and
       applied nothing; rewired through tasks.plasmoid.configuration
       and verified round-trip into the layout file (32df5b47).
-      STILL OPEN: default indicator config.qml logs 5 first-evaluation
-      TypeErrors (minimizedTaskColoredDifferently, activeStyle,
-      extraDotOnActive, enabledForApplets, reversed 'of undefined') at
-      settings-window load only - no repeat when the Effects tab
-      opens, values appear to recover via configurationChanged; find
-      the first-eval window where indicator.configuration is not yet a
-      property map. Also still owed: the with-user semantic walk of
+      The indicator config TypeErrors are RESOLVED (33fa17d7): not a
+      first-eval transient at all - QQC2 controls carry their own
+      'indicator' property (the check glyph), which shadows the config
+      API's context property inside control-scoped bindings AND
+      onClicked handlers, so those checkboxes showed defaults and
+      their toggles silently wrote to the wrong object. Qt5's QQC1
+      controls had no such property, which is why upstream's bare name
+      worked. Diagnosed by logging the failing evaluation (the scope
+      object printed as CheckIndicator_QMLTYPE). WATCH FOR the same
+      shadowing class anywhere a context property or root id collides
+      with a QQC2 control property name.
+      NEW FINDINGS filed from the module-fix fallout (applets now
+      load far enough to hit real API gaps): (a) folder-view/desktop
+      containment calls corona.isScreenUiReady which Latte::Corona
+      does not implement (plasmashell ShellCorona API) - decide shim
+      vs acceptable noise; (b) our own BindingsExternal.qml:281 reads
+      'localGeometry' of null twice during startup; (c) digitalclock
+      Tooltip.qml 'text' of null, third-party internal noise.
+      Also still owed: the with-user semantic walk of
       every control on both tabs against Qt5 (check especially
       TaskMouseArea handling all 9 TaskAction enum values - ng
       eabf7c89a found 3/9, 5/9, 5/9 handled for left/middle/modifier
