@@ -505,6 +505,29 @@ void View::reconsiderScreen()
     m_positioner->reconsiderScreen();
 }
 
+void View::moveToScreen(QScreen *nextScreen)
+{
+    //! a mapped wlr-layer surface is bound to the output it was created on;
+    //! the protocol has no request to move it, so QWindow::setScreen alone
+    //! leaves the surface behind and the compositor re-places the new
+    //! geometry on the OLD output (observed live: a dock relocated
+    //! DP-2 -> DP-3 resized for the portrait screen but stayed on the
+    //! landscape one, vertically centered at y=-113). Hide first so the
+    //! surface is destroyed, retarget both QWindow and layer-shell desired
+    //! output, then show to map a fresh surface on the next output.
+    const bool remap = m_layerShellConfigured && isVisible() && screen() != nextScreen;
+
+    if (!remap) {
+        setScreen(nextScreen);
+        return;
+    }
+
+    setVisible(false);
+    setScreen(nextScreen);
+    reanchorLayerShell();
+    setVisible(true);
+}
+
 void View::duplicateView()
 {
     QString storedTmpViewFilepath = m_layout->storedView(containment()->id());

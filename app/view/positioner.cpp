@@ -406,7 +406,7 @@ void Positioner::setScreenToFollow(QScreen *scr, bool updateScreenId)
     }
 
     qDebug() << "adapting to screen...";
-    m_view->setScreen(scr);
+    m_view->moveToScreen(scr);
 
     updateContainmentScreen();
 

@@ -255,6 +255,10 @@ public:
 
     virtual void reconsiderScreen();
 
+    //! move the view window to @p nextScreen, remapping the layer surface
+    //! when the platform requires it (see implementation)
+    void moveToScreen(QScreen *nextScreen);
+
     //! these are signals that create crashes, such a example is the availableScreenRectChanged from corona
     //! when its containment is destroyed
     void disconnectSensitiveSignals();
