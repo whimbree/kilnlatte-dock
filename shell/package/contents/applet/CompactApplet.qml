@@ -12,6 +12,7 @@ import org.kde.plasma.core 2.0 as PlasmaCore
 import org.kde.ksvg 1.0 as KSvg
 import org.kde.kirigami 2.20 as Kirigami
 import org.kde.plasma.components 3.0 as PlasmaComponents
+import org.kde.plasma.plasmoid
 import org.kde.kquickcontrolsaddons 2.0
 
 import org.kde.latte.core 0.2 as LatteCore
@@ -30,26 +31,59 @@ PlasmaCore.ToolTipArea {
 
     property Item fullRepresentation: null
     property Item compactRepresentation: null
-    /*Discover real visual parent - the following code points to Applet::ItemWrapper*/
-    property Item originalCompactRepresenationParent: null
-    property Item compactRepresentationVisualParent: originalCompactRepresenationParent && originalCompactRepresenationParent.parent
-                                                     ? originalCompactRepresenationParent.parent.parent : null
 
-    property Item appletItem: compactRepresentationVisualParent
-                              && compactRepresentationVisualParent.parent
-                              && compactRepresentationVisualParent.parent.parent ? compactRepresentationVisualParent.parent.parent.parent : null
+    //! Assigned by AppletQuickItem when it instantiates this expander (Plasma 6
+    //! API; plasma-desktop's own CompactApplet.qml relies on it the same way).
+    //! It is the applet's PlasmoidItem: carries the representation-side members
+    //! (expanded, toolTip*, hideOnWindowDeactivate). Its .plasmoid is the
+    //! Plasma::Applet (location/status/containmentDisplayHints, actions).
+    property PlasmoidItem plasmoidItem
 
-    //! The hosted applet's graphic object (PlasmoidItem / AppletQuickItem). Carries the
-    //! representation-side members (expanded, toolTip*, hideOnWindowDeactivate). Its
-    //! .plasmoid is the Plasma::Applet, which carries location/status/containmentDisplayHints
-    //! and the configure action. Null until the visual tree settles, so every access guards.
-    readonly property Item hostedApplet: appletItem ? appletItem.applet : null
+    readonly property Item hostedApplet: plasmoidItem
     readonly property QtObject hostedPlasmoid: hostedApplet ? hostedApplet.plasmoid : null
 
-    onCompactRepresentationChanged: {
-        if (compactRepresentation) {
-            originalCompactRepresenationParent = compactRepresentation.parent;
+    //! Latte's containment AppletItem that hosts this applet, found by walking
+    //! up to its isLatteAppletContainer marker. Never derive it from a
+    //! representation item's parent chain: representations are destroyed and
+    //! recreated at runtime on Plasma 6 (e.g. a zoom crossing an applet's
+    //! switchWidth expands it), and a fixed-hop walk from a churned item lands
+    //! on arbitrary objects. Reading .parent in the loop makes the binding
+    //! re-evaluate if any ancestor is reparented.
+    readonly property Item appletItem: {
+        let item = root.parent;
+        while (item) {
+            if (item.isLatteAppletContainer === true) {
+                return item;
+            }
+            item = item.parent;
+        }
+        return null;
+    }
 
+    //! The previously adopted representations. Plasma 6's AppletQuickItem owns
+    //! representation items and swaps them at runtime (the comic applet does so
+    //! on every parabolic zoom past its switchWidth); when that happens the
+    //! outgoing item must be released cleanly (anchors and size bindings
+    //! neutralized, and for the full representation: returned to this window)
+    //! or its scenegraph nodes are torn down while another window's render
+    //! pass still walks them.
+    property Item _adoptedCompactRep: null
+    property Item _adoptedFullRep: null
+
+    onCompactRepresentationChanged: {
+        if (compactRepresentation === _adoptedCompactRep) {
+            return;
+        }
+
+        if (_adoptedCompactRep) {
+            //! release our anchors and break the size bindings; do not touch
+            //! its parent - AppletQuickItem owns it and may cache and revive it
+            _adoptedCompactRep.anchors.centerIn = undefined;
+            _adoptedCompactRep.width = _adoptedCompactRep.width;
+            _adoptedCompactRep.height = _adoptedCompactRep.height;
+        }
+
+        if (compactRepresentation) {
             compactRepresentation.parent = root;
             compactRepresentation.anchors.centerIn = root;
             compactRepresentation.width = Qt.binding(function() {
@@ -62,10 +96,23 @@ PlasmaCore.ToolTipArea {
 
             compactRepresentation.visible = true;
         }
+
+        _adoptedCompactRep = compactRepresentation;
         root.visible = true;
     }
 
     onFullRepresentationChanged: {
+        if (_adoptedFullRep && _adoptedFullRep !== fullRepresentation) {
+            //! bring the outgoing item's scenegraph nodes back to the dock
+            //! window BEFORE AppletQuickItem tears the item down: destroying it
+            //! while it still lives in the popup dialog's scenegraph is exactly
+            //! the buildRenderLists SIGSEGV the comic applet's zoom-induced
+            //! representation churn reproduced
+            _adoptedFullRep.anchors.fill = null;
+            _adoptedFullRep.visible = false;
+            _adoptedFullRep.parent = root;
+        }
+        _adoptedFullRep = fullRepresentation;
 
         if (!fullRepresentation) {
             return;
@@ -108,8 +155,9 @@ PlasmaCore.ToolTipArea {
             })
         }
 
+        fullRepresentation.anchors.fill = null;
         fullRepresentation.parent = appletParent;
-        fullRepresentation.anchors.fill = fullRepresentation.parent;
+        fullRepresentation.anchors.fill = appletParent;
     }
 
    /* KSvg.FrameSvgItem {
@@ -183,7 +231,7 @@ PlasmaCore.ToolTipArea {
         objectName: "popupWindow"
         flags: Qt.WindowStaysOnTopHint
         visible: (hostedApplet && hostedApplet.expanded) && fullRepresentation
-        visualParent: compactRepresentationVisualParent ? compactRepresentationVisualParent : (compactRepresentation ? compactRepresentation : null)
+        visualParent: compactRepresentation ? compactRepresentation : null
        // location: PlasmaCore.Types.Floating //hostedPlasmoid.location
         edge: hostedPlasmoid ? hostedPlasmoid.location : PlasmaCore.Types.Floating /*this way dialog borders are not updated and it is used only for adjusting dialog position*/
         hideOnWindowDeactivate: hostedApplet ? hostedApplet.hideOnWindowDeactivate : false

@@ -50,6 +50,11 @@ Item {
     readonly property bool isMarginsAreaSeparator: applet && applet.plasmoid && applet.plasmoid.hasOwnProperty("constraintHints")
                                                    && ((applet.plasmoid.constraintHints & PlasmaCore.Types.MarginAreasSeparator) === PlasmaCore.Types.MarginAreasSeparator);
 
+    //! Ancestor marker for the shell package's CompactApplet expander: it finds
+    //! its hosting AppletItem by walking up until this marker instead of a fixed
+    //! number of parent hops (the Plasma 6 visual tree depth is not stable).
+    readonly property bool isLatteAppletContainer: true
+
     readonly property color highlightColor: Kirigami.Theme.focusColor
 
     //! Fill Applet(s)
