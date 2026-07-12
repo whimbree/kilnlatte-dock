@@ -1,0 +1,10 @@
+# gdb batch command file for the staged dock wrapper (see the
+# latte-live-verification skill and docs/session-handoff.md).
+# Crash: gdb prints the backtrace when the inferior faults.
+# Hang: send SIGINT to the latte-dock pid from another shell; gdb
+# regains control and the commands below run against the live stack.
+run
+echo \n=== STACK AT FAULT/INTERRUPT ===\n
+bt 50
+echo \n=== ALL THREADS ===\n
+thread apply all bt 12
