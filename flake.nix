@@ -101,6 +101,24 @@
               solid
               sonnet
               ktextwidgets
+
+              # Applet PRIVATE QML modules (Phase 8): plasmoid packages load
+              # from the session's XDG_DATA_DIRS, but their private plugins
+              # must come from THIS pin - resolving them from the desktop's
+              # differently-pinned tree is the shadowing regression the
+              # comments above warn about. Same-pin whole-package roots are
+              # safe: any module duplicated across these packages is the
+              # identical derivation family, and the staged Latte modules
+              # still win last.
+              plasma-desktop # org.kde.private.desktopcontainment.folder, pager, kicker, kcm_keyboard
+              bluedevil # org.kde.plasma.private.bluetooth
+              bluez-qt # org.kde.bluezqt (bluetooth applet's second import)
+              plasma-nm # org.kde.plasma.networkmanagement
+              kdeconnect-kde # org.kde.kdeconnect
+              kdeplasma-addons # org.kde.plasma.private.dict/comic/...
+              qtwebengine # QtWebEngine for the dictionary applet
+              powerdevil # org.kde.plasma.private.batterymonitor/brightnesscontrolplugin
+              print-manager # org.kde.plasma.printmanager
             ]);
 
           buildInputs = (with pkgs.kdePackages; [
