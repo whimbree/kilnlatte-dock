@@ -75,8 +75,8 @@ Rectangle {
             if (buttonIsTriggeringMenu) {
                 //! hiding combobox is triggered by default behavior
                 mainComboBox.popup.visible = !mainComboBox.popup.visible;
+                // Qt6: ComboBox.pressed is read-only, down carries the state
                 mainComboBox.down = mainComboBox.popup.visible;
-                mainComboBox.pressed = mainComboBox.popup.visible;
             }
         }
 

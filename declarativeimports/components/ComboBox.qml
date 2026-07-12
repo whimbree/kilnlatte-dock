@@ -81,7 +81,6 @@ T.ComboBox {
                 if (!pressed) {
                     control.currentIndex = index;
                     control.down = false;
-                    control.pressed = false;
                     control.popup.visible = false;
                 }
             }
@@ -133,7 +132,6 @@ T.ComboBox {
         onReleased: onGenericReleased()
         onCanceled: {
             control.down = false;
-            control.pressed = false;
         }
         onPositionChanged: (mouse) => {
             var pos = listView.mapFromItem(this, mouse.x, mouse.y);
@@ -146,22 +144,23 @@ T.ComboBox {
             target: popup
             onClosed: {
                 control.down = false;
-                control.pressed = false;
             }
         }
 
+        // Qt6 made ComboBox.pressed read-only (Qt5's writable form was already
+        // deprecated for "down"). Assigning it throws a TypeError that aborts
+        // the rest of the handler, which left the popup permanently unopenable,
+        // so "down" now carries the pressed state the visuals bind to.
         function onGenericPressed() {
             indexUnderMouse = -1;
             listView.currentIndex = control.highlightedIndex;
             control.down = true;
-            control.pressed = true;
             control.popup.visible = !control.popup.visible;
         }
 
         function onGenericReleased() {
             if (!containsMouse && !hiddenTooltipButton.hovered) {
                 control.down = false;
-                control.pressed = false;
                 control.popup.visible = false;
             }
             if (indexUnderMouse > -1) {
@@ -240,7 +239,7 @@ T.ComboBox {
 
                 text: control.displayText
                 font: control.font
-                color: control.pressed ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+                color: control.down ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
                 horizontalAlignment: Text.AlignLeft
                 verticalAlignment: Text.AlignVCenter
                 opacity: control.enabled ? 1 : 0.6
@@ -330,7 +329,7 @@ T.ComboBox {
         imagePath: editable ? "widgets/lineedit" : "widgets/button"
         prefix: editable
                 ? "base"
-                : (control.pressed || control.forcePressed ? "pressed" : "normal")
+                : (control.down || control.forcePressed ? "pressed" : "normal")
 
         opacity: control.buttonIsTransparent && prefix !== "pressed" && textFieldPrivate.state !== "hover" && !control.popup.visible ? 0 : 1
 
@@ -346,7 +345,7 @@ T.ComboBox {
             visible: !parent.editable
             anchors.fill: parent
             state: {
-                if (control.pressed) {
+                if (control.down) {
                     return "hidden"
                 } else if (control.hovered) {
                     return "hover"
