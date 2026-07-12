@@ -25,6 +25,7 @@
 #include "../layouts/manager.h"
 #include "../layouts/storage.h"
 #include "../plasma/extended/theme.h"
+#include "../wm/schemecolors.h"
 #include "../screenpool.h"
 #include "../data/activitiesinfo.h"
 #include "../settings/universalsettings.h"
@@ -290,6 +291,18 @@ View::~View()
 
 void View::init(Plasma::Containment *plasma_containment)
 {
+    //! on Plasma 6/Wayland each QQuickWindow resolves its KDEPlatformTheme
+    //! palette independently, and views created later (screens-group clones,
+    //! second-monitor docks) can pick the dark panel-theme palette instead of
+    //! the application one, so text and symbolic icons diverge between
+    //! monitors (latte-dock-ng hit this live as white audio badges on a light
+    //! dock, their 9fe135422). Pin every view to the kdeglobals scheme the
+    //! way plasmashell pins its own panel windows.
+    const QString defaultScheme = WindowSystem::SchemeColors::possibleSchemeFile(QStringLiteral("kdeglobals"));
+    if (!defaultScheme.isEmpty()) {
+        setProperty("KDE_COLOR_SCHEME_PATH", defaultScheme);
+    }
+
     connect(this, &QQuickWindow::xChanged, this, &View::geometryChanged);
     connect(this, &QQuickWindow::yChanged, this, &View::geometryChanged);
     connect(this, &QQuickWindow::widthChanged, this, &View::geometryChanged);
