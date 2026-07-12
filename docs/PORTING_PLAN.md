@@ -1027,14 +1027,32 @@ multi-view, multi-monitor setup.
       applet-order sync defect class. Note: live config mirroring
       (e.g. pinned tasks appearing on the copy) is NOT expected for
       duplicates, only for screens-group clones; document that
-      distinction somewhere user-visible
+      distinction somewhere user-visible. PREREQUISITE LANDED
+      2026-07-12: c3d15966 fixed config-sync establishment, which the
+      order machinery rides on. RETEST NEEDED on a layout with
+      rearranged applets (non-default appletOrder) - default-order
+      layouts cannot exhibit the defect; the throwaway layout's docks
+      are all default-order, so use the user's real layout in the
+      interactive session
       Commits:
-- [ ] Verify duplicated/cloned docks actually establish applet config
+- [x] Verify duplicated/cloned docks actually establish applet config
       sync after the initial 'org.kde.sync ... was not established'
       storm (the 1s retry in ContainmentInterface should log 'delayed
       applet configuration was successful' per applet id; confirm none
-      stay unestablished, since clone mirroring silently degrades)
-      Commits:
+      stay unestablished, since clone mirroring silently degrades).
+      VERIFIED 2026-07-12 - and the finding was much bigger: sync
+      NEVER established for ANY applet since the port.
+      appletConfiguration() probed the AppletQuickItem for the static
+      'configuration' property Plasma 6 removed, so it always returned
+      null and the 1s retry could never succeed either (same dead
+      probe). Fixed by reading the CONSTANT configuration Q_PROPERTY
+      off the Applet itself (single-loader chain, like 32df5b47).
+      Startup storms: six per dock -> zero. Duplicate Dock: zero
+      failures. The duplicate-then-add-widget crash from the handoff
+      (KCrash double-crash, no core) no longer reproduces - driven
+      end to end under the gdb wrapper, Activity Pager added twice to
+      a fresh clone, dock alive
+      Commits: c3d15966
 - [ ] Dock visibility across screen lock/unlock (observed live
       2026-07-10, not yet root-caused): a dock that lives through a
       kscreenlocker cycle can stay invisible after unlock even though
@@ -1181,13 +1199,26 @@ multi-view, multi-monitor setup.
       Verified: two consecutive fresh-start first-move relocations
       carry the full chrome ensemble to the target output
       Commits: 1607d022 (surface remap), c5bdc239 (screen-id resync)
-- [ ] Fix multi-screen palette divergence: pin
+- [x] Fix multi-screen palette divergence: pin
       `Kirigami.Theme.inherit: false` with an explicit `colorSet`, and
       set `KDE_COLOR_SCHEME_PATH` explicitly and early (in the `View`
       constructor) so every view starts from the same palette - each
       `QQuickWindow` can otherwise resolve its `KDEPlatformTheme`
-      palette independently on Plasma 6/Wayland
-      Commits:
+      palette independently on Plasma 6/Wayland. DONE 2026-07-12: the
+      KDE_COLOR_SCHEME_PATH window-property pin landed in View::init
+      (the mechanism ng verified live as white audio badges, their
+      9fe135422; plasmashell pins its panels the same way). The
+      Kirigami colorSet half stays unapplied deliberately: no live
+      divergence reproduction exists in this port yet, and pinning
+      colorSets blind risks Qt5-unfaithful colors - if mixed-scheme
+      divergence ever shows on the desk setup, that is the follow-up
+      Commits: a774ee55
+- [ ] Duplicate-dock + add-widget crash from the handoff: RESOLVED as
+      a downstream of the config-sync fix (c3d15966) as far as the
+      recipe drives - kept as a watch item until the user's real
+      rearranged layout also survives duplication in the interactive
+      session
+      Commits: c3d15966
 - [ ] Name the context-menu plugin's built `.so` to exactly match its
       `KPlugin::Id` (e.g. `org.kde.latte.contextmenu.so`) - KF6 derives
       a containmentactions plugin's id from its **file name**, not the
