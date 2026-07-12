@@ -251,6 +251,33 @@ CanvasPlacement canvasPlacement(Plasma::Types::Location location,
     return placement;
 }
 
+//! a mapped wlr-layer surface is bound to the output it was created on (the
+//! protocol has no request to move it), so retargeting a VISIBLE window to
+//! another screen requires destroying and recreating the surface: hide,
+//! apply the new state, show. Observed live without this: a dock moved
+//! DP-2 -> DP-3 with edit mode open re-synced the canvas to the portrait
+//! geometry while the surface stayed on the landscape output. Same
+//! constraint View::moveToScreen handles for the dock window itself.
+static bool retargetScreen(QWindow *window, LSW *ls, QScreen *screen)
+{
+    if (!screen) {
+        return false;
+    }
+
+    const bool remap = window->isVisible() && window->screen() != screen;
+
+    if (remap) {
+        window->setVisible(false);
+    }
+
+    window->setScreen(screen);
+#ifdef LATTE_LAYERSHELL_HAS_SET_SCREEN
+    ls->setScreen(screen);
+#endif
+
+    return remap;
+}
+
 void applyCanvasPlacement(QWindow *window, Plasma::Types::Location location,
                           QScreen *screen, const QRect &canvasGeometry, const QRect &screenGeometry)
 {
@@ -259,12 +286,7 @@ void applyCanvasPlacement(QWindow *window, Plasma::Types::Location location,
         //! relative to @p screenGeometry, so the surface must be on that
         //! output or the whole edit chrome lands on the wrong monitor
         //! (observed live: blueprint spanning the neighboring screen)
-        if (screen) {
-            window->setScreen(screen);
-#ifdef LATTE_LAYERSHELL_HAS_SET_SCREEN
-            ls->setScreen(screen);
-#endif
-        }
+        const bool remap = retargetScreen(window, ls, screen);
 
         const CanvasPlacement placement = canvasPlacement(location, canvasGeometry, screenGeometry);
 
@@ -280,6 +302,10 @@ void applyCanvasPlacement(QWindow *window, Plasma::Types::Location location,
         ls->setExclusiveZone(-1);
         ls->setAnchors(placement.anchors);
         ls->setMargins(placement.margins);
+
+        if (remap) {
+            window->setVisible(true);
+        }
     }
 }
 
@@ -292,12 +318,7 @@ void applyFixedGeometry(QWindow *window, QScreen *screen, const QRect &geometry,
         //! on the wrong monitor with the other monitor's offsets (observed
         //! live: settings window cut off, widget explorer opening on the
         //! neighboring screen)
-        if (screen) {
-            window->setScreen(screen);
-#ifdef LATTE_LAYERSHELL_HAS_SET_SCREEN
-            ls->setScreen(screen);
-#endif
-        }
+        const bool remap = retargetScreen(window, ls, screen);
 
         //! a pop-up surface reserves nothing; a stale exclusive edge from the
         //! parent-dock anchoring would both hold a strut and, if not among the
@@ -314,6 +335,10 @@ void applyFixedGeometry(QWindow *window, QScreen *screen, const QRect &geometry,
         ls->setAnchors(LSW::Anchors(LSW::AnchorTop) | LSW::AnchorLeft);
         ls->setMargins(QMargins(geometry.x() - screenGeometry.x(),
                                 geometry.y() - screenGeometry.y(), 0, 0));
+
+        if (remap) {
+            window->setVisible(true);
+        }
     }
 }
 
