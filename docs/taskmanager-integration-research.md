@@ -56,8 +56,30 @@ so the vendor's foundation is as stable as anything in the stack.
 
 - latte-dock-ng abandoned the shim too (it had no module left to shim
   to). They now vendor their own 579-line
-  contextmenuactionsbackend (3 invokables) and DROPPED smart-launcher
-  badges entirely - a user-visible feature regression vs Qt5 Latte.
+  contextmenuactionsbackend (3 invokables: jump lists, places, recent
+  documents) and dropped everything else. What that narrowing costs,
+  read at ng checkout c705aa7e7:
+  - Smart-launcher badges gone (unread counts, progress bars, urgent
+    flash over the Unity launcher D-Bus API), but TaskIcon.qml:67
+    still instantiates the deleted SmartLauncherItem type, so the
+    Loader errors on every task instead of the feature being removed
+    cleanly.
+  - KWin window-view and hover-highlight gone, but main.qml's
+    Component.onCompleted still runs
+    root.activateWindowView.connect(backend.activateWindowView) on a
+    backend without that slot: the connect throws, and the JS abort
+    also kills updateListViewParent() and the context-menu error
+    check that follow it - collateral silent breakage, the exact
+    handler-abort class as the ComboBox.pressed bug.
+  - backend.windowViewAvailable reads undefined in
+    TaskMouseArea.qml:222, so the grouped-task "present windows"
+    gate is permanently false with no error at all
+    (TaskItem.qml:499's comment admits it is unreliable).
+  - Audio-stream OSD and the drag/process/menu helpers (parentPid,
+    generateMimeData, isApplication, applicationCategories,
+    globalRect, ungrabMouse) also gone from the backend surface.
+  The lesson: narrowing the vendored surface without sweeping every
+  QML consumer converts missing features into silent wrong-behavior.
 - latte-dock-qt6 vendors the full backend (the shape we adopted).
 - Net: three independent ports all copy the same plasma-desktop file.
   That is the strongest argument to hand KDE for making it public.
