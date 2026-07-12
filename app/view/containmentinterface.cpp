@@ -926,30 +926,23 @@ KConfigPropertyMap *ContainmentInterface::appletConfiguration(const Plasma::Appl
         return nullptr;
     }
 
-    PlasmaQuick::AppletQuickItem *ai = PlasmaQuick::AppletQuickItem::itemForApplet(const_cast<Plasma::Applet *>(applet));
     bool isSubContainment = Layouts::Storage::self()->isSubContainment(m_view->corona(), applet); //we use corona() to make sure that returns true even when it is first created from user
-    int currentAppletId = applet->id();
     KConfigPropertyMap *configuration{nullptr};
 
-    //! set configuration object properly for applets and subcontainments
+    //! Plasma 6: the configuration map is a CONSTANT Q_PROPERTY on the
+    //! applet itself; AppletQuickItem lost its static "configuration"
+    //! property, so the old indexOfProperty probe on the quick item never
+    //! matched and applet config syncing (clone mirroring, per-applet
+    //! change tracking) silently never established for ANY applet - the
+    //! 'org.kde.sync ... was not established' storms at startup and on
+    //! duplication. Same single-loader chain the settings pages use
+    //! (tasks.plasmoid.configuration).
     if (!isSubContainment) {
-        if (ai) {
-            int metaconfigindex = ai->metaObject()->indexOfProperty("configuration");
-            if (metaconfigindex >=0 ){
-                configuration = qobject_cast<KConfigPropertyMap *>((ai->property("configuration")).value<QObject *>());
-            }
-        }
+        configuration = qobject_cast<KConfigPropertyMap *>((applet->property("configuration")).value<QObject *>());
     } else {
         Plasma::Containment *subcontainment = Layouts::Storage::self()->subContainmentOf(m_view->corona(), applet);
         if (subcontainment) {
-            PlasmaQuick::AppletQuickItem *subcai = PlasmaQuick::AppletQuickItem::itemForApplet(subcontainment);
-
-            if (subcai) {
-                int metaconfigindex = subcai->metaObject()->indexOfProperty("configuration");
-                if (metaconfigindex >=0 ){
-                    configuration = qobject_cast<KConfigPropertyMap *>((subcai->property("configuration")).value<QObject *>());
-                }
-            }
+            configuration = qobject_cast<KConfigPropertyMap *>((subcontainment->property("configuration")).value<QObject *>());
         }
     }
 
