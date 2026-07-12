@@ -1,12 +1,62 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-11 (evening). PHASE 8 IS OPEN - read its section in
-docs/PORTING_PLAN.md first, every open item there is current and carries
-this session's live evidence. Everything below in this file is committed.
-A staged dock runs against the THROWAWAY config (build/_runconfig), NOT
---user-config: the real user layout still triggers the iconSize=78 startup
-hang (see below, still unfixed in code).
+Last updated 2026-07-12 (midday). PHASE 8 IS OPEN - read its section in
+docs/PORTING_PLAN.md first; every item is current there, several sections
+below are now RESOLVED and kept only as archaeology.
+
+## 2026-07-12 sweep (all committed, ad9b823f..1aa97b47)
+
+- iconSize=78 startup hang FIXED (ad9b823f): the autosize shrink loop's
+  '!== 16' exit stepped past its floor for any size not 16 mod 8, spinning
+  forever once wayland's unsized-window start made the length limit
+  unreachable. THE USER'S REAL LAYOUT STARTS AGAIN (verified in the
+  throwaway config; --user-config is safe for it now).
+- Applet private QML modules FIXED (4c9f3bc7): owning packages joined the
+  flake's pinned LATTE_QML_MODULE_PATH; nine failing modules -> zero, the
+  context menu survived (shadowing regression check), widget explorer
+  previews all render.
+- Comic Strip churn crash: NO LONGER REPRODUCES - the churn vector WAS the
+  missing private module. CompactApplet hardening stays filed, not
+  crash-backed (2edb1796).
+- QQC2 'indicator' property shadowing FIXED (33fa17d7): indicator config
+  checkboxes read AND wrote the control's own check-glyph object, silently
+  dead since the QQC1->QQC2 port. Watch for this class anywhere a context
+  property collides with a QQC2 control property name.
+- Edit-chrome canvas-follow FIXED, two stacked causes (1607d022 surface
+  remap in the LS helpers, c5bdc239 Containment::screenChanged resync).
+- KDE_COLOR_SCHEME_PATH pinned per view window (a774ee55, ng's 9fe135422
+  mechanism); Kirigami colorSet half deliberately deferred until a live
+  divergence reproduction exists.
+- Applet config sync FIXED AT THE ORIGIN (c3d15966): it had NEVER
+  established for any applet (dead indexOfProperty probe on
+  AppletQuickItem); now reads the CONSTANT configuration Q_PROPERTY off
+  the Applet. org.kde.sync storms: gone. The handoff's duplicate-dock +
+  add-widget crash NO LONGER REPRODUCES (driven end to end under gdb).
+- Vendored backend: provenance stamps in plasmoid/plugin, plasma-desktop
+  added as a sync-diff target in CLAUDE.md, Phase 12 outreach reframed for
+  the maintained-continuation reality (docs/taskmanager-integration-research.md
+  has the vendor-vs-integrate analysis; ng's narrowing is the counter-example
+  and will not be repeated).
+
+Still open from this sweep (all filed in the plan): duplicated-dock applet
+ORDER retest on a rearranged layout (default-order layouts cannot exhibit
+it - use the real user layout, interactive), the with-user settings
+control walk (TaskMouseArea's 9 TaskAction values especially), folder-view
+calling corona.isScreenUiReady (shim vs noise decision),
+BindingsExternal.qml:281 localGeometry-of-null startup transient, and the
+day-one leftovers (lock/unlock visibility, session shutdown pattern,
+startup retry deadlock, wheel bypass list, context-menu .so naming,
+RightButton re-assert).
+
+Session tooling notes: 'CLEARED SCREEN' in the dock log is strut
+bookkeeping, NOT an output removal - use a kernel drm hotplug logger
+(udevadm monitor --kernel --subsystem-match=drm) for flap ground truth.
+kde-inhibit --power --screenSaver held DPMS/autolock off for the whole
+session (dies with the session, nothing to undo). The kglobalaccel
+'show view settings' invoke races registration right after a restart -
+invoke once, check for '#primaryconfigview#' in the log, invoke again if
+absent; each further invoke CYCLES to the next view's settings.
 
 Phase 8 day-one results (all commits on master, plan items ticked):
 - The recurring crash family is dead: Qt6 MultiEffect does not auto-wrap
