@@ -979,8 +979,21 @@ multi-view, multi-monitor setup.
       'udevadm monitor --kernel --subsystem-match=drm' instead of this
       log line. Confound control active while establishing this:
       kde-inhibit --power --screenSaver, inhibition verified
-      registered with PowerDevil
-      Commits:
+      registered with PowerDevil.
+      RETESTED CLEAN 2026-07-12 after 4c9f3bc7 (private QML modules
+      pinned): Comic Strip now loads silently as a healthy applet -
+      the error/default representation flapping WAS the missing
+      org.kde.plasma.private.comic module, as this item suspected.
+      The killer recipe no longer reproduces (16 focus flips, 4
+      edit-mode cycles, 3 edit-mode right-clicks under the gdb
+      wrapper: no 'Texture t1', no SEGV, zero drm flap events). The
+      structural CompactApplet hardening below remains filed on its
+      own observed evidence (rep -> null -> new seen live), but it no
+      longer has a crash reproduction behind it; per the
+      fix-with-reproduction discipline it waits for a live vector
+      (any applet that legitimately swaps representations) rather
+      than speculative hardening now
+      Commits: 4c9f3bc7 (removed the churn vector)
 - [x] iconSize=78 startup hang (bisected 2026-07-10, fixed 2026-07-12):
       the autosize shrink loop's termination was the equality
       nextIconSize !== 16 while stepping by 8, so any icon size not
