@@ -1,11 +1,31 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-11 (early morning). Edit-mode layout work is COMMITTED
-and live-verified (see "Edit mode layout" below). A staged dock is running
-against the THROWAWAY config (build/_runconfig), NOT --user-config: the real
-user layout currently triggers a startup hang (see "iconSize startup hang"
-below).
+Last updated 2026-07-11 (evening). PHASE 8 IS OPEN - read its section in
+docs/PORTING_PLAN.md first, every open item there is current and carries
+this session's live evidence. Everything below in this file is committed.
+A staged dock runs against the THROWAWAY config (build/_runconfig), NOT
+--user-config: the real user layout still triggers the iconSize=78 startup
+hang (see below, still unfixed in code).
+
+Phase 8 day-one results (all commits on master, plan items ticked):
+- The recurring crash family is dead: Qt6 MultiEffect does not auto-wrap
+  plain Items as texture sources; three effect sites had invalid samplers
+  since the port (73da8400), two more effects were dead and removed
+  (df747ebf, e88af680), render loop defaults to basic for debuggability
+  (c7200e3d). Regression caveat: re-adding the broken Comic Strip applet
+  STILL crashes the churn recipe, and that crash (twice now) landed exactly
+  on a 'CLEARED SCREEN :: DP-3' output removal - the portrait monitor
+  flaps, and it MUST be eliminated as a variable before trusting further
+  verdicts. CompactApplet churn hardening is filed and NOT implemented.
+- Multi-monitor edit chrome fixed and user-verified (d670c97a): canvas,
+  settings window and widget explorer pin to the edited view's output.
+  The secondary advanced-mode window is NOT yet covered.
+- Debugging kit that made all of this work: LATTE_RUN_WRAPPER gdb batch
+  script (catches every crash with full backtraces; KCrash self-destructs
+  here), fakepointer move/click/rightclick, the KWin dumpwins scripting
+  one-liner for true window geometries, WAYLAND_DEBUG=1 for protocol-level
+  truth, and the user at the desk as the reproduction engine.
 
 ## What landed this session (all committed, all live-verified with screenshots)
 
