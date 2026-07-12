@@ -966,9 +966,20 @@ multi-view, multi-monitor setup.
       that crash coincided with a 'CLEARED SCREEN :: DP-3' output
       removal (the portrait monitor flaps, second time a crash lands
       exactly on that event), so screen-removal teardown is a co-equal
-      suspect and possibly contaminates earlier verdicts too. Next
-      session: reproduce with the monitor flap eliminated (disable its
-      sleep) to separate the two variables
+      suspect and possibly contaminates earlier verdicts too.
+      CAVEAT RESOLVED 2026-07-11 (late session): 'CLEARED SCREEN' is
+      NOT an output removal. It is Latte's own strut bookkeeping
+      (screengeometries.cpp:256), logged whenever an ACTIVE screen
+      simply has no space-reserving docks left on it - it fires
+      benignly ~20s after every dock start and on relocations
+      (confirmed twice while a kernel drm hotplug logger recorded zero
+      link events on DP-3). The crash coincidence therefore does not
+      implicate screen-removal teardown; treat the churn crash as its
+      own defect. For any future crash, get flap ground truth from
+      'udevadm monitor --kernel --subsystem-match=drm' instead of this
+      log line. Confound control active while establishing this:
+      kde-inhibit --power --screenSaver, inhibition verified
+      registered with PowerDevil
       Commits:
 - [ ] Expose plasma applets' PRIVATE QML modules to the dock (user hit
       it live: 'module org.kde.private.desktopcontainment.folder is not
@@ -1084,15 +1095,27 @@ multi-view, multi-monitor setup.
       793faad2 (View::moveToScreen hide/retarget/show remap)
 - [ ] Full settings-window control audit against Qt5 semantics (split
       from the screen-selector item; user reports more controls broken,
-      with the user at the desk driving both tabs). Known already: the
-      whole TasksConfig page floods 'Cannot read property ... of
-      undefined' TypeErrors on load (leftClickAction, hoverAction,
-      taskScrollAction, modifier*, hideAllTasks, showInfoBadge, ...),
-      pointing at the Plasma 6 config-access pattern change the ng fork
-      hit (eabf7c89a wiring, see the Phase 5/6 notes); default
-      indicator config.qml has the same class of errors
-      (minimizedTaskColoredDifferently etc. of undefined)
-      Commits:
+      with the user at the desk driving both tabs). PROGRESS
+      2026-07-11 late session: the two biggest breakage classes fixed.
+      (a) Every LatteComponents.ComboBox popup was unopenable (Qt6
+      read-only pressed, commit 0474e20c under the selector item).
+      (b) The whole Tasks page read tasks.configuration which Plasma 6
+      removed - all 75 reads undefined, controls showed defaults and
+      applied nothing; rewired through tasks.plasmoid.configuration
+      and verified round-trip into the layout file (32df5b47).
+      STILL OPEN: default indicator config.qml logs 5 first-evaluation
+      TypeErrors (minimizedTaskColoredDifferently, activeStyle,
+      extraDotOnActive, enabledForApplets, reversed 'of undefined') at
+      settings-window load only - no repeat when the Effects tab
+      opens, values appear to recover via configurationChanged; find
+      the first-eval window where indicator.configuration is not yet a
+      property map. Also still owed: the with-user semantic walk of
+      every control on both tabs against Qt5 (check especially
+      TaskMouseArea handling all 9 TaskAction enum values - ng
+      eabf7c89a found 3/9, 5/9, 5/9 handled for left/middle/modifier
+      clicks - and ConfigInteraction.qml cfg_hoverAction hardcoded to
+      NoneAction in ng before their fix)
+      Commits: 32df5b47 (Tasks page config access)
 - [ ] Edit-mode canvas can stay on the previous output after a
       screen-only relocation with edit mode open (observed ONCE live:
       top dock DP-2 -> DP-3 left the canvas band at DP-2's top with
