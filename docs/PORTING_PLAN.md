@@ -981,6 +981,19 @@ multi-view, multi-monitor setup.
       kde-inhibit --power --screenSaver, inhibition verified
       registered with PowerDevil
       Commits:
+- [x] iconSize=78 startup hang (bisected 2026-07-10, fixed 2026-07-12):
+      the autosize shrink loop's termination was the equality
+      nextIconSize !== 16 while stepping by 8, so any icon size not
+      congruent to 16 mod 8 stepped past the floor forever; on
+      Qt6/wayland the first updateIconSize() arrives before the window
+      has geometry (maxLength 0, negative shrink limit) so the length
+      condition could not exit either, starving the event loop at 100%
+      CPU. Inherited from upstream 747d4870, latent on X11. Both loops
+      now clamp and exit on inequality, and recalculation skips the
+      unsized-window degenerate input (re-run by onMaxLengthChanged).
+      Verified with the throwaway layout at 78 and the user's real
+      layout, which starts again
+      Commits: ad9b823f
 - [ ] Expose plasma applets' PRIVATE QML modules to the dock (user hit
       it live: 'module org.kde.private.desktopcontainment.folder is not
       installed'; ALL third-party applets error in the staged run while
