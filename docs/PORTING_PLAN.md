@@ -1244,7 +1244,7 @@ multi-view, multi-monitor setup.
       class as the WindowId int trap (8e8cdf31): audit other `property
       int` pointer/geometry caches when touching input code.
       Commits: 36160c46
-- [ ] Applet edit-tooltip modal (rearrange mode) and task hover
+- [x] Applet edit-tooltip modal (rearrange mode) and task hover
       previews: misposition during fast pointer movement AND the
       rearrange-mode applet hover modal appears INCONSISTENTLY
       (user-reported 2026-07-12 night). PARTIALLY FIXED 2026-07-13
@@ -1307,15 +1307,25 @@ multi-view, multi-monitor setup.
       appeared. Switched to Latte::Quick::Dialog (the 77aac4b4
       recompute-fresh machinery); verified live in both sweep
       directions (2114 over the clock, 3180 over the comic strip).
-      STILL REMAINING:
-      (a) small residual offset from the icon center during zoom dwell
-      (live vs resting rect, d98bff98 refinement; observed ~40px).
+      The ~40px zoom-dwell offset closed too (c622da1b): the resting
+      anchor was itself a port-era workaround for the
+      cannot-reposition dialog; with 77aac4b4 the Qt5 anchor
+      (tooltipVisualParent, live and zoom-tracking) is strictly
+      correct, so it is restored verbatim and the whole
+      restingCenter/settle-delayer machinery (d98bff98) is deleted.
+      Verified: dwell preview center == zoomed icon center (2432 ==
+      2432), sweeps and zigzags within a few px of the live icon.
+      ITEM CLOSED - all three popup defects (parking, interleave,
+      dwell offset) plus the rearrange modal trace to mapped-popup
+      repositioning on wayland, all fixed by the recompute-fresh
+      Dialog plus live anchors.
       Commits: e6c5ae76 (incomplete, coalescing), 15558f40 (deferred
       remap, still incomplete), d619ae08 (atomic anchor+content,
       still incomplete), 77aac4b4 (recompute-fresh positioning, the
       structural fix, user-confirmed) + dbe5a03b (layershellmappingtest
       signature catch-up found by the same session's build) + 8f821310
-      (rearrange modal, same class)
+      (rearrange modal, same class, user-confirmed) + c622da1b (live
+      anchor restored, resting machinery deleted)
 - [x] Vertical (left/right) dock canvas header renders off-surface
       (rearrange chip at y=-552/-596, rearrange unusable on the left
       dock, user-reported twice). MECHANISM DEMONSTRATED: the header's

@@ -92,6 +92,17 @@ below are now RESOLVED and kept only as archaeology.
   was running). Next in queue: hover-modal inconsistency in rearrange
   mode, residual ~40px preview offset during zoom dwell (live vs
   resting rect, refine d98bff98), then the latency items.
+- Round ten (c622da1b): the ~40px zoom-dwell preview offset closed by
+  DELETING d98bff98's resting-anchor machinery and restoring Qt5's
+  live anchor (tooltipVisualParent). The resting anchor only ever
+  existed because the dialog could not reposition after map; with the
+  recompute-fresh Dialog the live anchor is strictly correct and 87
+  lines of settle-delayer machinery went away. Dwell preview center
+  matches the zoomed icon center exactly now. The whole popup saga
+  (parking, interleave, dwell offset, rearrange modal) is CLOSED -
+  one wayland root (mapped popups cannot be repositioned by
+  QWindow-level calls) wearing four costumes. When a workaround's
+  reason disappears, delete the workaround - do not refine it.
 - Round nine (8f821310): 77aac4b4 user-confirmed with a real mouse.
   The rearrange hover-modal inconsistency then fell to the same class:
   ConfigOverlay's tooltip was a stock PlasmaCore.Dialog with a
