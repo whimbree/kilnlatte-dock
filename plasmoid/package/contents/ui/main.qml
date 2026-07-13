@@ -406,6 +406,18 @@ PlasmoidItem {
                     root.signalPreviewsShown();
                 }
 
+                //! Wayland: a mapped popup cannot re-anchor - assigning a new
+                //! visualParent while visible is silently ignored, so a fast
+                //! hover sweep switched the CONTENT from task to task while
+                //! the window stayed parked where the sweep first opened it
+                //! (observed live: Firefox preview sitting over the clock at
+                //! the dock's far end). Unmap before adopting the new task so
+                //! the show below remaps at the fresh anchor. Slow hovering
+                //! never hit this because the hide timer unmaps between tasks.
+                if (visible && activeItem && activeItem !== taskItem) {
+                    visible = false;
+                }
+
                 activeItem = taskItem;
                 toolTipDelegate.parentTask = taskItem;
 
@@ -414,12 +426,7 @@ PlasmoidItem {
                     signalSent = true;
                 }
 
-                //! Workaround in order to update properly the previews thumbnails
-                //! when switching between single thumbnail to another single thumbnail
-                //! maybe is not needed any more, let's disable it
-                //mainItem.visible = false;
                 visible = true;
-                //mainItem.visible = true;
             }
         }
     }
