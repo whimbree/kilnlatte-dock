@@ -1191,18 +1191,27 @@ multi-view, multi-monitor setup.
       updated its content per hovered task but a mapped wayland popup
       silently ignores visualParent changes, so fast sweeps left the
       window at the sweep origin (user screenshot: Firefox preview over
-      the clock, 380px off). show() now unmaps before adopting a
-      different task, and previews follow the sweep (verified with a
-      five-task fakepointer sweep). REMAINING: (a) ~165px residual
-      offset from the hovered icon's center during the zoom dwell -
-      suspect anchoring to the live parabolic-zoomed rect instead of
-      the resting midpoint (d98bff98 refinement) and dock relayout
-      after show; (b) the rearrange-mode applet hover modal's
-      inconsistent appearance (ConfigOverlay hover tracking), zoom
-      excluded as trigger. Reproduce headless: fakepointer sweep at
-      speed plus slow per-applet dwells, screenshots; dumpwins shows
-      popup geometry (layer=6).
-      Commits: e6c5ae76 (parked-preview half)
+      the clock, 380px off). e6c5ae76 unmapped before adopting a new
+      task but hid and re-showed synchronously, which COALESCES: no
+      real unmap, user re-reproduced within minutes with a real mouse
+      (synthetic fakepointer moves left ~150ms gaps that masked it -
+      LESSON: verify input fixes at realistic event rates). 15558f40
+      defers the re-show one event loop pass so the unmap commits.
+      USER'S MINIMAL RECIPE for retest (2026-07-13 02:39, against the
+      pre-15558f40 build): hover the system monitor applet, wait for
+      its hover modal (the shared plasma ToolTipDialog, a DIFFERENT
+      window), glide along the dock to firefox - firefox's preview
+      opened ~370px left of its icon. Retest this exact recipe on the
+      deferred build; if it still reproduces, the defect is in the
+      FRESH show's anchor, not the switch path: instrument
+      _previewsVisualParent's mapped rect and the dialog's final
+      geometry at every show. ALSO REMAINING: (a) possible residual
+      offset from the icon center during zoom dwell (live vs resting
+      rect, d98bff98 refinement); (b) the rearrange-mode applet hover
+      modal's inconsistent appearance (ConfigOverlay hover tracking),
+      zoom excluded as trigger.
+      Commits: e6c5ae76 (incomplete, coalescing), 15558f40 (deferred
+      remap)
 - [x] Vertical (left/right) dock canvas header renders off-surface
       (rearrange chip at y=-552/-596, rearrange unusable on the left
       dock, user-reported twice). MECHANISM DEMONSTRATED: the header's
