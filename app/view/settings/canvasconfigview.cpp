@@ -7,6 +7,7 @@
 
 // local
 #include "primaryconfigview.h"
+#include "secondaryconfigview.h"
 #include "../panelshadows_p.h"
 #include "../view.h"
 #include "../../lattecorona.h"
@@ -226,6 +227,14 @@ void CanvasConfigView::focusOutEvent(QFocusEvent *ev)
 
     if (focusWindow && (focusWindow->flags().testFlag(Qt::Popup)
                          || focusWindow->flags().testFlag(Qt::ToolTip))) {
+        return;
+    }
+
+    //! same family rule as PrimaryConfigView::focusOutEvent: focus moving to
+    //! the primary or chooser window is not a loss, and checking the new
+    //! focus window's identity avoids racing its not-yet-landed isActive()
+    if (focusWindow && m_parent
+        && (focusWindow == m_parent || focusWindow == m_parent->secondaryWindow())) {
         return;
     }
 

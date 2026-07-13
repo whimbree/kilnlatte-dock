@@ -78,6 +78,15 @@ public:
 
     bool hasFocus() const;
 
+    //! the chooser window owned by this primary view (may be null); exposed
+    //! so sibling chrome windows can recognize family members in focus checks
+    SecondaryConfigView *secondaryWindow() const;
+
+    //! ends the containment's configuring session (userConfiguring off plus
+    //! the visibility-mode restore checks); called from the deliberate close
+    //! path only, never from transient hides
+    void endConfiguringSession();
+
     bool isReady() const;
 
     bool showInlineProperties() const;

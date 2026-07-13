@@ -169,6 +169,16 @@ void PrimaryConfigView::showConfigWindow()
 
 void PrimaryConfigView::hideConfigWindow()
 {
+    //! Session-end semantics live HERE, not in hideEvent: the window also
+    //! hides transiently (deferred show on view retargeting, layer-surface
+    //! remaps), and a transient hide must not end the user's configuring
+    //! session. Observed live: cycling the settings between docks fired a
+    //! transient hide ~300ms after the new containment's
+    //! setUserConfiguring(true), so the new session was silently killed and
+    //! the chrome sat open with editMode false: no blueprint, no
+    //! configure-applets frames, no dragging.
+    endConfiguringSession();
+
     if (KWindowSystem::isPlatformWayland()) {
         //!NOTE: Avoid crash in wayland environment with qt5.9
         close();
@@ -178,6 +188,34 @@ void PrimaryConfigView::hideConfigWindow()
 
     hideCanvasWindow();
     hideSecondaryWindow();
+}
+
+void PrimaryConfigView::endConfiguringSession()
+{
+    if (!m_latteView) {
+        return;
+    }
+
+    if (m_latteView->containment()) {
+        //! ends the containment's editing state; the containment QML then
+        //! also clears the rearrange (configure-applets) sub-mode via its
+        //! onEditModeChanged reset, so a closed chrome can never leave the
+        //! dock stuck in edit or rearrange visuals
+        m_latteView->containment()->setUserConfiguring(false);
+    }
+
+    const auto mode = m_latteView->visibility()->mode();
+
+    if ((mode == Types::AlwaysVisible || mode == Types::WindowsGoBelow)
+            && !(m_originalMode == Types::AlwaysVisible || m_originalMode == Types::WindowsGoBelow)) {
+        //! mode changed to AlwaysVisible OR WindowsGoBelow FROM Dodge mode
+        if (m_originalByPassWM) {
+            //! if original by pass is active
+            m_latteView->layout()->recreateView(m_latteView->containment());
+        }
+    } else if (m_latteView->byPassWM() != m_originalByPassWM) {
+        m_latteView->layout()->recreateView(m_latteView->containment());
+    }
 }
 
 void PrimaryConfigView::showCanvasWindow()
@@ -474,24 +512,17 @@ void PrimaryConfigView::hideEvent(QHideEvent *ev)
         return;
     }
 
-    if (m_latteView->containment()) {
-        m_latteView->containment()->setUserConfiguring(false);
-    }
-
-    const auto mode = m_latteView->visibility()->mode();
-
-    if ((mode == Types::AlwaysVisible || mode == Types::WindowsGoBelow)
-            && !(m_originalMode == Types::AlwaysVisible || m_originalMode == Types::WindowsGoBelow)) {
-        //! mode changed to AlwaysVisible OR WindowsGoBelow FROM Dodge mode
-        if (m_originalByPassWM) {
-            //! if original by pass is active
-            m_latteView->layout()->recreateView(m_latteView->containment());
-        }
-    } else if (m_latteView->byPassWM() != m_originalByPassWM) {
-        m_latteView->layout()->recreateView(m_latteView->containment());
-    }
+    //! deliberately NO session-end work here: hideEvent fires for transient
+    //! hides too (deferred show on view retargeting, layer-surface remaps).
+    //! Ending the session belongs to hideConfigWindow(), the deliberate
+    //! close path (close button, focus loss, layout switching).
 
     setVisible(false);
+}
+
+SecondaryConfigView *PrimaryConfigView::secondaryWindow() const
+{
+    return m_secConfigView;
 }
 
 bool PrimaryConfigView::hasFocus() const
@@ -516,6 +547,16 @@ void PrimaryConfigView::focusOutEvent(QFocusEvent *ev)
 
     if (focusWindow && (focusWindow->flags().testFlag(Qt::Popup)
                                 || focusWindow->flags().testFlag(Qt::ToolTip))) {
+        return;
+    }
+
+    //! Focus moving to our own canvas or chooser window is never a loss. On
+    //! Wayland the layer-shell chrome windows take keyboard focus the moment
+    //! they map, BEFORE their isActive() state lands, so the hasFocus() check
+    //! below races that transfer: the primary closed itself the instant its
+    //! own canvas window showed (observed live at 1ms apart). Identity of the
+    //! new focus window is race-free where activation state is not.
+    if (focusWindow && (focusWindow == m_canvasConfigView || focusWindow == m_secConfigView)) {
         return;
     }
 
