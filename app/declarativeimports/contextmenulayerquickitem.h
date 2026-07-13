@@ -61,6 +61,7 @@ private:
     void addAppletActions(QMenu *desktopMenu, Plasma::Applet *applet, QEvent *event);
     void addContainmentActions(QMenu *desktopMenu, QEvent *event);
     void updateAppletContainsMethod();
+    void updateAppletContainsMethodIn(QQuickItem *root, int depth);
 
     QPoint popUpRelevantToParent(const QRect &parentItem, const QRect popUpRect);
     QPoint popUpRelevantToGlobalPoint(const QRect &parentItem, const QRect popUpRect);

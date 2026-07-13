@@ -89,10 +89,24 @@ KSvg.FrameSvgItem {
         containment.anchors.fill = containmentParent;
         adjustPrefix();
 
-        for(var i=0; i<containment.children.length; ++i){
-            if (containment.children[i].objectName === "containmentViewLayout") {
-                viewLayout = containment.children[i];
+        //! Plasma 6: containment roots must BE ContainmentItem/PlasmoidItem
+        //! types, so the item handed to us IS the containment's own root (it
+        //! carries the containmentViewLayout objectName itself) instead of
+        //! wrapping it as a child like Plasma 5 did. Check the item first,
+        //! keep the child scan for safety.
+        if (containment.objectName === "containmentViewLayout") {
+            viewLayout = containment;
+        } else {
+            for(var i=0; i<containment.children.length; ++i){
+                if (containment.children[i].objectName === "containmentViewLayout") {
+                    viewLayout = containment.children[i];
+                }
             }
+        }
+
+        if (!viewLayout) {
+            console.warn("latte view qml source - containmentViewLayout NOT found;",
+                         "applet-position lookups (right-click menus) will be broken");
         }
     }
 

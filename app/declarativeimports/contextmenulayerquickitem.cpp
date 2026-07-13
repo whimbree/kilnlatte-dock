@@ -210,28 +210,51 @@ void ContextMenuLayerQuickItem::mousePressEvent(QMouseEvent *event)
     //FIXME: very inefficient appletAt() implementation
     Plasma::Applet *applet = 0;
 
+    //! Applet resolution is only meaningful when this layer lives in the
+    //! view's own window: appletContainsPos expects containment-root
+    //! coordinates, which our event positions match only there. The canvas
+    //! window's instance overlays the blueprint margin AROUND the dock
+    //! (its input region excludes the dock strip), so no applet can be
+    //! under its clicks; resolving with canvas-local coordinates there
+    //! produced false matches.
+    const bool appletResolutionPossible = (window() == m_latteView);
+
     //! initialize the appletContainsMethod on the first right click
-    if (!m_appletContainsMethod.isValid()) {
+    if (appletResolutionPossible && !m_appletContainsMethod.isValid()) {
         updateAppletContainsMethod();
     }
 
-    for (const Plasma::Applet *appletTemp : m_latteView->containment()->applets()) {
-        PlasmaQuick::AppletQuickItem *ai = PlasmaQuick::AppletQuickItem::itemForApplet(const_cast<Plasma::Applet *>(appletTemp));
+    if (appletResolutionPossible) {
+        for (const Plasma::Applet *appletTemp : m_latteView->containment()->applets()) {
+            PlasmaQuick::AppletQuickItem *ai = PlasmaQuick::AppletQuickItem::itemForApplet(const_cast<Plasma::Applet *>(appletTemp));
 
-        bool appletContainsMouse = false;
+            //! ai before any use: applets can exist without a graphic item
+            //! (the old code dereferenced ai before its null check)
+            if (!ai || !ai->isVisible()) {
+                continue;
+            }
 
-        if (m_appletContainsMethod.isValid()) {
-            QVariant retVal;
-            m_appletContainsMethod.invoke(m_appletContainsMethodItem, Qt::DirectConnection, Q_RETURN_ARG(QVariant, retVal)
-                                          , Q_ARG(QVariant, appletTemp->id()), Q_ARG(QVariant, event->pos()));
-            appletContainsMouse = retVal.toBool();
-        } else {
-            appletContainsMouse = ai->contains(ai->mapFromItem(this, event->pos()));
-        }
+            bool appletContainsMouse = false;
 
-        if (ai && ai->isVisible() && appletContainsMouse) {
-            applet = ai->applet();
-            break;
+            if (m_appletContainsMethod.isValid()) {
+                QVariant retVal;
+
+                if (!m_appletContainsMethod.invoke(m_appletContainsMethodItem, Qt::DirectConnection, Q_RETURN_ARG(QVariant, retVal)
+                                                   , Q_ARG(QVariant, appletTemp->id()), Q_ARG(QVariant, event->pos()))) {
+                    //! never swallow a failed invoke: a broken lookup here is
+                    //! exactly how the applet menus died silently for months
+                    qWarning() << "ContextMenuLayer: appletContainsPos invoke FAILED on" << m_appletContainsMethodItem;
+                }
+
+                appletContainsMouse = retVal.toBool();
+            } else {
+                appletContainsMouse = ai->contains(ai->mapFromItem(this, event->pos()));
+            }
+
+            if (appletContainsMouse) {
+                applet = ai->applet();
+                break;
+            }
         }
     }
 
@@ -345,7 +368,22 @@ void ContextMenuLayerQuickItem::updateAppletContainsMethod()
         return;
     }
 
-    for (QQuickItem *item : m_latteView->contentItem()->childItems()) {
+    updateAppletContainsMethodIn(m_latteView->contentItem(), 0);
+}
+
+void ContextMenuLayerQuickItem::updateAppletContainsMethodIn(QQuickItem *root, int depth)
+{
+    //! Plasma 6 inserted wrapper layers (ContainmentItem and friends) between
+    //! the view's contentItem and the containment root that carries
+    //! appletContainsPos, so a direct-children scan never found it and applet
+    //! resolution silently fell back to broken geometry mapping. Walk the
+    //! subtree; the containment root sits only a few levels down, the depth
+    //! cap guards against pathological trees.
+    if (!root || depth > 6 || m_appletContainsMethod.isValid()) {
+        return;
+    }
+
+    for (QQuickItem *item : root->childItems()) {
         if (auto *metaObject = item->metaObject()) {
             // not using QMetaObject::invokeMethod to avoid warnings when calling
             // this on applets that don't have it or other child items since this
@@ -354,12 +392,17 @@ void ContextMenuLayerQuickItem::updateAppletContainsMethod()
 
             int methodIndex = metaObject->indexOfMethod("appletContainsPos(QVariant,QVariant)");
 
-            if (methodIndex == -1) {
-                continue;
+            if (methodIndex != -1) {
+                m_appletContainsMethod = metaObject->method(methodIndex);
+                m_appletContainsMethodItem = item;
+                return;
             }
+        }
 
-            m_appletContainsMethod = metaObject->method(methodIndex);
-            m_appletContainsMethodItem = item;
+        updateAppletContainsMethodIn(item, depth + 1);
+
+        if (m_appletContainsMethod.isValid()) {
+            return;
         }
     }
 }

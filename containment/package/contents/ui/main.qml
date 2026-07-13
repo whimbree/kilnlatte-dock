@@ -816,6 +816,17 @@ ContainmentItem {
         anchors.fill: parent
         containmentItem: root
 
+        //! Applet-aware right-click menus for the dock window itself; first
+        //! child so it sits at the BOTTOM of the stacking order: applets that
+        //! handle their own mouse buttons (tasks) win first, everything else
+        //! falls through to this layer. See ContextMenuLayer.qml for why the
+        //! layer lives in a separate file.
+        Loader {
+            anchors.fill: parent
+            active: latteView !== null && latteView !== undefined
+            source: "ContextMenuLayer.qml"
+        }
+
         Item{
             anchors.fill: layoutsContainer
 
