@@ -163,13 +163,23 @@ void LayerShellMappingTest::canvasPlacementByEdge()
 
 void LayerShellMappingTest::canvasInputRegionPlainEditMode()
 {
-    //! plain edit mode: the whole canvas catches input (wheel -> background
-    //! opacity, ruler dragging, context menu), including over the dock
+    //! plain edit mode: the canvas catches input everywhere EXCEPT the dock
+    //! strip, which stays click-through so widgets remain hoverable and
+    //! right-clickable (Qt5/X11 stacked the dock above the canvas; on
+    //! wayland same-layer surfaces cannot restack, so the region carves the
+    //! dock's rect out instead)
     const QSize canvas(1920, 40);
-    const QRegion region = LayerShell::canvasInputRegion(false, canvas, QRect());
+    const QRect dockStrip(400, 20, 1120, 20);
+    const QRegion region = LayerShell::canvasInputRegion(false, canvas, QRect(), dockStrip);
 
-    QCOMPARE(region, QRegion(QRect(0, 0, 1920, 40)));
-    QVERIFY(region.contains(QPoint(960, 20)));
+    QCOMPARE(region, QRegion(QRect(0, 0, 1920, 40)) - QRegion(dockStrip));
+    QVERIFY(region.contains(QPoint(100, 20)));
+    QVERIFY2(!region.contains(QPoint(960, 30)),
+             "the dock strip must stay click-through in plain edit mode");
+
+    //! without a dock strip the whole canvas catches input
+    const QRegion whole = LayerShell::canvasInputRegion(false, canvas, QRect(), QRect());
+    QCOMPARE(whole, QRegion(QRect(0, 0, 1920, 40)));
 }
 
 void LayerShellMappingTest::canvasInputRegionConfigureAppletsClickThrough()
@@ -178,7 +188,7 @@ void LayerShellMappingTest::canvasInputRegionConfigureAppletsClickThrough()
     //! so it must catch no on-surface pixel or every right-click/drag hits
     //! the grid instead of the widgets
     const QSize canvas(1920, 40);
-    const QRegion region = LayerShell::canvasInputRegion(true, canvas, QRect());
+    const QRegion region = LayerShell::canvasInputRegion(true, canvas, QRect(), QRect());
 
     QVERIFY2(region.intersected(QRect(QPoint(0, 0), canvas)).isEmpty(),
              "the on-surface input area must be empty so events reach the dock beneath");
@@ -196,7 +206,7 @@ void LayerShellMappingTest::canvasInputRegionKeepsChromeInteractive()
     //! the chrome keeps catching input, the dock area stays click-through
     const QSize canvas(1920, 40);
     const QRect chrome(0, 0, 1920, 8);
-    const QRegion region = LayerShell::canvasInputRegion(true, canvas, chrome);
+    const QRegion region = LayerShell::canvasInputRegion(true, canvas, chrome, QRect());
 
     QVERIFY(region.contains(QPoint(960, 4)));
     QVERIFY(!region.contains(QPoint(960, 30)));
