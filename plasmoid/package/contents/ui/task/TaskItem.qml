@@ -131,12 +131,6 @@ AbilityItem.BasicItem {
     readonly property alias mouseArea: taskMouseArea
     readonly property alias subWindows: subWindows
 
-    //! exposed so windowsPreviewDlg.show() can bind the preview's anchor and
-    //! content ATOMICALLY from the same task at map time; assigning the
-    //! anchor only in preparePreviewWindow let the deferred remap resurrect
-    //! one task's content at another task's anchor when shows interleaved
-    readonly property alias previewsVisualParent: _previewsVisualParent
-
     readonly property alias showWindowAnimation: _showWindowAnimation
 
     //! Indicator Properties
@@ -290,87 +284,6 @@ AbilityItem.BasicItem {
 
     TaskMouseArea {
         id: taskMouseArea
-    }
-
-    //! Previews window anchor, pinned at the task's RESTING midpoint. The live
-    //! task geometry animates with the parabolic zoom, so anchoring the previews
-    //! to it (the title tooltip anchor) makes their position depend on the exact
-    //! animation frame the popup shows in: quick crossings landed the popup
-    //! visibly offset from its icon. The resting midpoint is tracked while no
-    //! parabolic item is active and frozen during zoom, so the popup always
-    //! lands where the icon rests. Deliberately NO anchoredTooltipPositionChanged
-    //! signal: the anchor is static while zoomed, following is not wanted.
-    Item {
-        id: _previewsVisualParent
-
-        readonly property int thickness: taskItem.abilities.metrics.mask.thickness.zoomedForItems - taskItem.abilities.metrics.margin.screenEdge
-
-        //! this task's midpoint in tasks-list coordinates while the whole row
-        //! is FULLY at rest. The parabolic item clearing is not enough: the
-        //! restore animation keeps moving the row for 3 * animationTime after
-        //! it, and sampling inside that window catches an in-between midpoint
-        //! (reproduced: quick hover away and back anchored the previews to a
-        //! mid-restore position). The delayer keeps the last good sample
-        //! frozen until the row has provably settled; re-entering the zoom
-        //! during the delay just keeps the previous good sample.
-        property real restingCenter: 0
-
-        readonly property bool rowAtRest: !taskItem.abilities.parabolic.currentParabolicItem && !restingDelayer.running
-
-        Binding on restingCenter {
-            when: taskItem.abilities.parabolic.factor.zoom === 1 || _previewsVisualParent.rowAtRest
-            value: root.vertical ? taskItem.y + taskItem.height/2 : taskItem.x + taskItem.width/2
-            restoreMode: Binding.RestoreNone
-        }
-
-        Timer {
-            id: restingDelayer
-            //! restore animation duration plus a settle margin
-            interval: 3 * taskItem.animationTime + 100
-        }
-
-        Connections {
-            target: taskItem.abilities.parabolic
-            function onCurrentParabolicItemChanged() {
-                if (taskItem.abilities.parabolic.currentParabolicItem) {
-                    restingDelayer.stop();
-                } else {
-                    restingDelayer.restart();
-                }
-            }
-        }
-
-        width: root.vertical ? thickness : 1
-        height: root.vertical ? 1 : thickness
-
-        x: {
-            if (!root.vertical) {
-                //! taskItem.x converts the frozen list coordinate back to a
-                //! task-local one, holding the anchor at the resting spot on
-                //! screen while the task itself moves under the zoom
-                return restingCenter - taskItem.x - width/2;
-            }
-
-            if (Plasmoid.location === PlasmaCore.Types.LeftEdge) {
-                return taskItem.abilities.metrics.margin.screenEdge;
-            }
-
-            //! RightEdge
-            return taskItem.width - taskItem.abilities.metrics.margin.screenEdge - thickness;
-        }
-
-        y: {
-            if (root.vertical) {
-                return restingCenter - taskItem.y - height/2;
-            }
-
-            if (Plasmoid.location === PlasmaCore.Types.TopEdge) {
-                return taskItem.abilities.metrics.margin.screenEdge;
-            }
-
-            //! BottomEdge
-            return taskItem.height - taskItem.abilities.metrics.margin.screenEdge - thickness;
-        }
     }
 
     Timer {
@@ -577,7 +490,7 @@ AbilityItem.BasicItem {
     }
 
     function preparePreviewWindow(hideClose){
-        windowsPreviewDlg.visualParent = _previewsVisualParent;
+        windowsPreviewDlg.visualParent = tooltipVisualParent;
         toolTipDelegate.parentTask = taskItem;
         toolTipDelegate.rootIndex = tasksModel.makeModelIndex(itemIndex, -1);
 

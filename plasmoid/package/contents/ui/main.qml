@@ -443,7 +443,7 @@ PlasmoidItem {
                 //! A's deferred re-show) mapped one task's thumbnails at
                 //! another task's icon (user-reproduced: firefox preview
                 //! ~370px away over the dock's other end)
-                visualParent = taskItem.previewsVisualParent;
+                visualParent = taskItem.tooltipVisualParent;
 
                 activeItem = taskItem;
                 toolTipDelegate.parentTask = taskItem;
