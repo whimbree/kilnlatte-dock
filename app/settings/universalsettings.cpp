@@ -572,7 +572,14 @@ void UniversalSettings::loadConfig()
     m_canDisableBorders = m_universalGroup.readEntry("canDisableBorders", false);
     m_contextMenuActionsAlwaysShown = m_universalGroup.readEntry("contextMenuActionsAlwaysShown", Latte::Data::ContextMenu::ACTIONSALWAYSVISIBLE);
     m_inAdvancedModeForEditSettings = m_universalGroup.readEntry("inAdvancedModeForEditSettings", false);
-    m_inConfigureAppletsMode = m_universalGroup.readEntry("inConfigureAppletsMode", false);
+    //! inConfigureAppletsMode is deliberately NOT restored: the rearrange
+    //! sub-mode is transient editing state, and any session that ends while
+    //! configuring (a crash, a kill) used to persist true and make every
+    //! following edit-mode open flash the configure blueprint and start in a
+    //! half-broken rearrange state. The on-exit reset in the containment's
+    //! onEditModeChanged declares the same contract: the sub-mode never
+    //! outlives its edit session. Drop any stale value older builds wrote.
+    m_universalGroup.deleteEntry("inConfigureAppletsMode");
     m_isAvailableGeometryBroadcastedToPlasma = m_universalGroup.readEntry("isAvailableGeometryBroadcastedToPlasma", true);
     m_launchers = m_universalGroup.readEntry("launchers", QStringList());
     m_metaPressAndHoldEnabled = m_universalGroup.readEntry("metaPressAndHoldEnabled", true);
@@ -598,7 +605,7 @@ void UniversalSettings::saveConfig()
     m_universalGroup.writeEntry("canDisableBorders", m_canDisableBorders);
     m_universalGroup.writeEntry("contextMenuActionsAlwaysShown", m_contextMenuActionsAlwaysShown);
     m_universalGroup.writeEntry("inAdvancedModeForEditSettings", m_inAdvancedModeForEditSettings);
-    m_universalGroup.writeEntry("inConfigureAppletsMode", m_inConfigureAppletsMode);
+    //! inConfigureAppletsMode is transient, never persisted (see loadConfig)
     m_universalGroup.writeEntry("isAvailableGeometryBroadcastedToPlasma", m_isAvailableGeometryBroadcastedToPlasma);
     m_universalGroup.writeEntry("launchers", m_launchers);
     m_universalGroup.writeEntry("metaPressAndHoldEnabled", m_metaPressAndHoldEnabled);
