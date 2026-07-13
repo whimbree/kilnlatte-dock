@@ -37,7 +37,25 @@ TestCase {
     function test_typeResolvesThroughModuleImport() {
         verify(shadowed !== null, "ShadowedItem must resolve as a type from org.kde.latte.components");
         verify(shadowed.shadowEnabled, "the wrapper is a preconfigured drop shadow");
-        verify(shadowed.autoPaddingEnabled);
+    }
+
+    function test_staticPaddingNeverAuto() {
+        //! autoPaddingEnabled makes MultiEffect recompute padding and
+        //! re-dirty itself continuously - every shadowed window re-rendered
+        //! empty frames forever (18.2% idle CPU, ~19.5k failing statx/s
+        //! from per-frame theme lookups, measured 2026-07-13). The wrapper
+        //! must carry a STATIC paddingRect sized to the blur instead.
+        verify(!shadowed.autoPaddingEnabled,
+               "autoPadding re-dirties the effect every frame; padding must be static");
+
+        //! and the static rect must actually cover what the shadow paints:
+        //! blur extent plus offsets on every side
+        shadowed.shadowSizePx = 20;
+        verify(shadowed.paddingRect.x >= 20 + Math.abs(shadowed.shadowVerticalOffset),
+               "padding must cover blur radius plus offset");
+        compare(shadowed.paddingRect.width, 2 * shadowed.paddingRect.x);
+        compare(shadowed.paddingRect.height, 2 * shadowed.paddingRect.y);
+        shadowed.shadowSizePx = 0;
     }
 
     function test_shadowBlurNormalization() {

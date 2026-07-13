@@ -17,7 +17,22 @@ MultiEffect {
     // -> full blur). Sits above the largest itemShadow.size (0.5 * the 512px
     // icon-size cap = 256), so big-icon shadows scale instead of clamping early.
     property int  blurMaxPx: 256
-    autoPaddingEnabled: true
+
+    // STATIC padding, never autoPaddingEnabled. With autoPadding the effect
+    // recomputes its padding continuously and re-dirties itself, so every
+    // window carrying an applet shadow re-rendered EMPTY frames forever
+    // (measured: 18.2% idle CPU on the main thread, ~19,500 failing statx/s
+    // from per-frame theme lookups, both flat even with the docks hidden;
+    // 0.1% with static padding, bisected across three probe builds). The
+    // rect below grows the output by the blur extent plus the offsets on
+    // every side, which is everything a drop shadow can paint, so the
+    // rendered result is identical to what autoPadding produced.
+    readonly property int shadowPaddingPx: Math.ceil(shadowSizePx
+                                                     + Math.max(Math.abs(shadowHorizontalOffset), Math.abs(shadowVerticalOffset))
+                                                     + 2)
+    autoPaddingEnabled: false
+    paddingRect: Qt.rect(shadowPaddingPx, shadowPaddingPx, 2*shadowPaddingPx, 2*shadowPaddingPx)
+
     shadowEnabled: true
     shadowOpacity: 1.0
     shadowHorizontalOffset: 0
