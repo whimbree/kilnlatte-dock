@@ -1139,6 +1139,18 @@ multi-view, multi-monitor setup.
       Verified: full Latte context menu opens on a task in plain edit
       mode, wheel tooltip only on the blueprint margin.
       Commits: 3d714d63
+- [x] Rearrange drag: cursor drifts away from the dragged widget over
+      long back-and-forth drags (user-reported 2026-07-12 night). The
+      delta-tracked drag stored lastX/lastY as int while wayland
+      delivers fractional pointer coordinates: every event truncated
+      the stored position and injected the lost fraction into the
+      applet position; reversals compound it. Now real. Verified with
+      fakepointer's new multi-waypoint drag: a four-reversal net-zero
+      zigzag (1600px travel, ~384 events, fractional steps) returned
+      the applet to its exact slot. Same int-vs-fractional-wayland
+      class as the WindowId int trap (8e8cdf31): audit other `property
+      int` pointer/geometry caches when touching input code.
+      Commits: 36160c46
 - [ ] Applet edit-tooltip modal (rearrange mode) and task hover
       previews: misposition during fast pointer movement AND the
       rearrange-mode applet hover modal appears INCONSISTENTLY
