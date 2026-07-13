@@ -440,36 +440,30 @@ Item{
         }
     }
 
-    ///Shadow in applets
-    Loader{
-        id: appletShadow
-        anchors.fill: _wrapperContainer
-
-        active: appletItem.applet
-                && appletItem.environment.isGraphicsSystemAccelerated
-                && !appletColorizer.mustBeShown
-                && (appletItem.myView.itemShadow.isEnabled && !appletItem.communicator.indexerIsSupported)
-
-        sourceComponent: LatteComponents.ShadowedItem{
-            anchors.fill: parent
-            shadowColor: appletItem.myView.itemShadow.shadowColor
-            source: _wrapperContainer
-            shadowSizePx: appletItem.myView.itemShadow.size
-            shadowVerticalOffset: root.forceTransparentPanel || root.forcePanelForBusyBackground ? 0 : 2
-        }
-    }
-
     //! Applet Main Container
     Item{
         id:_wrapperContainer
         width: root.isHorizontal ? _length : _thickness
         height: root.isHorizontal ? _thickness : _length
 
-        //! the applet shadow ShadowedItem samples this container; same Qt6
-        //! contract as the wrapper's colorizer layer above: a MultiEffect
-        //! source must be a real texture provider, so keep a layer while the
-        //! shadow is active (Qt5's DropShadow wrapped sources itself)
-        layer.enabled: appletShadow.active
+        readonly property bool shadowIsEnabled: appletItem.applet
+                && appletItem.environment.isGraphicsSystemAccelerated
+                && !appletColorizer.mustBeShown
+                && (appletItem.myView.itemShadow.isEnabled && !appletItem.communicator.indexerIsSupported)
+
+        //! the shadow is a layer EFFECT, not a sibling MultiEffect sampling
+        //! this container: a sibling redraws the content over the still
+        //! visible original, and MultiEffect's padded-source placement is
+        //! not guaranteed pixel-exact, so applets rendered with a shifted
+        //! ghost copy of themselves (user-reported twice: clock text
+        //! double-struck). As the layer effect it REPLACES this item's
+        //! rendering - misalignment cannot double-draw by construction.
+        layer.enabled: shadowIsEnabled
+        layer.effect: LatteComponents.ShadowedItem {
+            shadowColor: appletItem.myView.itemShadow.shadowColor
+            shadowSizePx: appletItem.myView.itemShadow.size
+            shadowVerticalOffset: root.forceTransparentPanel || root.forcePanelForBusyBackground ? 0 : 2
+        }
 
         property int _length:0 // through Binding to avoid binding loops
         property int _thickness:0 // through Binding to avoid binding loops

@@ -64,21 +64,20 @@ Loader{
     }
 
     sourceComponent: Item{
-        Loader{
-            anchors.fill: appletNumber
-            active: appletItem.myView.itemShadow.isEnabled
-                    && appletItem.environment.isGraphicsSystemAccelerated
-
-            sourceComponent: LatteComponents.ShadowedItem{
-                anchors.fill: parent
-                shadowColor: appletItem.myView.itemShadow.shadowColor
-                source: appletNumber
-                shadowSizePx: appletItem.myView.itemShadow.size/2
-            }
-        }
-
         LatteComponents.BadgeText {
             id: appletNumber
+
+            //! layer EFFECT, not a sibling MultiEffect sampling this badge:
+            //! a sibling redraws the content over the still visible original
+            //! and MultiEffect's padded placement is not pixel-exact, which
+            //! ghosted a shifted copy (same defect as the ItemWrapper applet
+            //! shadow, user-reported on the clock)
+            layer.enabled: appletItem.myView.itemShadow.isEnabled
+                           && appletItem.environment.isGraphicsSystemAccelerated
+            layer.effect: LatteComponents.ShadowedItem{
+                shadowColor: appletItem.myView.itemShadow.shadowColor
+                shadowSizePx: appletItem.myView.itemShadow.size/2
+            }
 
             // when iconSize < 48, height is always = 24, height / iconSize > 50%
             // we prefer center aligned badges to top-left aligned ones
