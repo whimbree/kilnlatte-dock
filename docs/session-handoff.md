@@ -92,6 +92,24 @@ below are now RESOLVED and kept only as archaeology.
   was running). Next in queue: hover-modal inconsistency in rearrange
   mode, residual ~40px preview offset during zoom dwell (live vs
   resting rect, refine d98bff98), then the latency items.
+- Round eight, the previews bug's real ending (77aac4b4, dbe5a03b):
+  the user re-reproduced against d619ae08 with the same recipe. Full
+  instrumentation of QML show() plus every C++ position push caught
+  it: the dialog maps with the PREVIOUS task's content width, the base
+  recenters on the resize, then libplasma's stale-position re-send
+  reverts it - and the old stored-position counter-measure was armed
+  only by the mainItem-resize hook, which fired for every intermediate
+  stop of the sweep but not the final one. Ordering-dependent
+  correctness, which is why three fixes passed synthetic retests and
+  kept failing under the user's hand. 77aac4b4 removes the stored
+  state entirely: recompute the anchored target fresh from current
+  anchor + pending content size after every Move/Expose/Show and push
+  it; any ordering self-heals next event. Clean-build verified, recipe
+  plus bidirectional sweeps, idle-silent. Also fixed: the
+  layershellmappingtest had been failing to COMPILE since the
+  canvasInputRegion dockStrip change (dbe5a03b) - run ctest, not just
+  the build, after C++ signature changes. Remaining preview polish:
+  the ~40px zoom-dwell offset (separate filed item).
 - Round seven, latency (37acf9ca): startup measured honestly (KWin
   window poller, no wrapper, no -d; the -d run matched within 50ms so
   -d timings are trustworthy). Restart was ~9.4s: ~4.1s launcher

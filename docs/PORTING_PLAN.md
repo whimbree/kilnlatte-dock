@@ -1274,15 +1274,39 @@ multi-view, multi-monitor setup.
       Verified: the user's recipe at realistic event rates (fakepointer
       glide, 8ms steps) mapped the firefox preview centered on its
       logged anchor (2352 vs 2351.5), plus two adversarial overshoot
-      zigzags and a clean-build pass, all correct. PREVIEW HALF DONE
-      pending user confirmation with a real mouse. STILL REMAINING:
+      zigzags and a clean-build pass, all correct. The user
+      re-reproduced AGAINST d619ae08 as well. FOURTH AND STRUCTURAL
+      ROOT CAUSE (77aac4b4, instrumented both the QML show() path and
+      every C++ position push): the dialog MAPS with the previous
+      task's content size still in the mainItem (1112px, system
+      monitor's strip), so the base places it at anchor-556; the
+      content then shrinks to firefox's 278 and the base correctly
+      recenters; 15ms later libplasma's stale-position re-send (frozen
+      QWindow::position(), documented in dialog.cpp) reverts it for
+      good. The old counter-measure STORED the last anchored position
+      and was armed only by the mainItem-resize hook, which never
+      fired for the final task of a sweep - intermediate stops in the
+      SAME sweep won the race, which is why every slow retest passed
+      while the user kept failing. Correctness depended on event
+      ordering. 77aac4b4 stores nothing: after every Move/Expose/Show
+      the target is recomputed from the CURRENT anchor and CURRENT
+      pending content size and pushed to the plasmashell surface, so
+      any ordering self-heals on the next event. Verified clean-build
+      with the user recipe and bidirectional multi-speed sweeps
+      (window at 2213 where it parked at 1796), idle-silent.
+      LESSON for the whole series: when a fix depends on which of two
+      event handlers runs last, it is a patch, not a fix - remove the
+      stored state instead of arming it in more places.
+      STILL REMAINING:
       (a) small residual offset from the icon center during zoom dwell
       (live vs resting rect, d98bff98 refinement; observed ~40px);
       (b) the rearrange-mode applet hover modal's inconsistent
       appearance (ConfigOverlay hover tracking), zoom excluded.
       Commits: e6c5ae76 (incomplete, coalescing), 15558f40 (deferred
-      remap, still incomplete), d619ae08 (atomic anchor+content, the
-      actual fix)
+      remap, still incomplete), d619ae08 (atomic anchor+content,
+      still incomplete), 77aac4b4 (recompute-fresh positioning, the
+      structural fix) + dbe5a03b (layershellmappingtest signature
+      catch-up found by the same session's build)
 - [x] Vertical (left/right) dock canvas header renders off-surface
       (rearrange chip at y=-552/-596, rearrange unusable on the left
       dock, user-reported twice). MECHANISM DEMONSTRATED: the header's
