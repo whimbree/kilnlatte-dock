@@ -398,13 +398,23 @@ MouseArea {
             }
         }
     }
-    PlasmaCore.Dialog {
+    //! Latte's Dialog, not PlasmaCore.Dialog: this modal keeps its window
+    //! mapped while visualParent hops between hovered applets, and on
+    //! wayland the base class cannot reposition a mapped popup reliably
+    //! (libplasma re-sends the frozen show-time position; watched live:
+    //! the window stayed parked over the first hovered applet while only
+    //! its content followed the pointer, so hovering a far applet looked
+    //! like the modal never appeared). Latte::Quick::Dialog recomputes the
+    //! anchored position fresh on every Move/Expose/Show and on anchor
+    //! changes while visible - same fix as the task previews window.
+    LatteCore.Dialog {
         id: tooltip
         visualParent: currentApplet
 
         type: PlasmaCore.Dialog.Dock
         flags: Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus | Qt.BypassWindowManagerHint | Qt.ToolTip
         location: Plasmoid.location
+        edge: Plasmoid.location
 
 
         onVisualParentChanged: {
