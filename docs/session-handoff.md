@@ -92,6 +92,20 @@ below are now RESOLVED and kept only as archaeology.
   was running). Next in queue: hover-modal inconsistency in rearrange
   mode, residual ~40px preview offset during zoom dwell (live vs
   resting rect, refine d98bff98), then the latency items.
+- Round twelve, the storm KILLED (e3376405): three probe builds
+  bisected it to MultiEffect's autoPaddingEnabled - it recomputes
+  padding and re-dirties the effect every frame, so every
+  shadow-carrying window rendered empty frames forever. ShadowedItem
+  now uses a static paddingRect (blur + max offset per side; output
+  identical). 18.2% idle CPU -> 0.1% with shadows fully on. LESSON:
+  QSG_RENDER_TIMING is the sharp tool for who-renders (named both
+  spinning windows and showed the frames were EMPTY - polish=0 sync=0
+  render=0 - which pointed at a dirty-loop, not real work). RULE: no
+  autoPaddingEnabled on MultiEffect anywhere in this tree; compute
+  static padding (the new tst_shadoweditem contract enforces it for
+  ShadowedItem). Startup and cold edit-open unchanged after (their
+  costs are real work); the win is idle CPU, power, and scheduling
+  headroom.
 - Round eleven, the storm (docs only, evidence in the plan's TOP
   PRIORITY item): while measuring edit-open latency (cold 7.3s, warm
   0.5s), found the idle dock burning 18.2% CPU on the main thread -

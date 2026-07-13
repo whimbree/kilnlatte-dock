@@ -1161,9 +1161,26 @@ multi-view, multi-monitor setup.
       (b) share the corona's QML engine with the config views so the
       startup type-graph warm-up carries over - architectural change.
       Commits: (measurement pass)
-- [ ] TOP PRIORITY: idle render-loop + filesystem-stat storm in the
+- [x] TOP PRIORITY: idle render-loop + filesystem-stat storm in the
       applet-shadow path (discovered 2026-07-13 while measuring the
-      edit-open latency; likely inflates EVERY latency number above).
+      edit-open latency).
+      FIXED same day (e3376405): bisected live in three probe builds
+      (ItemWrapper shadow site off -> 0.1%; the source layer alone ->
+      0.1%; shadows on with autoPaddingEnabled=false -> 0.1%). ROOT:
+      MultiEffect's autoPaddingEnabled recomputes padding and
+      re-dirties the effect continuously - the eternal frame
+      requester. ShadowedItem now carries a static paddingRect (blur
+      extent + max offset per side, output identical). Verified 0.1%
+      idle with shadows fully on (was 18.2%), tests extended with the
+      padding contract. QSG_RENDER_TIMING named the spinning windows
+      first (both shadow-enabled docks, back-to-back EMPTY frames,
+      unthrottled because hidden layer surfaces get no vsync pacing).
+      Startup/cold-edit-open re-measured after: unchanged - the
+      storm's cost was idle CPU and power, not those paths. The KSvg
+      negative-cache gap (nonexistent theme colors re-scanned across
+      273 XDG_DATA_DIRS entries per query) remains as an upstream
+      observation; with the frame loop gone the query rate is normal.
+      Original evidence below for the record.
       THE NUMBERS: the idle dock burns 18.2% CPU, all of it on the
       MAIN thread (single-threaded 'basic' QtQuick render loop);
       with appletShadowsEnabled=false on ALL containments it drops to
@@ -1202,7 +1219,7 @@ multi-view, multi-monitor setup.
       Also caught on the idle main thread: QtWebEngine performing a
       lazy Vulkan/RhiGpuInfo init ~20s after startup (some applet
       pulls QtWebEngine in) - one-time jank, separate small item.
-      Commits: (evidence pass; fix not started)
+      Commits: e3376405
 - [ ] Startup latency (user-reported: 'takes way longer than it
       should'). Measure BOTH dev and production-shaped starts before
       optimizing: dev runs pay for cmake --install restaging, the gdb
