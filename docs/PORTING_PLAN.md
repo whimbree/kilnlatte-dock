@@ -1060,6 +1060,34 @@ multi-view, multi-monitor setup.
       across restart; fakepointer learned drag for this, c1ee9e2b).
       Commits: fb621102 (transient sub-mode), 4a8ac480 (family focus
       + session end on deliberate close)
+- [x] Rearrange input mask carved from stale/wrong geometry
+      (user-reported 2026-07-12 late evening: wheel-opacity tooltip on
+      every applet's middle band, only applet edges draggable, per-dock
+      variance). The canvas carve sampled rearrangeToggleRect exactly
+      once and the published rect mapped the outer Button item, which
+      stretches to near-full row width after chrome retargeting
+      (observed 2544 vs the 273 chip; origin unidentified, see next
+      item). Mask now re-carves on the rect's notify signal and maps
+      the interactive chip. Verified: carve reads QRegion(8,99 273x26)
+      on the top dock, toggle cycles cleanly with the settings pinned.
+      Commits: 8be2b388
+- [ ] Outer SettingsControls.Button item width stretches after chrome
+      retargeting (2544 observed while its width binding still points
+      at the 273-wide chip; binding bypassed, writer not identified;
+      inert since 8be2b388 maps the chip, but the mechanism is
+      ununderstood and may bite elsewhere). Instrumentation recipe:
+      onWidthChanged log in Button.qml plus MASKDBG publish log in
+      CanvasConfiguration.qml, cycle the settings between docks.
+      Commits:
+- [ ] Vertical (left/right) dock canvas header renders off-surface:
+      the rearrange chip maps to y=-552 on the left dock's canvas, so
+      rearrange mode is unusable on vertical docks (user-reported
+      'edit menu broken on the left dock'). HeaderSettings' rotated
+      positioning math (x formula for LeftEdge, y: width/2 - height/2)
+      is the suspect; the left canvas geometry also flip-flopped
+      between runs (1440,425 106x1440 vs 1440,513 106x1264), so
+      Positioner::canvasGeometry for vertical docks needs a look too.
+      Commits:
 - [x] iconSize=78 startup hang (bisected 2026-07-10, fixed 2026-07-12):
       the autosize shrink loop's termination was the equality
       nextIconSize !== 16 while stepping by 8, so any icon size not

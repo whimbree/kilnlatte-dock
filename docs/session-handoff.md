@@ -38,6 +38,19 @@ below are now RESOLVED and kept only as archaeology.
   unidentified, family 7 by fingerprint), default indicator main.qml:92
   dead binding, right-click menu missing 'Applet Settings'
   (pre-existing per user recollection).
+- Round two, user-driven: the rearrange input mask was carved from a
+  once-sampled, wrong rect (outer Button item stretched to 2544 wide
+  after chrome retargeting) - a full-width stripe ate hover and drags
+  across every applet's middle. Fixed by re-carving on the rect's
+  notify signal and mapping the interactive chip (8be2b388). The
+  'un-toggle exits edit mode' report did NOT reproduce with the
+  settings pinned (focus-loss close excluded) - retest with a real
+  mouse. Two new items filed: the outer-Button width stretch
+  (mechanism unidentified, now inert) and the vertical-dock canvas
+  header rendering off-surface (left dock rearrange unusable, chip at
+  y=-552). The settings pin (sticker) button is the way to keep chrome
+  alive during headless driving; fakepointer clicks never hold real
+  focus.
 
 ## 2026-07-12 evening: skill library authored, tested, committed
 
