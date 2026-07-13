@@ -9,6 +9,8 @@
  *        fakepointer rightclick <x> <y>
  *        fakepointer drag <x1> <y1> <x2> <y2> [x3 y3 ...]  (left press, glide
  *          through every waypoint in one hold, release at the last)
+ *        fakepointer glide <x1> <y1> <x2> <y2> [x3 y3 ...]  (same smooth
+ *          motion stream, no buttons - replicates a real fast hover sweep)
  *
  * build (inside the devshell):
  *   xml=$(pkg-config --variable=pkgdatadir plasma-wayland-protocols)/fake-input.xml
@@ -64,10 +66,11 @@ static const struct wl_registry_listener registry_listener = {
 int main(int argc, char **argv)
 {
     int isdrag = (argc > 1) && (strcmp(argv[1], "drag") == 0);
+    int isglide = (argc > 1) && (strcmp(argv[1], "glide") == 0);
 
-    if ((isdrag && (argc < 6 || (argc % 2) != 0))
-        || (!isdrag && (argc != 4 || (strcmp(argv[1], "move") && strcmp(argv[1], "click") && strcmp(argv[1], "rightclick"))))) {
-        fprintf(stderr, "usage: %s move|click|rightclick <x> <y>  |  %s drag <x1> <y1> <x2> <y2> [x3 y3 ...]\n", argv[0], argv[0]);
+    if (((isdrag || isglide) && (argc < 6 || (argc % 2) != 0))
+        || (!isdrag && !isglide && (argc != 4 || (strcmp(argv[1], "move") && strcmp(argv[1], "click") && strcmp(argv[1], "rightclick"))))) {
+        fprintf(stderr, "usage: %s move|click|rightclick <x> <y>  |  %s drag|glide <x1> <y1> <x2> <y2> [x3 y3 ...]\n", argv[0], argv[0]);
         return 2;
     }
     double x = atof(argv[2]);
@@ -102,17 +105,19 @@ int main(int argc, char **argv)
         usleep(50000);
         org_kde_kwin_fake_input_button(fake_input, btn, 0);
         wl_display_roundtrip(display);
-    } else if (isdrag) {
+    } else if (isdrag || isglide) {
         //! press at (x,y), glide through every waypoint in small steps so
         //! drag handlers see a believable motion stream, release at the last.
         //! Step pacing mirrors a human drag because drop targets debounce
-        //! hover.
+        //! hover. glide is the same stream without buttons.
         const int steps = 24;
 
-        usleep(100000);
-        org_kde_kwin_fake_input_button(fake_input, BTN_LEFT, 1);
-        wl_display_roundtrip(display);
-        usleep(150000);
+        if (isdrag) {
+            usleep(100000);
+            org_kde_kwin_fake_input_button(fake_input, BTN_LEFT, 1);
+            wl_display_roundtrip(display);
+            usleep(150000);
+        }
 
         double cx = x, cy = y;
 
@@ -133,9 +138,11 @@ int main(int argc, char **argv)
             cy = wy;
         }
 
-        usleep(150000);
-        org_kde_kwin_fake_input_button(fake_input, BTN_LEFT, 0);
-        wl_display_roundtrip(display);
+        if (isdrag) {
+            usleep(150000);
+            org_kde_kwin_fake_input_button(fake_input, BTN_LEFT, 0);
+            wl_display_roundtrip(display);
+        }
     }
 
     wl_display_disconnect(display);

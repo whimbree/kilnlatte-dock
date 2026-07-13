@@ -357,6 +357,9 @@ PlasmoidItem {
 
         property bool signalSent: false
         property Item activeItem: null
+        //! the task adopted by the deferred remap (see show()); a sweep
+        //! overwrites it per hovered task so the remap lands on the last one
+        property Item remapPendingTask: null
 
         Component.onCompleted: mainItem.visible = true;
 
@@ -412,10 +415,19 @@ PlasmoidItem {
                 //! the window stayed parked where the sweep first opened it
                 //! (observed live: Firefox preview sitting over the clock at
                 //! the dock's far end). Unmap before adopting the new task so
-                //! the show below remaps at the fresh anchor. Slow hovering
-                //! never hit this because the hide timer unmaps between tasks.
+                //! the re-show remaps at the fresh anchor - and the re-show
+                //! MUST wait an event loop pass: hide+show in the same cycle
+                //! coalesces and the surface never actually unmaps (real
+                //! mouse sweeps cross several tasks per frame; the first fix
+                //! attempt only survived slow synthetic sweeps). The pending
+                //! task always overwrites, so a sweep debounces to the last
+                //! hovered task. Slow hovering never hit any of this because
+                //! the hide timer unmaps between tasks.
                 if (visible && activeItem && activeItem !== taskItem) {
+                    remapPendingTask = taskItem;
                     visible = false;
+                    previewRemapTimer.restart();
+                    return;
                 }
 
                 activeItem = taskItem;
@@ -427,6 +439,21 @@ PlasmoidItem {
                 }
 
                 visible = true;
+            }
+        }
+    }
+
+    //! Re-show the previews window one event loop pass after it was hidden
+    //! for a task switch, so the unmap actually reaches the compositor and
+    //! the re-show maps a fresh surface at the new task's anchor
+    Timer {
+        id: previewRemapTimer
+        interval: 1
+        onTriggered: {
+            if (windowsPreviewDlg.remapPendingTask) {
+                var task = windowsPreviewDlg.remapPendingTask;
+                windowsPreviewDlg.remapPendingTask = null;
+                windowsPreviewDlg.show(task);
             }
         }
     }
