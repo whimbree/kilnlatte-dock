@@ -56,6 +56,9 @@ public Q_SLOTS:
     Q_INVOKABLE void syncGeometry() override;
     Q_INVOKABLE void updateInputRegion();
 
+    //! (re)binds rootObject-dependent wiring; must run after every setSource
+    void connectRootObject();
+
 Q_SIGNALS:
     void showSignal();
 

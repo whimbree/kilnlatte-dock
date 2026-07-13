@@ -71,19 +71,7 @@ void CanvasConfigView::init()
 
     auto source = QUrl::fromLocalFile(m_latteView->containment()->corona()->kPackage().filePath(tempFilePath));
     setSource(source);
-
-    //! The configure-applets input mask is carved to the published
-    //! rearrangeToggleRect. That rect settles asynchronously (layouts run
-    //! after the mode flips, and chrome retargeting passes it through
-    //! transient full-width states), so a single sample at mode-change time
-    //! froze whatever garbage it held: observed live as a full-width 26px
-    //! stripe that ate hover across every applet's middle. Re-carve whenever
-    //! the published rect changes.
-    if (rootObject()) {
-        QQmlProperty toggleRect(rootObject(), QStringLiteral("rearrangeToggleRect"));
-        toggleRect.connectNotifySignal(this, metaObject()->indexOfMethod("updateInputRegion()"));
-    }
-
+    connectRootObject();
     syncGeometry();
 
     if (m_parent && KWindowSystem::isPlatformX11()) {
@@ -96,14 +84,49 @@ QRect CanvasConfigView::geometryWhenVisible() const
     return m_geometryWhenVisible;
 }
 
+void CanvasConfigView::connectRootObject()
+{
+    if (!rootObject()) {
+        return;
+    }
+
+    //! The configure-applets input mask is carved to the published
+    //! rearrangeToggleRect. That rect settles asynchronously (layouts run
+    //! after the mode flips), so a single sample at mode-change time froze
+    //! whatever garbage it held: observed live as a full-width 26px stripe
+    //! that ate hover across every applet's middle. Re-carve whenever the
+    //! published rect changes.
+    QQmlProperty toggleRect(rootObject(), QStringLiteral("rearrangeToggleRect"));
+    toggleRect.connectNotifySignal(this, metaObject()->indexOfMethod("updateInputRegion()"));
+}
+
 void CanvasConfigView::initParentView(Latte::View *view)
 {
+    const bool viewswitch = m_latteView && m_latteView != view;
+
     SubConfigView::initParentView(view);
 
     //! the dock strip is excluded from the canvas input region; re-carve
     //! whenever the dock's rect moves or breathes so the exclusion tracks it
     viewconnections << connect(m_latteView, &Latte::View::absoluteGeometryChanged,
                                this, &CanvasConfigView::updateInputRegion);
+
+    //! RELOAD the canvas content when the shared chrome retargets to another
+    //! view. The content's positional bindings (the rotated header, the
+    //! ruler) branch on per-view context (form factor, location), and each
+    //! branch captures DIFFERENT dependencies: a binding evaluated mid-switch
+    //! through the old view's branch can strand on a transient value with no
+    //! remaining dependency to wake it (observed live: the vertical header's
+    //! y frozen at -13 while its width re-evaluated to 1440, putting the
+    //! rearrange chip ~600px above the canvas and making rearrange unusable
+    //! on vertical docks). A fresh instantiation against the settled context
+    //! cannot strand.
+    if (viewswitch && source().isValid()) {
+        const QUrl src = source();
+        setSource(QUrl());
+        setSource(src);
+        connectRootObject();
+    }
 
     rootContext()->setContextProperty(QStringLiteral("primaryConfigView"), m_parent);
 
