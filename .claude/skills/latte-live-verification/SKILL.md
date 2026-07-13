@@ -101,17 +101,24 @@ Source: scripts/tools/fakepointer.c. Usage:
 fakepointer move <x> <y>
 fakepointer click <x> <y>        # left click at absolute position
 fakepointer rightclick <x> <y>
+fakepointer drag <x1> <y1> <x2> <y2>   # press, 24-step glide, release
 ```
 
-Coordinates are GLOBAL compositor logical coordinates.
+Coordinates are GLOBAL compositor logical coordinates. drag is how
+configure-applets reordering is verified headlessly; note synthetic
+drags are grab-point sensitive, so confirm the grab landed by checking
+appletOrder actually changed rather than assuming.
 
 Build (inside the devshell, i.e. under `nix develop`):
 
 ```bash
 xml=$(pkg-config --variable=pkgdatadir plasma-wayland-protocols)/fake-input.xml
+# the devshell may not carry plasma-wayland-protocols in pkg-config;
+# fall back to locating the xml in the store:
+#   ls /nix/store/*plasma-wayland-protocols*/share/plasma-wayland-protocols/fake-input.xml
 wayland-scanner client-header "$xml" fake-input-client-protocol.h
 wayland-scanner private-code  "$xml" fake-input-protocol.c
-cc -O2 -o fakepointer fakepointer.c fake-input-protocol.c \
+cc -O2 -I. -o fakepointer fakepointer.c fake-input-protocol.c \
    $(pkg-config --cflags --libs wayland-client)
 ```
 

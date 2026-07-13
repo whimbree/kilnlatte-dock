@@ -952,7 +952,7 @@ multi-view, multi-monitor setup.
       Commits: 73da8400 (providers), c7200e3d (basic render loop
       default, which made the corruption debuggable), df747ebf and
       e88af680 (the two dead-effect removals found on the way)
-- [ ] Harden CompactApplet against representation churn: plasma 6
+- [x] Harden CompactApplet against representation churn: plasma 6
       destroys/recreates compact representations at runtime (observed
       live: rep -> null -> new DefaultCompactRepresentation) while
       CompactApplet.qml keeps parent/anchors/size bindings on the old
@@ -992,8 +992,74 @@ multi-view, multi-monitor setup.
       longer has a crash reproduction behind it; per the
       fix-with-reproduction discipline it waits for a live vector
       (any applet that legitimately swaps representations) rather
-      than speculative hardening now
-      Commits: 4c9f3bc7 (removed the churn vector)
+      than speculative hardening now.
+      LIVE VECTOR FOUND AND FIXED 2026-07-12 (evening): a HEALTHY comic
+      applet reproduces the SEGV on hover alone - parabolic zoom grows
+      the item past comic's switchWidth/switchHeight (gridUnit*5), and
+      Plasma 6 AppletQuickItem flips expanded=true and swaps
+      representations by itself, no click involved. Isolation acquitted
+      the MultiEffect and both applet layer sites (crash reproduced with
+      all three disabled); the defect was Qt5-style representation
+      stealing fighting AppletQuickItem ownership, exactly as this item
+      suspected. Fixed on the upstream plasma-desktop Plasma 6 pattern
+      (plasmoidItem property, marker-walk applet discovery, clean
+      release of outgoing representations, popup nodes returned to the
+      dock window before teardown). Follow-ups filed below: comic still
+      EXPANDS on hover-zoom (behavior question vs Qt5), and the startup
+      'No QSGTexture provided' warnings (48/run) proved to come from
+      neither the clicked effect nor the shadow/colorizer layers -
+      source still unidentified.
+      Commits: 4c9f3bc7 (removed the original churn vector), 9ea29eaa
+      (churn hardening, the actual fix)
+- [ ] Comic/any switch-threshold applet EXPANDS from parabolic zoom
+      alone: hovering grows the item past switchWidth/switchHeight and
+      AppletQuickItem opens the popup with no click (observed live
+      2026-07-12, survives cleanly since 9ea29eaa but the popup opening
+      on hover is questionable UX). Decide the Qt5-faithful behavior:
+      check how Qt5 AppletQuickItem's compactRepresentationCheck treated
+      panel form factors vs size thresholds, and whether Latte should
+      pin preferredRepresentation for zoom-resized applets.
+      Commits:
+- [ ] Startup 'No QSGTexture provided from updateSampledImage()'
+      warnings, 48 per run at 2026-07-12 evening: proven NOT from the
+      CompactApplet clicked effect (persisted with it commented out) and
+      NOT from the applet shadow/colorizer layers (persisted with
+      appletShadowsEnabled=false). Some other sampler renders without a
+      provider at startup; find it (family 7 fingerprint, latent crash
+      vector by doctrine).
+      Commits:
+- [ ] Default indicator main.qml:92 'Unable to assign [undefined] to
+      double', 3 per startup (pre-existing, observed across all
+      2026-07-12 evening runs). Small but it is a real dead binding in
+      the indicator API surface.
+      Commits:
+- [ ] Right-click context menu on an applet offers no 'Applet Settings'
+      entry (user-reported 2026-07-12; user recalls it was ALREADY
+      missing before the evening session, so pre-existing, not a churn
+      regression). Compare against Qt5 Latte's applet context menu
+      composition in the contextmenu containmentactions plugin.
+      Commits:
+- [x] Edit-mode chrome lifecycle trilogy (user-reported 2026-07-12
+      evening: blueprint flashes at open then vanishes, rearrange mode
+      dies moments after enabling with no blue frames and no dragging,
+      closing the chrome leaves the dock stuck in edit visuals). Three
+      stacked root causes, instrumented and convicted separately:
+      (1) inConfigureAppletsMode was persisted, so any session killed
+      mid-configure seeded a stale true that flashed on every next
+      open; (2) the layer-shell chrome windows grab keyboard focus on
+      map before isActive() lands, so the primary's focusOut hasFocus()
+      check raced its own canvas mapping and the ensemble closed itself
+      (1ms Show-to-hideEvent in the log); (3) hideEvent ran session-end
+      work on transient hides (deferred show on view retargeting), so
+      cycling docks killed the fresh session ~300ms in - chrome open,
+      editMode false, blueprint and configure frames dead. NOT a
+      regression from any single commit: the traps were latent and
+      today's heavy crash-repro kill cycles armed (1) repeatedly.
+      Verified live end to end including a headless drag reorder
+      (appletOrder 3;4;6;11;29;122 -> 29;3;4;6;11;122, persisted
+      across restart; fakepointer learned drag for this, c1ee9e2b).
+      Commits: fb621102 (transient sub-mode), 4a8ac480 (family focus
+      + session end on deliberate close)
 - [x] iconSize=78 startup hang (bisected 2026-07-10, fixed 2026-07-12):
       the autosize shrink loop's termination was the equality
       nextIconSize !== 16 while stepping by 8, so any icon size not

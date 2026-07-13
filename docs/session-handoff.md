@@ -5,6 +5,40 @@ Last updated 2026-07-12 (evening). PHASE 8 IS OPEN - read its section in
 docs/PORTING_PLAN.md first; every item is current there, several sections
 below are now RESOLVED and kept only as archaeology.
 
+## 2026-07-12 late evening: comic hover crash + edit-mode chrome trilogy
+
+- Comic hover SIGSEGV root-caused and fixed (9ea29eaa): parabolic zoom
+  crosses comic's switchWidth/switchHeight, Plasma 6 AppletQuickItem
+  swaps representations by itself, and CompactApplet's Qt5-style
+  representation stealing (parent capture, cross-window popup
+  reparenting) turned each swap into a scenegraph use-after-free.
+  Fixed on the upstream plasma-desktop Plasma 6 pattern (plasmoidItem
+  property, isLatteAppletContainer marker walk, clean release of the
+  outgoing representation, popup nodes returned to the dock window
+  before teardown). Isolation acquitted the clicked-effect MultiEffect
+  and both applet layer sites first. NOTE: mid-investigation a careless
+  marker insertion split the two-line isMarginsAreaSeparator expression
+  and turned every applet into a margins-area separator (no zoom, no
+  clicks, layout in pieces) while the QML gate stayed green - the gate
+  cannot catch semantics, only compilation. Anchor multi-line
+  expressions in full when editing.
+- Edit-mode chrome trilogy (user-reported: blueprint flash+vanish,
+  rearrange dying instantly, dock stuck in edit visuals) root-caused as
+  THREE stacked latent defects, none introduced today: stale persisted
+  inConfigureAppletsMode (fb621102), chrome focus-grab racing its own
+  assembly, and hideEvent running session-end work on transient hides
+  (both 4a8ac480). Today's dozens of crash-repro kills armed the stale
+  persistence repeatedly, which is why it LOOKED like a fresh
+  regression. Full loop verified live including a headless drag
+  reorder; fakepointer learned drag (c1ee9e2b) and lives at
+  ~/.local/bin/fakepointer.
+- Comic now survives hover but EXPANDS from zoom alone (popup opens
+  with no click) - behavior question vs Qt5 filed in the plan.
+- Still open, filed: startup 'No QSGTexture' warnings (48/run, source
+  unidentified, family 7 by fingerprint), default indicator main.qml:92
+  dead binding, right-click menu missing 'Applet Settings'
+  (pre-existing per user recollection).
+
 ## 2026-07-12 evening: skill library authored, tested, committed
 
 - .claude/skills/ now holds seven skills (latte-architecture, latte-build-env,
