@@ -51,6 +51,21 @@ below are now RESOLVED and kept only as archaeology.
   y=-552). The settings pin (sticker) button is the way to keep chrome
   alive during headless driving; fakepointer clicks never hold real
   focus.
+- Round three, the design-level one (3d714d63): plain edit mode
+  blocked ALL widget interaction because the canvas owned its whole
+  surface. Qt5/X11 stacked the edited dock above the canvas; wayland
+  cannot restack same-layer surfaces, so the canvas input region now
+  excludes the dock's absoluteGeometry permanently. Verified: full
+  context menu on a task in plain edit mode, wheel tooltip confined to
+  the blueprint margin. The reason this evening felt like whack-a-mole
+  is now on record: five independent latent defects (persistence,
+  focus race, transient-hide session kill, stale mask rect, canvas
+  input ownership) stacked on the same user-visible surface; each fix
+  was real and verified, the last one was architectural. Remaining in
+  this area, filed with recipes: popup mispositioning during fast
+  pointer movement (parabolic anchoring race), vertical-dock canvas
+  header off-surface, outer-Button stretch mechanism, missing 'Applet
+  Settings' context-menu entry (pre-existing).
 
 ## 2026-07-12 evening: skill library authored, tested, committed
 

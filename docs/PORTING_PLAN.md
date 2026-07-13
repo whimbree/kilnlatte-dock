@@ -1079,6 +1079,26 @@ multi-view, multi-monitor setup.
       onWidthChanged log in Button.qml plus MASKDBG publish log in
       CanvasConfiguration.qml, cycle the settings between docks.
       Commits:
+- [x] Plain edit mode blocked all widget interaction (user-reported
+      2026-07-12 night: wheel-opacity tooltip over every widget, no
+      right-click, no hover config without entering rearrange). Design
+      mismatch, not a point bug: Qt5/X11 stacked the edited dock ABOVE
+      the canvas so the dock strip stayed interactive; wayland
+      same-layer surfaces cannot restack, so the later-mapping canvas
+      swallowed the strip. The canvas input region now always excludes
+      the dock's absoluteGeometry (re-carved on absoluteGeometryChanged).
+      Verified: full Latte context menu opens on a task in plain edit
+      mode, wheel tooltip only on the blueprint margin.
+      Commits: 3d714d63
+- [ ] Applet edit-tooltip modal and task hover previews misposition
+      during fast pointer movement along the dock (user-reported
+      2026-07-12 night). Suspect class: popup/dialog anchoring racing
+      parabolic item motion; d98bff98 anchored task previews to the
+      resting midpoint, check whether the configure-mode applet tooltip
+      anchors the same way and whether visualParent/position updates
+      race rapid re-anchoring. Reproduce headless: fakepointer sweep at
+      speed plus screenshots; dumpwins shows popup geometry (layer=6).
+      Commits:
 - [ ] Vertical (left/right) dock canvas header renders off-surface:
       the rearrange chip maps to y=-552 on the left dock's canvas, so
       rearrange mode is unusable on vertical docks (user-reported
