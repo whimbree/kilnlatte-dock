@@ -669,6 +669,18 @@ void View::showConfigurationInterface(Plasma::Applet *applet)
 
     if (c && containment() && c->isContainment() && c->id() == containment()->id()) {
         m_primaryConfigView = m_corona->viewSettingsFactory()->primaryConfigView(this);
+
+        //! the factory does not show by itself when the chrome ALREADY sits
+        //! parented to this view but hidden (the startup warmup state):
+        //! setParentView() early-returns on an unchanged parent, so without
+        //! this the first Edit Dock after a warmup was a silent no-op. On a
+        //! retarget the parent is still the previous view here (the deferred
+        //! slide-out swap shows it later itself), so this stays out of the way.
+        if (m_primaryConfigView && m_primaryConfigView->parentView() == this
+                && !m_primaryConfigView->isVisible()) {
+            m_primaryConfigView->showConfigWindow();
+        }
+
         applyActivitiesToWindows();
     } else {
         m_appletConfigView = new PlasmaQuick::ConfigView(applet);

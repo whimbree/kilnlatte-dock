@@ -289,6 +289,27 @@ void Corona::load()
                 addView(0, m_startupAddViewTemplateName);
                 m_startupAddViewTemplateName = "";
             }
+
+            //! warm the edit-mode chrome once startup has fully settled (the
+            //! staggered views land within ~6s; 8s leaves margin), so the
+            //! user's FIRST Edit Dock opens on the warm path (~0.5s) instead
+            //! of paying ~7s of cold chrome QML instantiation. Skipped when
+            //! the user already opened the settings before the timer fired.
+            QTimer::singleShot(8000, this, [this]() {
+                if (m_viewSettingsFactory->primaryConfigView()) {
+                    qDebug() << "chrome warmup: skipped, settings already exist";
+                    return;
+                }
+
+                auto views = m_layoutsManager->synchronizer()->sortedCurrentViews();
+
+                if (!views.isEmpty()) {
+                    qDebug() << "chrome warmup: building the edit chrome hidden...";
+                    m_viewSettingsFactory->warmupPrimaryConfigView(views.first());
+                } else {
+                    qWarning() << "chrome warmup: no views available, warmup skipped";
+                }
+            });
         });
 
         m_inStartup = false;

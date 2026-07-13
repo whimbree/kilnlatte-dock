@@ -47,7 +47,7 @@
 namespace Latte {
 namespace ViewPart {
 
-PrimaryConfigView::PrimaryConfigView(Latte::View *view)
+PrimaryConfigView::PrimaryConfigView(Latte::View *view, const bool &showOnCreation)
     : SubConfigView(view, QString("#primaryconfigview#")),
       m_indicatorUiManager(new Config::IndicatorUiManager(this))
 {
@@ -91,7 +91,18 @@ PrimaryConfigView::PrimaryConfigView(Latte::View *view)
         instantUpdateAvailableScreenGeometry();
     });
 
-    setParentView(view);
+    if (showOnCreation) {
+        setParentView(view);
+    } else {
+        //! warmup: wire the parent view (context properties, layer surface,
+        //! connections) WITHOUT showConfigWindow() - no configuring session
+        //! starts on the containment (userConfiguring stays false, so the
+        //! dock never flashes edit visuals) and no window maps. init()
+        //! below still loads the chrome QML, which is the expensive part
+        //! the warmup exists to pay in the background.
+        initParentView(view);
+    }
+
     init();
 }
 

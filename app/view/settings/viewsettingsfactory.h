@@ -40,6 +40,9 @@ public:
 
     ViewPart::PrimaryConfigView *primaryConfigView();
 
+    //! build the chrome hidden so the first real open is warm; never shows
+    void warmupPrimaryConfigView(Latte::View *view);
+
     Plasma::Containment *lastContainment();
     ViewPart::PrimaryConfigView *primaryConfigView(Latte::View *view);
     ViewPart::WidgetExplorerView *widgetExplorerView(Latte::View *view);

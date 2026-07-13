@@ -48,6 +48,25 @@ ViewPart::PrimaryConfigView *ViewSettingsFactory::primaryConfigView()
     return m_primaryConfigView;
 }
 
+void ViewSettingsFactory::warmupPrimaryConfigView(Latte::View *view)
+{
+    if (m_primaryConfigView || !view || !view->containment()) {
+        return;
+    }
+
+    //! Builds the settings/canvas chrome ensemble WITHOUT showing it, so the
+    //! user's first Edit Dock pays the warm path (~0.5s) instead of the cold
+    //! QML instantiation of the whole chrome (~7s measured on the main
+    //! thread: thousands of controls plus the Kirigami theme cascade).
+    //! Deliberately NO setUserConfiguring(true) here, unlike the real path
+    //! below: userConfiguring drives the containment's edit visuals
+    //! (containment main.qml binds editMode to it), so setting it would
+    //! flash the dock into edit mode for the whole warmup. The chrome is
+    //! constructed in the not-configuring state exactly like a warm REOPEN
+    //! ends in, and showConfigWindow() establishes the real state later.
+    m_primaryConfigView = new ViewPart::PrimaryConfigView(view, false);
+}
+
 ViewPart::PrimaryConfigView *ViewSettingsFactory::primaryConfigView(Latte::View *view)
 {
     if (!m_primaryConfigView) {

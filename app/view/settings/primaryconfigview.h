@@ -73,7 +73,10 @@ public:
         SecondaryConfig
     };
 
-    PrimaryConfigView(Latte::View *view);
+    //! showOnCreation=false builds the whole chrome (context wiring + QML
+    //! load) WITHOUT showing it and without starting a configuring session;
+    //! used by the startup warmup so the first real open is warm
+    PrimaryConfigView(Latte::View *view, const bool &showOnCreation = true);
     ~PrimaryConfigView() override;
 
     bool hasFocus() const;
