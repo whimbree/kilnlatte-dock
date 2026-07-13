@@ -6,6 +6,8 @@
  *
  * usage: fakepointer move <x> <y>
  *        fakepointer click <x> <y>     (left click at absolute position)
+ *        fakepointer rightclick <x> <y>
+ *        fakepointer drag <x1> <y1> <x2> <y2>  (left press, stepped move, release)
  *
  * build (inside the devshell):
  *   xml=$(pkg-config --variable=pkgdatadir plasma-wayland-protocols)/fake-input.xml
@@ -60,8 +62,11 @@ static const struct wl_registry_listener registry_listener = {
 
 int main(int argc, char **argv)
 {
-    if (argc != 4 || (strcmp(argv[1], "move") && strcmp(argv[1], "click") && strcmp(argv[1], "rightclick"))) {
-        fprintf(stderr, "usage: %s move|click|rightclick <x> <y>\n", argv[0]);
+    int isdrag = (argc > 1) && (strcmp(argv[1], "drag") == 0);
+
+    if ((isdrag && argc != 6)
+        || (!isdrag && (argc != 4 || (strcmp(argv[1], "move") && strcmp(argv[1], "click") && strcmp(argv[1], "rightclick"))))) {
+        fprintf(stderr, "usage: %s move|click|rightclick <x> <y>  |  %s drag <x1> <y1> <x2> <y2>\n", argv[0], argv[0]);
         return 2;
     }
     double x = atof(argv[2]);
@@ -95,6 +100,31 @@ int main(int argc, char **argv)
         wl_display_roundtrip(display);
         usleep(50000);
         org_kde_kwin_fake_input_button(fake_input, btn, 0);
+        wl_display_roundtrip(display);
+    } else if (isdrag) {
+        //! press at (x,y), glide to (x2,y2) in small steps so drag handlers
+        //! see a believable motion stream, release. Step pacing mirrors a
+        //! human drag (~0.3s total) because drop targets debounce hover.
+        double x2 = atof(argv[4]);
+        double y2 = atof(argv[5]);
+        const int steps = 24;
+
+        usleep(100000);
+        org_kde_kwin_fake_input_button(fake_input, BTN_LEFT, 1);
+        wl_display_roundtrip(display);
+        usleep(150000);
+
+        for (int i = 1; i <= steps; ++i) {
+            double sx = x + (x2 - x) * i / steps;
+            double sy = y + (y2 - y) * i / steps;
+            org_kde_kwin_fake_input_pointer_motion_absolute(fake_input,
+                wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+            wl_display_roundtrip(display);
+            usleep(12000);
+        }
+
+        usleep(150000);
+        org_kde_kwin_fake_input_button(fake_input, BTN_LEFT, 0);
         wl_display_roundtrip(display);
     }
 
