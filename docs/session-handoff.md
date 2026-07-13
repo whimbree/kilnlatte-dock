@@ -92,6 +92,23 @@ below are now RESOLVED and kept only as archaeology.
   was running). Next in queue: hover-modal inconsistency in rearrange
   mode, residual ~40px preview offset during zoom dwell (live vs
   resting rect, refine d98bff98), then the latency items.
+- Round sixteen, threaded render loop (28fdca5f): the user set the
+  bar - 'behave like plasma where possible' - and reported jittery
+  per-task volume scroll plus a chugging calendar popup. Both traced
+  toward the basic render loop: plasmashell runs threaded here (8
+  QSGRenderThreads), latte ran basic (a stabilization-era default
+  whose own commit said revisit after the effect audit). Measured:
+  calendar interaction under basic = 417-610ms polish-dominated
+  frames serialized on the gui thread; under threaded = p50 5ms, p99
+  6ms, max 41ms, zero over 100ms. All historical crash recipes clean
+  on threaded (the effect audit removed the churn that raced).
+  CAVEAT filed: comic (WebEngine) applets free-run under threaded at
+  ~20%/instance - bisected precisely (comic-hosting docks spun,
+  comic-free layouts idle at 0.1%); basic stays as env override.
+  OPEN: the volume-scroll jitter needs a retest under threaded, and
+  if it persists, compare our per-task wheel path against plasma's
+  volume applet (wheel accumulation/debounce) - fakepointer has no
+  wheel support yet, add a scroll subcommand for headless driving.
 - Round fifteen, corona init profiled (docs only): the 2.4s corona
   estimate was wrong - it is ~1.0s; the real pre-paint cost is the
   first view's 2.6s create-to-map pipeline (QQmlTypeLoader floor plus

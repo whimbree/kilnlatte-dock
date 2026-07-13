@@ -952,6 +952,31 @@ multi-view, multi-monitor setup.
       Commits: 73da8400 (providers), c7200e3d (basic render loop
       default, which made the corruption debuggable), df747ebf and
       e88af680 (the two dead-effect removals found on the way)
+      FOLLOW-UP 2026-07-13 (28fdca5f): the basic loop was retired once
+      the effect audit completed. plasmashell runs threaded on this
+      system (8 QSGRenderThreads); the basic loop serialized every
+      window's polish/sync/render on the gui thread and measured
+      400-610ms frame hitches opening the clock's calendar popup
+      (threaded: p50 5ms, p99 6ms, max 41ms, zero >100ms on the same
+      interaction - the user's 'calendar chugs at low fps' report).
+      All historical crash recipes ran clean on threaded before the
+      flip. QSG_RENDER_LOOP=basic stays as a supported override.
+- [ ] WebEngine-backed applets (org.kde.plasma.comic) free-run under
+      the threaded render loop: ~20% cpu per instance at idle,
+      bisected on the 3-dock test layout - exactly the two
+      comic-hosting docks spun (5.3k/4.9k unthrottled frames in ~25s)
+      while the comic-free dock idled, and a comic-free layout idles
+      at 0.1% under threaded. Chromium requests frames continuously in
+      this embedding; a static comic page should not - suspect damage
+      propagation through the wrapper/layer chain or the software/GL
+      fallback (QtWebEngine also does a lazy Vulkan init ~20s after
+      startup, caught on the idle main thread earlier). Investigate
+      against plasmashell hosting the same applet (does IT spin?),
+      then either fix the embedding or document comic as
+      basic-loop-only. Also seen once during a corrupted-layout probe:
+      recurring 'No QSGTexture' bursts under threaded - keep an eye
+      out, may be the corruption not the loop.
+      Commits:
 - [x] Harden CompactApplet against representation churn: plasma 6
       destroys/recreates compact representations at runtime (observed
       live: rep -> null -> new DefaultCompactRepresentation) while
