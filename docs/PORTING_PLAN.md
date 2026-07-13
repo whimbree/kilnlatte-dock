@@ -1020,19 +1020,32 @@ multi-view, multi-monitor setup.
       panel form factors vs size thresholds, and whether Latte should
       pin preferredRepresentation for zoom-resized applets.
       Commits:
-- [ ] Startup 'No QSGTexture provided from updateSampledImage()'
-      warnings, 48 per run at 2026-07-12 evening: proven NOT from the
-      CompactApplet clicked effect (persisted with it commented out) and
-      NOT from the applet shadow/colorizer layers (persisted with
-      appletShadowsEnabled=false). Some other sampler renders without a
-      provider at startup; find it (family 7 fingerprint, latent crash
-      vector by doctrine).
+- [ ] 'No QSGTexture provided from updateSampledImage()' warnings:
+      SOURCES IDENTIFIED 2026-07-13 by config bisection. Startup
+      baseline ~45: disabling appletShadowsEnabled on all containments
+      drops it to 9, so ~36 are the applet ShadowedItem sites (layered
+      sources per 73da8400, so these are transient first-frame nulls,
+      lower risk). The residual 9 match the task-icon count: TaskIcon
+      .qml instantiates THREE MultiEffects per task (stateColorizer,
+      hoveredImage, brightnessTaskEffect at lines ~339-368) sampling
+      source: badgesLoader.active ? badgesLoader : taskIconItem with
+      NO layer on either candidate - the verbatim family 7 anti-pattern
+      73da8400 fixed elsewhere but missed here. Warnings also ACCRUE
+      during idle runtime (9 -> 45 over minutes with Spotify playing:
+      task icon refreshes re-trigger invalid sampling), so this is live
+      corruption exposure on every icon update, not just startup. FIX
+      SHAPE for its own session: layer the sampled sources per
+      73da8400, minding df747ebf (the badgesLoader/taskIconItem ternary
+      switching is itself churn) - and give CompactApplet's
+      _clickedEffect the same treatment (still unlayered; earlier
+      2026-07-12 note: it was NOT the source of these warnings, but it
+      is the same latent class).
       Commits:
-- [ ] Default indicator main.qml:92 'Unable to assign [undefined] to
-      double', 3 per startup (pre-existing, observed across all
-      2026-07-12 evening runs). Small but it is a real dead binding in
-      the indicator API surface.
-      Commits:
+- [x] Default indicator main.qml:92 'Unable to assign [undefined] to
+      double', 3 per startup: the GlowPoint opacity block fell through
+      undefined for not-yet-classified indicators; explicit opacity 0
+      terminal return. Verified zero occurrences on a fresh start.
+      Commits: 04d8000c
 - [x] Right-click context menu on an applet offers no 'Applet Settings'
       entry (user-reported 2026-07-12; pre-existing since the port).
       FIXED 2026-07-13: four stacked defects. The ROOT was one level
