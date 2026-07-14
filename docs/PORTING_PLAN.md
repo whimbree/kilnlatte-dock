@@ -1272,7 +1272,7 @@ multi-view, multi-monitor setup.
       original) double-draws with a few px offset - ItemWrapper and
       ShortcutBadge shadows are layer.effect now (c7c46226).
       Commits: e3376405, 6c7001ce, c7c46226
-- [ ] Applet popup SLIDE-IN animation still missing (plasma parity;
+- [x] Applet popup SLIDE-IN animation still missing (plasma parity;
       user-driven session 2026-07-13 evening). The slide-OUT works
       (user-verified) since f630d2ad; the open still animates with a
       generic quick fade (the scale effect - it persisted with KWin's
@@ -1282,6 +1282,19 @@ multi-view, multi-monitor setup.
       emerge FROM BEHIND the dock, exactly like plasmashell popups
       emerge from their panel (that is the slide offset/clip at the
       panel edge, free once the slide-in engages).
+      SOLVED (1f8770fd), user-verified 'it slides in now'. FINAL
+      LAYER: PlasmaQuick::Dialog derives its OWN slide hint from its
+      location property inside its first-expose handler, immediately
+      before the call that renders and commits the mapping frame; on
+      the threaded loop that call BLOCKS until the frame is out, so
+      the location-derived hint at that instant is what KWin maps
+      with and NOTHING outside the base's call stack can interleave.
+      Latte's Floating location meant the base UNSET the slide every
+      open - all four re-assert strategies lost by construction.
+      Fix: AppletPopup dialogs pin location to the dock edge in
+      updatePopUpEnabledBorders, so the base itself requests the
+      correct slide in the only slot that decides (side effect,
+      deliberate: dock-facing border hidden, the Qt5 attached look).
       EVIDENCE CHAIN so far (do not re-litigate these):
       (1) kwindowsystem wayland backend was missing entirely
       (347f413a) - KWindowEffects was a no-op, shadows also fixed;

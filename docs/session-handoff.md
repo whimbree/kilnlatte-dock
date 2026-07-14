@@ -92,6 +92,20 @@ below are now RESOLVED and kept only as archaeology.
   was running). Next in queue: hover-modal inconsistency in rearrange
   mode, residual ~40px preview offset during zoom dwell (live vs
   resting rect, refine d98bff98), then the latency items.
+- Round eighteen, the slide saga SOLVED (1f8770fd, user: 'it slides
+  in now!!'): the final layer was PlasmaQuick::Dialog deriving its
+  own slide hint from location INSIDE its first-expose handler, which
+  on the threaded loop blocks until the mapping frame is committed -
+  the one moment no external re-assert can reach. Floating location
+  = unset every open. Fix: pin location to the dock edge for
+  AppletPopup dialogs in updatePopUpEnabledBorders; the base then
+  slides it natively (and hides the dock-facing border, Qt5 look).
+  LESSON worth its weight: when a base class acts inside a
+  frame-blocking call, the ONLY winning move is changing the inputs
+  its own computation reads, not racing its output. The double
+  windowAdded lead was a red herring (mixed single/double adds,
+  orthogonal). Our Dialog updateSlideEffect machinery stays as
+  reinforcement for surface-recreation cases.
 - Round seventeen, the popup slide saga (347f413a, f630d2ad; slide-in
   STILL OPEN, full evidence chain + leads in the plan item): user
   wants plasma-parity popup animations - popup must emerge from
