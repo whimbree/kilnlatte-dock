@@ -285,7 +285,19 @@ void Dialog::updatePopUpEnabledBorders()
     //! Plasma Scenario
     bool hideEdgeBorder = isRespectingAppletsLayoutGeometry() && !appletslayoutgeometry.isEmpty() && appletspopupmargin==-1;
 
-    if (hideEdgeBorder) {
+    //! AppletPopup dialogs keep location pinned to the dock edge ALWAYS.
+    //! The base class derives its compositor slide hint from location and
+    //! applies it inside its first-expose handler, IMMEDIATELY before the
+    //! call that renders and commits the mapping frame (on the threaded
+    //! loop that call blocks until the frame is out) - so whatever
+    //! location says at that instant is the slide KWin maps with, and no
+    //! re-assert from our side can ever run in between. With location
+    //! Floating the base UNSET the slide on every open and the popup faded
+    //! in via the generic effects while sliding out correctly from our
+    //! later hints (user-reproduced through four ordering attempts; the
+    //! full hunt is in the plan). Pinning the edge also hides the popup's
+    //! dock-facing border - the Qt5 Latte attached-popup look.
+    if (hideEdgeBorder || type() == Dialog::AppletPopup) {
         setLocation(m_edge);
     } else {
         setLocation(Plasma::Types::Floating);
