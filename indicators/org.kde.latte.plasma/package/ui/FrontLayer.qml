@@ -170,11 +170,24 @@ Item {
     
 
     Loader {
+        id: groupIndicatorLoader
         anchors.fill: parent
         anchors.topMargin: Plasmoid.location === PlasmaCore.Types.TopEdge ? indicator.screenEdgeMargin : 0
         anchors.bottomMargin: Plasmoid.location === PlasmaCore.Types.BottomEdge ? indicator.screenEdgeMargin : 0
         anchors.leftMargin: Plasmoid.location === PlasmaCore.Types.LeftEdge ? indicator.screenEdgeMargin : 0
         anchors.rightMargin: Plasmoid.location === PlasmaCore.Types.RightEdge ? indicator.screenEdgeMargin : 0
+
+        readonly property QtObject groupSvg: indicator.resources && indicator.resources.svgs.length > 0 ? indicator.resources.svgs[0] : null
+
+        //! KSvg 6 constraint, deviating from the Qt5 shape which bound a
+        //! transient null svg here without harm: KSvg::SvgItem::setSvg(nullptr)
+        //! null-derefs inside updateDevicePixelRatio() (unguarded m_svg, still
+        //! present at ksvg master as of 6.27). indicator.resources.svgs is
+        //! populated through a QML -> C++ -> QML round trip that lands only
+        //! after this component incubates during an indicator style switch, so
+        //! groupSvg being null is a legitimate transient state. Do not create
+        //! the SvgItem until the svg exists.
+        active: groupSvg !== null
 
         visible: !indicator.isApplet && indicator.isGroup
         sourceComponent: Item{
@@ -193,10 +206,8 @@ Item {
                 implicitWidth: 0.25 * iconBox.width
                 implicitHeight: implicitWidth
 
-                svg: groupSvg
+                svg: groupIndicatorLoader.groupSvg
                 elementId: elementForLocation(Plasmoid.location)
-
-                readonly property QtObject groupSvg: indicator.resources && indicator.resources.svgs.length > 0 ? indicator.resources.svgs[0] : null
 
                 function elementForLocation(location) {
                     switch (location) {
