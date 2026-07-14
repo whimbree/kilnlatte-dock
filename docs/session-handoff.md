@@ -154,6 +154,19 @@ below are now RESOLVED and kept only as archaeology.
   under the final code (four clean sub-30s starts), so only noted.
   User config fully restored (no colorizing keys, shadows on) and
   verified rendering unchanged.
+- Round twenty-two (2026-07-14 evening, verification only): the
+  comic/WebEngine free-run under threaded is GONE on HEAD. First
+  measurement was a false negative - the throwaway layout's active
+  copy had LOST its comic applet during earlier repairs (grep the
+  layout for plugin= before trusting a no-repro; with-comic.bak
+  restored and left active). With the comic present: settled idle
+  0.2-1.6%, QSGRenderThreads ~1%, over minutes. No code change made;
+  plan item closed with the plausible absorbers named (dialog rework,
+  kwindowsystem wayland plugin arrival) and a bisect pointer if it
+  returns. Also observed: the 3-dock throwaway burns 40-100% CPU
+  MAIN-thread for ~60-90s after start (render threads quiet) -
+  layout/applet settling, not a render loop; noted in the item, no
+  new plan entry.
 - SESSION CLOSE STATE (2026-07-13 night): everything committed and
   pushed through 1a49f118; working tree clean; the dock runs the
   latest build with --user-config (the user's REAL ~/.config, single

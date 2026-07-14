@@ -961,22 +961,29 @@ multi-view, multi-monitor setup.
       interaction - the user's 'calendar chugs at low fps' report).
       All historical crash recipes ran clean on threaded before the
       flip. QSG_RENDER_LOOP=basic stays as a supported override.
-- [ ] WebEngine-backed applets (org.kde.plasma.comic) free-run under
+- [x] WebEngine-backed applets (org.kde.plasma.comic) free-run under
       the threaded render loop: ~20% cpu per instance at idle,
       bisected on the 3-dock test layout - exactly the two
       comic-hosting docks spun (5.3k/4.9k unthrottled frames in ~25s)
       while the comic-free dock idled, and a comic-free layout idles
-      at 0.1% under threaded. Chromium requests frames continuously in
-      this embedding; a static comic page should not - suspect damage
-      propagation through the wrapper/layer chain or the software/GL
-      fallback (QtWebEngine also does a lazy Vulkan init ~20s after
-      startup, caught on the idle main thread earlier). Investigate
-      against plasmashell hosting the same applet (does IT spin?),
-      then either fix the embedding or document comic as
-      basic-loop-only. Also seen once during a corrupted-layout probe:
-      recurring 'No QSGTexture' bursts under threaded - keep an eye
-      out, may be the corruption not the loop.
-      Commits:
+      at 0.1% under threaded.
+      NOT REPRODUCIBLE on HEAD (2026-07-14, no code change for it):
+      re-measured with the comic restored to the throwaway layout
+      (the active copy had lost it - with-comic.bak swapped back in
+      and left active, matching the handoff's description), settled
+      idle is 0.2-1.6% total with QSGRenderThreads at ~1%, sustained
+      over minutes. Changes landed between the round-16 measurement
+      and now that plausibly absorbed it: the dialog/appletpopup
+      rework (347f413a/f630d2ad/1f8770fd) and the kwindowsystem
+      wayland plugin joining the staged env (KWindowShadow no longer
+      fails per dialog). If it resurfaces, bisect across that range;
+      QSG_RENDER_TIMING names the spinning window. SEPARATE
+      observation while re-measuring, not filed as its own item: the
+      3-dock throwaway burns 40-100% CPU for the first ~60-90s after
+      start, MAIN thread (35%), render threads quiet (~1%) - applet/
+      network settling on a heavy layout, not a render loop; the
+      user's single-dock layout shows nothing similar.
+      Commits: (verification only, no change)
 - [x] Harden CompactApplet against representation churn: plasma 6
       destroys/recreates compact representations at runtime (observed
       live: rep -> null -> new DefaultCompactRepresentation) while
