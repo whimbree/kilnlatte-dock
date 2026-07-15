@@ -2099,12 +2099,19 @@ multi-view, multi-monitor setup.
       to the throwaway environment, independent of code. The
       recollection of a dark bottom bar most plausibly comes from
       --user-config runs, which read the real dark kdeglobals.
-      DECISIVE TEST: restart --user-config and look at the bar; if
-      the real dock's bar is also white while plasmashell renders
-      dark, THAT is the port defect to chase (a774ee55
-      KDE_COLOR_SCHEME_PATH pinning territory). Regardless: seed
-      build/_runconfig with a kdeglobals copy so throwaway runs
-      match the real session visually.
+      DECISIVE TEST RUN 2026-07-15 (--user-config restart, native
+      crops of both surfaces side by side): the real dock's bar
+      renders LIGHT and plasmashell's own panel on the same session
+      renders LIGHT - they MATCH. Latte resolves the theme exactly
+      as plasmashell does; the system's plasma desktop theme has a
+      light panel surface while the application scheme is dark, so
+      there is NO port defect in theme resolution. REMAINING
+      ACTIONABLE ARMS: (a) the Dark Colors palette background arm
+      is genuinely dead (proven 2026-07-15: palette flip changed
+      applet icons but never the background) - that is the real
+      route to a dark bar and stays open as suspect (b) above;
+      (c) seed build/_runconfig with a kdeglobals copy so throwaway
+      runs match the real session visually.
       Commits:
 - [ ] Applet colorizer applies too broadly: under a non-default
       palette it flattens FULL-COLOR applet icons to single-color
