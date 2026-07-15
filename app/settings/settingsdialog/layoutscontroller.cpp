@@ -1102,7 +1102,7 @@ void Layouts::onNameDuplicatedFrom(const QString &provenId, const QString &trial
     QModelIndex tIndex = m_proxyModel->index(tRow, Model::Layouts::NAMECOLUMN);
 
     //! avoid losing focus
-    QTimer::singleShot(0, [this, tIndex]() {
+    QTimer::singleShot(0, this, [this, tIndex]() {
         m_view->edit(tIndex);
     });
 }

@@ -966,7 +966,7 @@ void Positioner::initSignalingForLocationChangeSliding()
 
             //! make sure that View has been repositioned properly in next screen edge and show view afterwards
             if (isrelocationlastevent) {
-                QTimer::singleShot(100, [this]() {
+                QTimer::singleShot(100, this, [this]() {
                     onLastRepositionApplyEvent();
                 });
             }
@@ -993,7 +993,7 @@ void Positioner::initSignalingForLocationChangeSliding()
 
             //! make sure that View has been repositioned properly in next screen and show view afterwards
             if (isrelocationlastevent) {
-                QTimer::singleShot(100, [this]() {
+                QTimer::singleShot(100, this, [this]() {
                     onLastRepositionApplyEvent();
                 });
             }
@@ -1008,7 +1008,7 @@ void Positioner::initSignalingForLocationChangeSliding()
 
             //! make sure that View has been repositioned properly in next layout and show view afterwards
             if (isrelocationlastevent) {
-                QTimer::singleShot(100, [this]() {
+                QTimer::singleShot(100, this, [this]() {
                     onLastRepositionApplyEvent();
                 });
             }
