@@ -49,7 +49,6 @@ qml_env_setup() {
 
 qml_env_stage() {
     echo "staging $build -> $stage ..."
-    rm -rf "$stage"
 
     # cmake --install unconditionally rewrites build/install_manifest.txt,
     # which ECM's appstreamtest reads; leaving the staged manifest behind
@@ -57,9 +56,25 @@ qml_env_stage() {
     local manifest="$build/install_manifest.txt" had_manifest=""
     [[ -f "$manifest" ]] && { had_manifest=1; cp "$manifest" "$manifest.pre-stage"; }
 
-    cmake --install "$build" --prefix "$stage" >"$stage.log" 2>&1 || {
-        echo "STAGE FAILED:"; tail -15 "$stage.log"; return 2;
+    # Install to a throwaway prefix, then checksum-sync into the real stage
+    # so files whose CONTENT did not change keep their existing mtime. The
+    # QML disk cache (~/.cache/lattedock/qmlcache) validates entries against
+    # the source file's timestamp: the old rm-rf-and-reinstall staging gave
+    # every QML file a fresh mtime on every restart, so the dock recompiled
+    # its entire QML tree per run (239 cache entries rewritten each restart,
+    # measured 2026-07-15; the previews' first adoption alone paid ~480ms of
+    # compile-plus-create). Deliberately NOT rsync -a: -t would stamp the
+    # fresh install's mtimes onto content-identical files and defeat the
+    # whole point.
+    rm -rf "$stage.new"
+    cmake --install "$build" --prefix "$stage.new" >"$stage.log" 2>&1 || {
+        echo "STAGE FAILED:"; tail -15 "$stage.log"; rm -rf "$stage.new"; return 2;
     }
+    mkdir -p "$stage"
+    rsync -rlp --checksum --delete "$stage.new/" "$stage/" >>"$stage.log" 2>&1 || {
+        echo "STAGE SYNC FAILED:"; tail -15 "$stage.log"; rm -rf "$stage.new"; return 2;
+    }
+    rm -rf "$stage.new"
 
     if [[ -n "$had_manifest" ]]; then
         mv "$manifest.pre-stage" "$manifest"
