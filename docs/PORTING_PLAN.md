@@ -1390,18 +1390,26 @@ multi-view, multi-monitor setup.
       and the shadow as the colorizer's layer.effect (the sibling
       arrangement ghost-double-struck text, c7c46226 class).
       Commits: 1f835402
-- [ ] Settings window (edit chrome) reported overflowing the screen
-      top - carried over from a 2026-07-14 morning session that was
-      cleared before filing it (its task list entry and scratchpad
-      screenshots survive, but no repro recipe). Every chrome open
-      during the 2026-07-14 evening session fit the screen (right
-      monitor, advanced mode, appliedHeight=maxHeight), so the trigger
-      is probably the other monitor or a specific mode; needs the
-      user's recipe. Suspect surface if it reproduces:
-      LatteDockConfiguration.qml maxHeight from
-      viewConfig.availableScreenGeometry, which relates to the Phase 8
-      stale/wrong-screen edit-window geometry item.
-      Commits:
+- [x] Settings window (edit chrome) reported overflowing the screen
+      top, intermittently. CAUGHT LIVE with a geometry-sampling loop
+      (user watched the same repro): first open shortly after a dock
+      restart mapped +99px too tall / 93px past the screen top and
+      STAYED wrong; warm reopens always correct. The +99px is the
+      dock's own reserved thickness: corona integrates this view's
+      reserved screen area late after a restart (~14s post-start,
+      measured), the warmed chrome computed availableScreenGeometry
+      from the strut-less rect, and the correcting
+      availableScreenRectChangedFrom(self) was dropped by upstream
+      d30143f7's self-origin exclusion, so the wrong height persisted
+      all session. Fixed by accepting self-origin updates (commented
+      deviation; churn bounded by the 250ms debounce + syncGeometry
+      no-change return). RESIDUAL, Phase 8 family: the window still
+      maps at the stale size for ~1.2s on a cold open before
+      snapping correct, because corona's rect itself is stale that
+      early - the real lever is whatever makes the view's reserved
+      area integrate ~10s after the view is already painted; fold
+      into the Phase 8 screen-geometry work.
+      Commits: 1b932ed9
 - [x] LatteComponents.ComboBox popup renders its dropdown rows
       collapsed (~13px tall) with item text invisible - found while
       driving the Appearance page Palette / From Window dropdowns

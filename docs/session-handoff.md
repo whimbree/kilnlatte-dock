@@ -180,6 +180,22 @@ below are now RESOLVED and kept only as archaeology.
   edits need a restage before the test sees them (a probe cycle died
   to the old file); and the ListModel case is what proved the obvious
   modelData-only fix wrong - test all model kinds, not the broken one.
+- Round twenty-four (2026-07-14 night, user-driven): the intermittent
+  settings-window overflow root-caused and fixed (1b932ed9) with the
+  user WATCHING the repro live. Method: a geometry-sampling loop
+  (dumpwins every 300-400ms) around cold restarts vs warm reopens -
+  warm was 12/12 correct, cold mapped +99px too tall (93px past the
+  screen top) and STAYED wrong. The 99px equals the dock's own
+  reserved thickness; corona integrates the view's own reserved area
+  ~14s post-start (measured), the warmed chrome computed
+  availableScreenGeometry before that, and upstream d30143f7's
+  self-origin exclusion in updateAvailableScreenGeometry dropped the
+  correction forever. Fix accepts self-origin updates (commented
+  deviation). Verified across three cold runs after the fix: stale
+  mapping lasts <1s then snaps correct; user confirmed no overflow.
+  RESIDUAL filed in the plan item (Phase 8 family): the <1s stale
+  flash exists because corona's rect itself is late - the real lever
+  is why reserved-area integration lags ~10s behind first paint.
 - SESSION CLOSE STATE (2026-07-14 night): everything committed and
   pushed; working tree clean; the user's dock runs the latest build
   under the gdb wrapper with --user-config, config fully restored
