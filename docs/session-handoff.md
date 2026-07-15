@@ -49,6 +49,24 @@ below are now RESOLVED and kept only as archaeology.
   frames; the only stalls were the previews dialog's first show, already
   behind the 150ms hoveredTimer, and startup). If hover lag is still
   felt, profile the previews first-show and swap backpressure next.
+- Fourth and fifth layers: the debounce shipped with a regression
+  (deferred switches skipped show(), whose first act cancels the hide
+  countdown every task exit arms - scrubbing hid the previews under the
+  pointer; fixed 54ed1974 by cancelling in the defer branch), and
+  hover-open flip-backs still paid the full rebuild per adoption -
+  fixed 0913bbee with a two-slot delegate cache (active + previous task
+  kept alive, visibility-flipped; parked bindings stay live, pipewire
+  streams stay warm while the dialog shows; revive = rootIndex refresh
+  only). Verified: konsole 4-group -> firefox -> konsole revives all
+  four thumbnails with the binding set skipped. KNOWN GHOST, filed not
+  guarded: the flaky first-synthetic-engagement after a restart can
+  build a delegate against a half-ready engagement (one misplaced
+  1440,425 popup and a transiently single-width group seen ONLY in
+  that state, never in controlled cycles; the misplaced-popup family
+  predates the cache - same artifact at -7843,425 this morning
+  pre-feature). If a wrongly-built cached delegate is ever reproduced
+  with a real mouse, the fix belongs in the engagement path, not as a
+  cache guard.
 - Third layer of the same report (still chugged "moving sufficiently
   quick"): adopting a task into the previews dialog rebuilds the whole
   delegate tree on the GUI thread - 100-400ms per switch measured with
