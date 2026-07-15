@@ -11,9 +11,16 @@ community fork below.
 
 Two things, explicitly, not in tension: a production-grade daily-driver
 dock, and a learning vehicle for me, the author (new to Qt6/KF6 and its
-moving parts). Eventual upstream contribution to KDE is the aspiration
-- keep history clean and commits reviewable-shaped from the start
-because of this, not as an afterthought before submitting.
+moving parts). This is a MAINTAINED CONTINUATION (decided 2026-07-15):
+upstream KDE latte-dock is dormant, and "would upstream merge this" is
+not a planning constraint - the PORTING_PLAN's continuation-features
+section already operated under this framing, and architecture decisions
+may diverge from upstream's when the divergence is understood and
+recorded. The clean-history discipline stays on its own merits, not as
+upstream etiquette: small bisectable commits are a debugging tool I use
+constantly (git log -S dated the preview unmap workaround's stale
+premise to the hour), and well-shaped commits keep patch exchange with
+any other continuation cheap if that ever becomes worth doing.
 
 Explain Qt6/KF6/QML concepts as they come up rather than just applying
 fixes silently - this is explicitly wanted, not a nice-to-have.
