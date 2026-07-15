@@ -88,11 +88,28 @@ INPUTS TO MINE (read before planning)
    polling timer) reveals logic that belongs in typed C++ with a proper
    signal.
 
-DEPTH BUDGET (honesty over completeness)
-Full per-unit specs for the TOP ~8 ranked candidates only; the rest of
-the inventory is one-line rows (file, logic type, S/M/L extractable size,
-one-phrase justification). If the session runs long, a complete top-5
-beats a shallow top-12; cut from the bottom.
+COMPREHENSIVENESS CONTRACT (the plan must be complete; honesty governs HOW)
+The finished plan covers EVERYTHING: every QML file classified in the
+inventory, and a full spec for every unit that makes the extraction
+backlog - not a top-N. Completeness is achieved structurally, never by
+compressing quality:
+- Delegate BREADTH to read-only Explore subagents: fan out the inventory
+  sweep (file classification, logic typing, S/M/L sizing) across
+  containment/, plasmoid/, shell/, indicators/, declarativeimports/ while
+  the main session keeps its context for judgment (ranking, specs,
+  seams). Verify subagent-reported line references yourself before citing.
+- Write per-unit specs in RANK ORDER, highest leverage first, so the
+  document is maximally valuable at every intermediate state.
+- Maintain a COMPLETENESS LEDGER section at the top of the document:
+  which directories are fully inventoried, which specs are DONE, which
+  are PENDING with a one-line scope note. The ledger is updated as you
+  go, not at the end.
+- If the session approaches its limits before the ledger is clear, STOP
+  writing specs cleanly at a unit boundary, commit, push, and update the
+  handoff stack so the NEXT session continues from the ledger - a second
+  planning session is an expected and budgeted outcome, silent
+  truncation or thinning specs to finish is not. Never pad a spec with
+  unverified filler to close the ledger faster.
 
 WHAT TO PRODUCE - docs/QML_EXTRACTION_PLAN.md:
 
@@ -109,7 +126,8 @@ B. HOT-SPOT RANKING. Score on three axes: bug-density (count past fix
    rearrange/ordering, colorizer, storage id-remap, screen geometry.
    De-prioritize purely-drawing QML.
 
-C. PER-UNIT EXTRACTION SPECS (top ~8). Each contains:
+C. PER-UNIT EXTRACTION SPECS (every backlog unit, written in rank order
+   per the comprehensiveness contract). Each contains:
    - Unit name, header location, one-line responsibility
    - Source QML file/lines (verified)
    - EXTRACT-VS-PIN JUSTIFICATION: why extract to C++ instead of pinning
