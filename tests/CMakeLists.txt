@@ -94,6 +94,16 @@ set_tests_properties(qmlinteraction PROPERTIES
 add_test(NAME qmleffectrules
     COMMAND ${CMAKE_SOURCE_DIR}/scripts/qml-effect-rules.sh)
 
+# Previews-pipeline contract scan: pins the ten line-level invariants the
+# 2026-07-15 hover-lag excavation earned (burst debounce ordering and
+# numbers, hide-countdown cancel, direct settle adoption, rootIndex token
+# discipline, imperative host sizing, async incubation, cache eviction
+# contract, stream gating, no unmap/remap resurrection). Each rule cites
+# the commit whose body explains the trap; negative-tested against three
+# injected regressions at introduction.
+add_test(NAME previewcontractrules
+    COMMAND ${CMAKE_SOURCE_DIR}/scripts/preview-contract-rules.sh)
+
 # Upstream contract tests (tests/contracts/README.md): pin the libplasma,
 # KSvg and Qt behaviors Latte relies on at the flake-pinned versions, so a
 # pin bump that changes semantics fails HERE instead of misbehaving in the
