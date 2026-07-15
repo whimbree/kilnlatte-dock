@@ -95,3 +95,17 @@ ecm_add_test(contracts/askdestroysignalorderingtest.cpp
 )
 set_tests_properties(askdestroysignalorderingtest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# AppletQuickItem representation-switch contract (9ea29eaa/1aa5238c): builds
+# a real applet item through itemForApplet(), with the applet main.qml and
+# the expander probe riding the qrc applet path (no package structure
+# plugins needed). Needs the devShell's LATTE_QML_MODULE_PATH at runtime for
+# the org.kde.plasma.plasmoid import, which ctest has (build-check.sh runs
+# inside nix develop); the test fails loudly if it is missing.
+qt6_add_resources(repswitch_QRC contracts/repswitch/repswitch.qrc)
+ecm_add_test(contracts/representationswitchtest.cpp ${repswitch_QRC}
+    TEST_NAME representationswitchtest
+    LINK_LIBRARIES Qt6::Test Qt6::Gui Qt6::Qml Qt6::Quick Plasma::Plasma Plasma::PlasmaQuick KF6::CoreAddons
+)
+set_tests_properties(representationswitchtest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

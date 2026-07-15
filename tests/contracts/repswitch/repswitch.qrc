@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/qt/qml/plasma/applet">
+        <file alias="test/repswitch/main.qml">main.qml</file>
+        <file alias="test/host/CompactApplet.qml">CompactApplet.qml</file>
+    </qresource>
+</RCC>
