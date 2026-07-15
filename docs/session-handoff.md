@@ -1,9 +1,40 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-15. PHASE 8 IS OPEN - read its section in
+Last updated 2026-07-15 (end of day). PHASE 8 IS OPEN - read its section in
 docs/PORTING_PLAN.md first; every item is current there, several sections
 below are now RESOLVED and kept only as archaeology.
+
+## MODEL-TRANSITION PRIORITY STACK (2026-07-15 evening, read this first)
+
+A strong model (Fable 5) is available for only a few more days, then
+development continues on a weaker model. The remaining strong-model
+sessions are budgeted, in order:
+
+1. DONE this session: the preview-pipeline contract gate (b4f5621c,
+   scripts/preview-contract-rules.sh, ctest previewcontractrules) pins the
+   ten line-level invariants from the hover-lag excavation, negative-tested
+   against three injected regressions. The most delicate machinery in the
+   tree now defends itself.
+2. NEXT SESSION: flush the diagnosed-but-unfixed backlog before the
+   diagnoses rot. VERIFY EACH IS STILL OPEN FIRST - some may have died in
+   the sweeps: iconSize startup hang ("root cause bisected, code fix
+   pending", section below), hover preview jitter ("fix proposed, awaiting
+   go"), the missing "Show Alternatives" applet menu entry (plan item), the
+   crash items with cores retained (add-panel; duplicate-dock+add-widget),
+   dock exit after lock/unlock cycles. These are half-finished strong-model
+   diagnoses; a weaker model will re-diagnose them worse.
+3. THEN: the QML extraction PLANNING session. The full prompt is saved at
+   docs/prompts/qml-extraction-planning-prompt.md - paste it into a fresh
+   strong-model session as-is. Its output plan tags every unit
+   delegate-safe vs strong-model-only.
+4. REMAINING strong-model time: execute the plan's strong-model-only
+   shortlist (feel-bearing seams). The delegate-safe backlog is what the
+   weaker model inherits.
+
+Also done this session: CLAUDE.md reframed as maintained continuation
+(ce94bb1d) - upstream mergeability is no longer a planning constraint;
+bisectable small commits stay, with their honest justification.
 
 ## 2026-07-15 midday: resizable persistent popups LANDED (d12baff2..c3026dea)
 
