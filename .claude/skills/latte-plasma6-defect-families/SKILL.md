@@ -225,21 +225,45 @@ that never apply); SIGSEGV in QSGBatchRenderer::buildRenderLists
 during QSGRhiLayer::grab, typically on representation churn (popup
 teardown, edit-mode toggles, applets rebuilding their content).
 
-MECHANISM: Qt6 MultiEffect does not auto-wrap a plain Item as a
-texture source the way Qt5's Colorize/DropShadow/OpacityMask did. A
-non-provider source is an invalid sampler: the effect draws nothing
-AND the invalid provider corrupts the scenegraph walk, so every such
-site is simultaneously a rendering no-op and a crash vector. Effects
-themselves are not providers either (sampling one MultiEffect from
-another is the same defect).
+MECHANISM (corrected 2026-07-15 by source-read plus headless probe;
+the earlier form of this section claimed Qt6 MultiEffect never
+auto-wraps plain Items - that is WRONG and the corrected semantics
+are pinned in tests/contracts/tst_multieffectcontracts.qml): Qt 6.11
+MultiEffect DOES auto-wrap a plain Item source through its internal
+source proxy (QGfxSourceProxyME). The real traps are narrower and
+meaner: (1) the proxy decides direct-vs-wrapped at POLISH time and
+NEVER repolishes when the source's layer.enabled flips - flip the
+layer after the choice and the effect keeps sampling a dead layer;
+(2) an effect node at opacity 0 still preprocesses its samplers every
+scene repaint, so a faded-out effect with a dead or nulled source
+warns and costs work per frame forever; (3) a source binding that
+goes NULL is its own class - the warning's suffix is forensic:
+a live class name means an unlayered/proxy problem, the literal
+`(QQuickItem*)` means the bound source is a null variant; (4) mask
+sources are NEVER proxied - masks must be real providers, unchanged;
+(5) effects are not providers - sampling one MultiEffect from another
+is still a defect. Related pipeline fact learned the hard way:
+ItemGrabResult's itemgrabber: url is only valid while the result
+object lives, and QML Canvas.loadImage cannot resolve that provider
+at all - pixel analysis of grabbed items must be done in C++ from
+QQuickItemGrabResult::image() (see plugin/iconcolorfulness.cpp).
 
-FIX PATTERN: give the source a layer (`layer.enabled: true`) so it is
-a real provider, gate the layer on a stable condition (a setting, not
-a per-frame geometry predicate: layer create/destroy churn while grabs
-are in flight is its own crash vector, see df747ebf), keep mask items
-OUTSIDE the subtree the effect's layer grabs, or draw the visual
-directly and drop the effect when layering the source would feed the
-same crash class (e88af680 did this for a live pipewire thumbnail).
+FIX PATTERN: hold the source's layer STABLE for the whole lifetime
+the effect can sample it (never flip layer.enabled while the effect
+node exists - the no-repolish trap); gate the effect's `visible` (not
+just opacity) on BOTH the effect being wanted AND the source being
+non-null and valid - visible:false removes the node before the next
+material sync; gate the layer on a stable condition (a setting, not a
+per-frame geometry predicate: layer create/destroy churn while grabs
+are in flight is its own crash vector, see df747ebf); keep mask items
+OUTSIDE the subtree the effect's layer grabs; shadows are layer.effect
+never sibling copies (c7c46226); Qt5 Colorize semantics need
+Qt5Compat ColorOverlay - MultiEffect.colorization multiplies by the
+source's gray level and is a different effect (1f835402); or draw the
+visual directly and drop the effect when layering the source would
+feed the same crash class (e88af680 did this for a live pipewire
+thumbnail). The autoPaddingEnabled ban (e3376405: it re-dirties every
+frame, idle render storm) is enforced by the qmleffectrules ctest.
 
 REAL EXAMPLES:
 - 73da8400: colorizer and both applet-shadow paths sampled unlayered
@@ -256,6 +280,16 @@ REAL EXAMPLES:
   stabilizes; the threaded loop made every occurrence a cross-thread
   race with useless backtraces, the basic loop made the same
   corruption deterministic and debuggable.
+- 5f8c10be: the clicked flash kept `source: compactRepresentation`
+  while libplasma NULLED that property during the inline
+  representation switch; the running flash (alwaysRunToEnd) warned
+  per material sync - the `(QQuickItem*)` null-variant fingerprint.
+- 230774d0: the colorizer's SourceProxy chose the direct path while
+  the wrapper was layered and kept sampling the destroyed layer after
+  every colorizing disengage - the no-repolish trap in the wild.
+- 69baabf0/b634ef67: effect sources are texture providers only while
+  an effect shows; task, badge and remove-ghost shadows became layer
+  effects.
 
 ## 8. Environment and module resolution shadowing
 

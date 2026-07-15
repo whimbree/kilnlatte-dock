@@ -93,6 +93,24 @@ QWindow geometry, which lie on Wayland. Use it to verify screen moves,
 edit-chrome placement, and popup positions. Related defect background:
 latte-plasma6-defect-families.
 
+## 3b. Removing views headlessly: the undo-window trap
+
+`busctl --user call org.kde.lattedock /Latte org.kde.LatteDock
+removeView u <id>` rides the SAME libplasma undo machinery as widget
+removal: the containment stays alive (and in the layout file) until
+the Panel Removed notification closes or the 60s fallback timer
+fires. Restarting the dock inside that window RESURRECTS the
+containment. After removeView, wait until the `[Containments][<id>]`
+group is gone from the layout file before restarting:
+
+```bash
+until ! grep -q "^\[Containments\]\[13\]$" "$layoutfile"; do sleep 5; done
+```
+
+Always verify the id against the layout file (lastScreen/location/
+plugin) before calling removeView - a mis-parsed id once deleted the
+wrong dock (the d6d57e61-era incident note).
+
 ## 4. Pointer injection: fakepointer
 
 Source: scripts/tools/fakepointer.c. Usage:
@@ -165,6 +183,19 @@ spectacle -b -n -o "$SCRATCH/shot.png"
 Then Read the png. The image is the WHOLE virtual desktop at 1:1 compositor
 logical pixels, so a pixel coordinate in the screenshot IS the global
 coordinate to feed fakepointer.
+
+WARNING (2026-07-15, cost three mis-clicks): spectacle itself appears
+as a TASK ICON in the dock while it captures, shifting every applet
+right of it by roughly an icon width. Never locate-then-click across a
+spectacle run: re-locate in the same capture you click from, or key
+positions off dumpwins window geometry instead of pixels. Related
+click-eater: STALE CHROME POPUP WINDOWS (the Type combo's Dock/Panel
+popup, the secondary advanced config window) can persist across
+sessions at wrong geometry and swallow clicks aimed at things under
+them - three rearrange-toggle clicks in a row once landed on a stuck
+popup. If clicks at verified coordinates do nothing, dumpwins and look
+for small stale latte windows (layer 6 especially) overlapping the
+target before doubting the coordinates.
 
 WARNING: a ~14KB all-white png means the screen locked or the display slept,
 NOT a broken tool. Handle it:
