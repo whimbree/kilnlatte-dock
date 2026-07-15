@@ -363,6 +363,13 @@ Item {
         sourceComponent: MultiEffect{
             source: badgeVisualsLoader.item
             opacity: stateColorizer.opacity
+
+            //! same gate as the three state effects below (69baabf0): an
+            //! opacity-0 effect still preprocesses and samples its source on
+            //! every repaint, so while badges showed, every badge repaint
+            //! re-grabbed the source for an effect that drew nothing
+            visible: opacity > 0
+
             saturation: -1
         }
     }
