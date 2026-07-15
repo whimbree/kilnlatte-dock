@@ -27,6 +27,19 @@ QQC2.ScrollView {
     property Item parentTask: null
     property var rootIndex: []
 
+    //! bumped by preparePreviewWindow() after every rootIndex assignment.
+    //! DelegateModel SILENTLY resets its root whenever its model swaps
+    //! (isGroup flips the model between 1 and tasksModel), and assigning
+    //! an EQUAL rootIndex value emits no change signal, so the binding
+    //! below would never re-apply the correct root - a revived cached
+    //! group then showed a single window, and a delegate caught at the
+    //! model root rendered the top-level TASKS as preview instances
+    //! (both caught at the desk within minutes of the two-slot cache).
+    //! Referencing the token forces the binding to re-evaluate; when the
+    //! DelegateModel's internal root already matches, re-setting it is a
+    //! no-op.
+    property int rootRefreshToken: 0
+
     property string appName
     property int pidParent
     property bool isGroup
@@ -129,7 +142,11 @@ QQC2.ScrollView {
                     id: groupRepeater
                     model: DelegateModel {
                         model: isGroup ? tasksModel : 1
-                        rootIndex: mainToolTip.rootIndex
+                        //! token forces re-application, see rootRefreshToken
+                        rootIndex: {
+                            mainToolTip.rootRefreshToken;
+                            return mainToolTip.rootIndex;
+                        }
 
                         delegate: ToolTipInstance {
                             submodelIndex: isGroup ? tasksModel.makeModelIndex(mainToolTip.rootIndex.row, index) : mainToolTip.rootIndex

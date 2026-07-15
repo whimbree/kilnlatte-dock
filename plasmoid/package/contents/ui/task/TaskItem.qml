@@ -505,13 +505,15 @@ AbilityItem.BasicItem {
 
         windowsPreviewDlg.visualParent = tooltipVisualParent;
         toolTipDelegate.parentTask = taskItem;
-        //! always refreshed, even on cache hits: tasks reorder, and a
-        //! parked delegate's rootIndex can be stale
-        toolTipDelegate.rootIndex = tasksModel.makeModelIndex(itemIndex, -1);
-
         toolTipDelegate.hideCloseButtons = hideClose;
 
         if (!freshDelegate) {
+            //! always refreshed, even on cache hits: tasks reorder, so a
+            //! parked delegate's rootIndex can be stale, and the token
+            //! bump forces the DelegateModel to re-apply it even when the
+            //! value is unchanged (see rootRefreshToken in ToolTipDelegate2)
+            toolTipDelegate.rootIndex = tasksModel.makeModelIndex(itemIndex, -1);
+            toolTipDelegate.rootRefreshToken++;
             return;
         }
 
@@ -560,6 +562,17 @@ AbilityItem.BasicItem {
         toolTipDelegate.activitiesParent = Qt.binding(function() {
             return model.Activities;
         });
+
+        //! rootIndex LAST for a fresh delegate, strictly after the isGroup
+        //! binding above: assigning it first built the DelegateModel while
+        //! isGroup still held its default false, so the model was the
+        //! single-instance 1 with windows undefined - a transient instance
+        //! with winId 0 that even fired a 'Could not find window id 0'
+        //! screencast error. The token bump matters here too: the isGroup
+        //! flip swaps the DelegateModel's model, which silently resets its
+        //! root (see rootRefreshToken in ToolTipDelegate2).
+        toolTipDelegate.rootIndex = tasksModel.makeModelIndex(itemIndex, -1);
+        toolTipDelegate.rootRefreshToken++;
     }
 
     ///window previews///
