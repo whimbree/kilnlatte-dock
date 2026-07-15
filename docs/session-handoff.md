@@ -49,6 +49,18 @@ below are now RESOLVED and kept only as archaeology.
   frames; the only stalls were the previews dialog's first show, already
   behind the 150ms hoveredTimer, and startup). If hover lag is still
   felt, profile the previews first-show and swap backpressure next.
+- Follow-up on the same desk report, second layer: after the remap fix
+  the residual "trigger and move on" lag was the wayland thumbnail
+  streams - every preview is a kwin screencast and negotiation measured
+  270-500ms per window (STREAM-PROBE), leaving a blank box exactly at
+  hover-trigger crossing speed. Fixed in 4f96acb8 by extending the
+  existing minimized/X11 icon fallback to the warm-up window (strict
+  === false so X11's property-less item never matches). Probe-verified:
+  icon in the same pass as the switch, streams ready ~300ms, icon
+  yields the same millisecond. previewsDelay=300 now set in my real
+  layout (was the 650 default). A stream keep-alive pool for recently
+  hovered tasks is the natural next step if revisit warm-ups still
+  bother; not built.
 - The hover stutter itself was then described precisely at the desk and
   root-caused to something else entirely: preview task switches UNMAPPED
   and REMAPPED the dialog per icon crossing (wire-logged: attach(nil),
