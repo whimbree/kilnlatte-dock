@@ -369,12 +369,40 @@ PlasmoidItem {
         //! same contract as CompactApplet's sizing chain.
         mainItem: Item {
             id: previewsHost
-            width: windowsPreviewDlg.activeDelegate ? windowsPreviewDlg.activeDelegate.previewContentWidth : 0
-            height: windowsPreviewDlg.activeDelegate ? windowsPreviewDlg.activeDelegate.previewContentHeight : 0
-            Layout.minimumWidth: width
-            Layout.maximumWidth: width
-            Layout.minimumHeight: height
-            Layout.maximumHeight: height
+
+            readonly property real contentW: windowsPreviewDlg.activeDelegate ? windowsPreviewDlg.activeDelegate.previewContentWidth : 0
+            readonly property real contentH: windowsPreviewDlg.activeDelegate ? windowsPreviewDlg.activeDelegate.previewContentHeight : 0
+
+            //! IMPERATIVE size enforcement, not a plain width binding: the
+            //! base dialog stamps mainItem's size from the window on every
+            //! resize/expose, and on a content SHRINK a late echo of the
+            //! old window size overwrote the host after the binding had
+            //! already evaluated - the binding's dependencies never change
+            //! again, so it stayed dormant and the window never shrank
+            //! (probe-reproduced: spotify's single revived correctly but
+            //! the window stayed at vscode's 1096, one thumbnail plus
+            //! blank space). Reverting any disagreeing write converges in
+            //! one step: the re-assignment fires the change handler once
+            //! more, the equality check ends it.
+            onContentWChanged: width = contentW
+            onContentHChanged: height = contentH
+            onWidthChanged: {
+                if (width !== contentW) {
+                    width = contentW;
+                }
+            }
+            onHeightChanged: {
+                if (height !== contentH) {
+                    height = contentH;
+                }
+            }
+
+            //! Layout hints are read by the base dialog and never stamped,
+            //! so plain bindings stay reliable here
+            Layout.minimumWidth: contentW
+            Layout.maximumWidth: contentW
+            Layout.minimumHeight: contentH
+            Layout.maximumHeight: contentH
         }
 
         //! center on the hovered task; the applets-layout clamp would shove a
