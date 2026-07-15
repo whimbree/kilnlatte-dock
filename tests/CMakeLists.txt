@@ -84,3 +84,13 @@ ecm_add_test(contracts/destroyedtypedemotiontest.cpp
 )
 set_tests_properties(destroyedtypedemotiontest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# Contract: how Qt Quick parents windows declared inside items (QObject
+# resource child, NO transient parent on Qt 6). qmltest cannot read
+# QObject::parent() of a window, so it runs as a plain Qt test.
+ecm_add_test(contracts/appletwindowparentingtest.cpp
+    TEST_NAME appletwindowparentingtest
+    LINK_LIBRARIES Qt6::Test Qt6::Quick
+)
+set_tests_properties(appletwindowparentingtest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
