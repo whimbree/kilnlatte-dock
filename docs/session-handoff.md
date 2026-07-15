@@ -5,6 +5,43 @@ Last updated 2026-07-15. PHASE 8 IS OPEN - read its section in
 docs/PORTING_PLAN.md first; every item is current there, several sections
 below are now RESOLVED and kept only as archaeology.
 
+## 2026-07-15: tests-first coverage batch + class-A stranding sweep (worktree, headless)
+
+- Regression and contract coverage landed for the recent lifecycle fixes
+  that had none: tst_compactapplet.qml (3b37750b: 437d9a0c popup sizing
+  chain + 1aa5238c release contract against the real shipped file),
+  askdestroysignalorderingtest (5f94159c: libplasma undo-window signal
+  ordering, plain vs containment-type), representationswitchtest
+  (9a1195dc: AppletQuickItem inline-switch unwiring/never-re-shows/
+  detach-to-null contracts), layoutmanagerparkingtest (f269e457: the
+  71b0d75a parking state machine end to end, real plugin sources + real
+  applets), tst_plasmaindicatorgroupsvg.qml + tst_loadergatecontracts.qml
+  (2b800846: the 841c2ca4 null-svg guard and its ordering premise; the
+  KSvg crash itself is unpinnable - it is a SIGSEGV, documented in both
+  files). Full ctest is 13 entries, all green, plus the gate.
+- Sweep of the two class-A shapes (conditional-anchors + size bindings,
+  once-sampled geometry): full per-site verdict inventory is in the new
+  Phase 10 sweep item in the plan. One fix landed (eca51ae0): the
+  reassert remedy applied to plasmoid main.qml's three same-shape
+  siblings (barLine, belower, shadowsSvgItem) and mouseHandler's
+  reassert extended to location changes. Once-sampled geometry came back
+  a clean negative.
+- Session tooling note: constructing libplasma object graphs offscreen
+  WORKS and is cheap - the recipe (concrete Corona subclass as parent,
+  qrc applet path :/qt/qml/plasma/applet/<pluginid>/ instead of KPackage,
+  LATTE_QML_MODULE_PATH -> QML2_IMPORT_PATH, DBUS_SESSION_BUS_ADDRESS
+  neutered so askDestroy's KNotification never reaches the desk, and
+  applet->config() before anything calls setDestroyed) lives in the two
+  contract tests; reuse it rather than re-deriving.
+- Session tooling note: moc's lexer silently stops at a raw string
+  literal in a .cpp - every Q_OBJECT class after it loses its metaobject
+  and the failure surfaces as an undefined vtable at link. Plain
+  concatenated literals in test files.
+- LIVE CHECKS PENDING from this session: the three new plasmoid
+  reasserts under a real perpendicular flip (repro recipe in the
+  eca51ae0 commit body), and the 71b0d75a undo arm still wants its one
+  live Undo-click confirmation (unchanged from that item).
+
 ## 2026-07-15: headless silent-Qt6-break sweep (worktree session)
 
 - Full-tree sweep of the silent mechanical break families, each against
