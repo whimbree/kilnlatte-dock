@@ -103,14 +103,20 @@ PlasmaCore.ToolTipArea {
 
     onFullRepresentationChanged: {
         if (_adoptedFullRep && _adoptedFullRep !== fullRepresentation) {
-            //! bring the outgoing item's scenegraph nodes back to the dock
-            //! window BEFORE AppletQuickItem tears the item down: destroying it
-            //! while it still lives in the popup dialog's scenegraph is exactly
-            //! the buildRenderLists SIGSEGV the comic applet's zoom-induced
-            //! representation churn reproduced
+            //! detach the outgoing item from the popup dialog's scenegraph
+            //! BEFORE AppletQuickItem tears it down or re-uses it: destroying it
+            //! while it still lives in the popup's scenegraph is exactly the
+            //! buildRenderLists SIGSEGV the comic applet's zoom-induced
+            //! representation churn reproduced. Detach to a NULL parent - the
+            //! same release AppletQuickItem itself performs when un-swapping -
+            //! and leave visibility alone: AppletQuickItem re-parents this same
+            //! cached item into itself for the INLINE representation switch
+            //! (an applet grown past switchWidth/switchHeight, the comic on
+            //! every parabolic zoom) and never calls setVisible(true) there, so
+            //! a hidden release stayed invisible forever - the comic rendered
+            //! an empty slot on hover for exactly this reason.
             _adoptedFullRep.anchors.fill = null;
-            _adoptedFullRep.visible = false;
-            _adoptedFullRep.parent = root;
+            _adoptedFullRep.parent = null;
         }
         _adoptedFullRep = fullRepresentation;
 
@@ -163,6 +169,9 @@ PlasmaCore.ToolTipArea {
         fullRepresentation.anchors.fill = null;
         fullRepresentation.parent = appletParent;
         fullRepresentation.anchors.fill = appletParent;
+        //! the release path above hides outgoing reps; an adopted rep is the
+        //! popup's content and must always be shown
+        fullRepresentation.visible = true;
     }
 
    /* KSvg.FrameSvgItem {
