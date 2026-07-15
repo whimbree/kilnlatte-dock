@@ -2250,16 +2250,20 @@ multi-view, multi-monitor setup.
       containment applet/IndicatorLevel.qml, plasmoid main.qml red
       zoomHelper debug rectangle (debug-only visual). If a flip ever
       strands one of these, apply the same reassert.
-      SAFE BY MECHANISM (no live condition flip, or covered by a
-      stronger remedy): canvas Ruler.qml + HeaderSettings.qml
-      (9aeda562 reloads the whole canvas content on retarget - a
-      fresh instantiation cannot strand), HeaderSwitch.qml (level is
-      fixed per instance), ComboBoxButton.qml (layoutDirection is
-      process-constant), ShortcutBadge.qml both copies (anchors key
-      on centerInParent, size keys on zoom - different triggers, no
-      overlap window), AnchorChanges-based state machines (FrontLayer
-      clickedCenter/arrow) which use the anchors system's own
-      transition mechanism rather than ternary rebinds.
+      SAFE BY MECHANISM (the suspected takeover needs an OPPOSING
+      anchor pair - top+bottom or left+right - to form transiently so
+      the anchors system controls the size; sites whose conditional
+      anchors can never form one, or that a stronger remedy covers,
+      cannot strand this way): canvas Ruler.qml + HeaderSettings.qml
+      (center-line ternaries only, and 9aeda562 reloads the whole
+      canvas content on retarget - a fresh instantiation cannot
+      strand), HeaderSwitch.qml (left/horizontalCenter only, level
+      fixed per instance), ComboBoxButton.qml (single side by RTL,
+      process-constant), ShortcutBadge.qml both copies (left/top/
+      centerIn only - centerInParent DOES flip live at iconSize 48,
+      but no opposing pair can form), AnchorChanges-based state
+      machines (FrontLayer clickedCenter/arrow) which use the anchors
+      system's own transition mechanism rather than ternary rebinds.
       Shape 2, once-sampled geometry (the 8be2b388 shape) - CLEAN
       NEGATIVE: the only C++ site sampling QML-published geometry is
       canvasconfigview.cpp:200, already notify-connected by 8be2b388
