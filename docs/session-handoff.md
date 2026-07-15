@@ -49,6 +49,19 @@ below are now RESOLVED and kept only as archaeology.
   frames; the only stalls were the previews dialog's first show, already
   behind the 150ms hoveredTimer, and startup). If hover lag is still
   felt, profile the previews first-show and swap backpressure next.
+- Rebuild-cost pass (autonomous, 2026-07-15 afternoon): strace-measured
+  the adoption stall - 23k stat()/adoption, 96% ENOENT, dominated by
+  KSvg probing the nonexistent translucent/colors theme variant per Svg
+  instance. Landed 056f7e15 (XDG_DATA_DIRS allow-list: 273 devshell
+  closure entries -> 18 deliberate; blast-radius verified: theme,
+  icons, systray, context menu, previews all intact) and f1edd103
+  (delegate cache -> depth-4 LRU, eviction via TaskItem
+  Component.onDestruction contract; four-task tour builds once,
+  second tour fully cache-served). Honest numbers in both commit
+  bodies: the trim barely moved the adoption syscall count (probe
+  count dominates, not dir count) - the stall killer is the LRU.
+  Remaining levers live in the plan item: ksvg negative-caching
+  (upstream) and async incubation.
 - Seventh layer (window stuck at the previous task's size, reported as
   "1 spotify + 3 blank"): probed the adoption pipeline end to end and
   it was CORRECT - the failure was the previews host's declarative size

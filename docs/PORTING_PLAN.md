@@ -2030,14 +2030,26 @@ multi-view, multi-monitor setup.
       SvgItem::componentComplete -> ImageSet::filePath ->
       QStandardPaths::locate). The burst debounce and the two-slot
       cache bound HOW OFTEN it is paid (once per rested icon, free on
-      flip-backs); this item is about the cost itself. Candidate
-      directions, in rough order: find out why KSvg path discovery
-      re-walks the (fat, devshell-widened) XDG_DATA_DIRS per instance
-      instead of caching; deepen the delegate cache beyond two slots
-      (one-line depth change, memory for stalls); async incubation of
-      ToolTipInstance bodies (needs a size-placeholder story so the
-      dialog does not pulse).
-      Commits:
+      flip-backs); this item is about the cost itself.
+      2026-07-15 afternoon pass, strace-measured: one adoption issues
+      23,255 stat() calls, 96% ENOENT, ~20k for plasma theme 'colors'
+      files - KSvg probes the NONEXISTENT translucent/colors variant
+      per Svg instance and negative lookups walk the whole
+      XDG_DATA_DIRS every time. LANDED from that pass: 056f7e15 (staged
+      runs allow-list XDG_DATA_DIRS - 273 inherited closure entries
+      down to 18 deliberate ones; honest note: the adoption syscall
+      count barely moved because probe COUNT dominates, but every
+      negative walk the process ever does got shorter) and f1edd103
+      (delegate cache generalized to a depth-4 LRU with an explicit
+      TaskItem-onDestruction eviction contract - each task a hover
+      session touches is built exactly once, revisits are free with
+      warm streams). REMAINING, in value order: ksvg upstream lacks
+      negative caching in theme file discovery (the 329-probes-per-
+      adoption storm is upstream-reproducible; consider filing/patching
+      ksvg); async incubation of ToolTipInstance bodies (needs a
+      size-placeholder story so the dialog does not pulse on first
+      builds).
+      Commits: 056f7e15 (XDG allow-list), f1edd103 (LRU cache)
 - [x] Applet popups are mis-sized (caught live 2026-07-14: the volume
       applet popup renders ~260px wide with wrapping tabs and clipped
       content; plasmashell sizes the same applet correctly).
