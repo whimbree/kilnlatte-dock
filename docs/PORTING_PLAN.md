@@ -2010,6 +2010,34 @@ multi-view, multi-monitor setup.
       task-cycling-shortcuts feature (overlaps Latte's own shortcut
       system - decide at Phase 12, not auto-port).
       Commits: (alternativeshelper fix in its own commit)
+- [ ] Edit mode / primary config view opened UNINVOKED on one
+      real-config dock start (2026-07-15 10:52: the log shows
+      "#primaryconfigview# initialization started" right at boot with
+      no shortcut invoked; closed cleanly via its Close button). Single
+      occurrence; the immediately preceding real-config restart that
+      same morning did not do this. Suspect persisted config-view or
+      edit state left by the prior session, which ended mid-drive on a
+      safeguard error. If it recurs: diff the layout/config files for
+      edit-state keys before and after a clean close, and find who
+      constructs the primaryconfigview at startup.
+      Commits:
+- [ ] Previews adoption rebuild cost (the one lever left from the
+      2026-07-15 hover-lag excavation; everything else landed, see the
+      c6eeeb20..d56a26aa series). Adopting a task into the previews
+      dialog builds its delegate tree synchronously on the GUI thread:
+      measured 100-400ms per switch, 859ms cache-cold, dominated by
+      KSvg disk lookups during ToolTipInstance creation (gdb mid-stall:
+      SvgItem::componentComplete -> ImageSet::filePath ->
+      QStandardPaths::locate). The burst debounce and the two-slot
+      cache bound HOW OFTEN it is paid (once per rested icon, free on
+      flip-backs); this item is about the cost itself. Candidate
+      directions, in rough order: find out why KSvg path discovery
+      re-walks the (fat, devshell-widened) XDG_DATA_DIRS per instance
+      instead of caching; deepen the delegate cache beyond two slots
+      (one-line depth change, memory for stalls); async incubation of
+      ToolTipInstance bodies (needs a size-placeholder story so the
+      dialog does not pulse).
+      Commits:
 - [x] Applet popups are mis-sized (caught live 2026-07-14: the volume
       applet popup renders ~260px wide with wrapping tabs and clipped
       content; plasmashell sizes the same applet correctly).
