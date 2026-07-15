@@ -12,6 +12,7 @@
 
 // Qt
 #include <QMouseEvent>
+#include <QPointer>
 #include <QVersionNumber>
 #include <QLatin1String>
 
@@ -19,6 +20,7 @@
 #include <KAcceleratorManager>
 #include <KActionCollection>
 #include <KAuthorized>
+#include <KConfigGroup>
 #include <KLocalizedString>
 
 // Plasma
@@ -432,6 +434,36 @@ void ContextMenuLayerQuickItem::addAppletActions(QMenu *desktopMenu, Plasma::App
 
         if (configureApplet && configureApplet->isEnabled()) {
             desktopMenu->addAction(configureApplet);
+        }
+
+        //! resizable persistent popups (continuation feature): popupWidth/
+        //! popupHeight land in the applet's config group only after an
+        //! actual edge-drag resize, so the entry showing at all means there
+        //! is something to reset. After deleting the keys the applet object
+        //! gets a dynamic-property bump - the popup dialog (lattecoreplugin)
+        //! event-filters its applet for exactly this and re-sizes a pinned
+        //! popup back to its hint size live. In-process hand-off on purpose:
+        //! kconfig's DBus change notification cannot address layout files
+        //! ("My Layout.layout.latte" - spaces are illegal in a DBus object
+        //! path), see Latte::Quick::Dialog::setApplet.
+        const KConfigGroup appletConfig = applet->config();
+
+        if (appletConfig.hasKey("popupWidth") || appletConfig.hasKey("popupHeight")) {
+            QAction *resetPopupSize = new QAction(i18n("Reset Popup Size"), desktopMenu);
+            QPointer<Plasma::Applet> appletGuard = applet;
+            connect(resetPopupSize, &QAction::triggered, this, [appletGuard]() {
+                if (!appletGuard) {
+                    return;
+                }
+                KConfigGroup config = appletGuard->config();
+                config.deleteEntry("popupWidth");
+                config.deleteEntry("popupHeight");
+                config.sync();
+
+                const int token = appletGuard->property("_latte_popupSizeReset").toInt();
+                appletGuard->setProperty("_latte_popupSizeReset", token + 1);
+            });
+            desktopMenu->addAction(resetPopupSize);
         }
 
         QAction *appletAlternatives = applet->internalAction(QStringLiteral("alternatives"));
