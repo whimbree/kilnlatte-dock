@@ -7,6 +7,7 @@
 #include "alternativeshelper.h"
 
 // Qt
+#include <QDebug>
 #include <QQmlEngine>
 #include <QQmlContext>
 
@@ -17,6 +18,7 @@
 // Plasma
 #include <Plasma/Containment>
 #include <Plasma/PluginLoader>
+#include <PlasmaQuick/AppletQuickItem>
 
 AlternativesHelper::AlternativesHelper(Plasma::Applet *applet, QObject *parent)
     : QObject(parent),
@@ -40,7 +42,10 @@ QString AlternativesHelper::currentPlugin() const
 
 QQuickItem *AlternativesHelper::applet() const
 {
-    return m_applet->property("_plasma_graphicObject").value<QQuickItem *>();
+    //! Plasma 6 removed the _plasma_graphicObject property; the graphic item
+    //! is resolved through AppletQuickItem (same migration as View::init,
+    //! spotted independently by latte-dock-ng 613ddcc3b)
+    return PlasmaQuick::AppletQuickItem::itemForApplet(m_applet);
 }
 
 void AlternativesHelper::loadAlternative(const QString &plugin)
@@ -55,10 +60,15 @@ void AlternativesHelper::loadAlternative(const QString &plugin)
         return;
     }
 
-    QQuickItem *appletItem = m_applet->property("_plasma_graphicObject").value<QQuickItem *>();
-    QQuickItem *contItem = cont->property("_plasma_graphicObject").value<QQuickItem *>();
+    QQuickItem *appletItem = PlasmaQuick::AppletQuickItem::itemForApplet(m_applet);
+    QQuickItem *contItem = PlasmaQuick::AppletQuickItem::itemForApplet(cont);
 
     if (!appletItem || !contItem) {
+        //! reading _plasma_graphicObject here used to null out SILENTLY on
+        //! Plasma 6 and eat the user's alternative selection; if the resolved
+        //! items are ever missing again, say so
+        qWarning() << "AlternativesHelper::loadAlternative could not resolve the applet/containment quick items;"
+                   << "alternative" << plugin << "was NOT applied";
         return;
     }
 
