@@ -412,66 +412,81 @@ PlasmoidItem {
         property bool signalSent: false
         property Item activeItem: null
 
-        //! Two-slot delegate cache: the ACTIVE task's content plus the
-        //! PREVIOUS task's, kept alive and merely visibility-flipped.
-        //! Building a task's content costs 100-400ms of synchronous GUI
-        //! work (measured; KSvg-dominated, see shouldDeferSwitch), so
-        //! hover-open back-and-forth between two tasks - the exact pattern
-        //! reported laggy at the desk - must not rebuild per flip. A
-        //! cached delegate's model bindings stay live while parked (its
-        //! content keeps tracking window changes), and its pipewire
-        //! streams stay warm while the dialog is visible, so a flip-back
-        //! shows real thumbnails instantly instead of re-negotiating.
-        //! Item-typed properties auto-null when their object is destroyed,
-        //! which is exactly how a dead task's cache entry is detected.
+        //! LRU delegate cache: the ACTIVE task's content plus the last few
+        //! tasks', kept alive and merely visibility-flipped. Building a
+        //! task's content costs 100-400ms of synchronous GUI work
+        //! (measured; KSvg-dominated, see shouldDeferSwitch), so hovering
+        //! among a handful of tasks - the pattern reported laggy at the
+        //! desk - must only ever build each one once. A parked delegate's
+        //! model bindings stay live (its content keeps tracking window
+        //! changes), and its pipewire streams stay warm while the dialog
+        //! is visible, so a revisit shows real thumbnails instantly
+        //! instead of re-negotiating for 270-500ms. Depth 4 covers the
+        //! handful of window tasks a dock realistically hosts without
+        //! keeping a screenful of streams alive; all streams stop when
+        //! the dialog hides (the uuid gate in PipeWireThumbnail).
+        //! Dead tasks are evicted by contract: TaskItem calls
+        //! dropCachedDelegateFor() from its Component.onDestruction -
+        //! Item-typed auto-nulling cannot be relied on inside a var array.
         property Item activeDelegate: null
-        property Item standbyDelegate: null
-        property Item standbyTask: null
+        property var parkedEntries: []   //! [{task, delegate}], oldest first
+        readonly property int parkedDepth: 4
 
-        //! resolves the delegate that will show taskItem's previews:
-        //! the active one (same task), the revived standby (flip-back,
-        //! the cache hit this exists for), or a freshly created instance.
-        //! Returns true when the instance is fresh and still needs its
-        //! model bindings from preparePreviewWindow().
+        //! resolves the delegate that will show taskItem's previews: the
+        //! active one (same task), a revived parked one (the cache hit
+        //! this exists for), or a freshly created instance. Returns true
+        //! when the instance is fresh and still needs its model bindings
+        //! from preparePreviewWindow().
         function materializeDelegateFor(taskItem) {
             if (activeDelegate && activeItem === taskItem) {
                 return false;
             }
 
-            //! a destroyed task's parked delegate is unreachable, drop it
-            if (standbyDelegate && standbyTask === null) {
-                standbyDelegate.destroy();
-                standbyDelegate = null;
-            }
-
             var incoming = null;
             var fresh = false;
 
-            if (standbyDelegate && standbyTask === taskItem) {
-                incoming = standbyDelegate;
-                standbyDelegate = null;
-                standbyTask = null;
-            } else {
+            for (var i = 0; i < parkedEntries.length; ++i) {
+                if (parkedEntries[i].task === taskItem) {
+                    incoming = parkedEntries[i].delegate;
+                    parkedEntries.splice(i, 1);
+                    break;
+                }
+            }
+
+            if (!incoming) {
                 incoming = previewDelegateComponent.createObject(previewsHost);
                 incoming.anchors.fill = previewsHost;
                 fresh = true;
             }
 
-            //! demote the current active to the standby slot; whatever
-            //! was parked there before is the odd one out
+            //! park the current active; evict the oldest beyond the depth
             if (activeDelegate && activeDelegate !== incoming) {
-                if (standbyDelegate) {
-                    standbyDelegate.destroy();
+                activeDelegate.visible = false;
+                parkedEntries.push({ task: activeItem, delegate: activeDelegate });
+
+                while (parkedEntries.length > parkedDepth) {
+                    parkedEntries.shift().delegate.destroy();
                 }
-                standbyDelegate = activeDelegate;
-                standbyTask = activeItem;
-                standbyDelegate.visible = false;
             }
 
             activeDelegate = incoming;
             incoming.visible = true;
 
             return fresh;
+        }
+
+        //! eviction contract for dying tasks, called from TaskItem's
+        //! Component.onDestruction: a destroyed task's parked delegate is
+        //! unreachable (nothing can ever revive it) and its bindings are
+        //! about to go stale
+        function dropCachedDelegateFor(taskItem) {
+            for (var i = 0; i < parkedEntries.length; ++i) {
+                if (parkedEntries[i].task === taskItem) {
+                    parkedEntries[i].delegate.destroy();
+                    parkedEntries.splice(i, 1);
+                    return;
+                }
+            }
         }
 
         //! burst-debounce state for task switches, see shouldDeferSwitch()

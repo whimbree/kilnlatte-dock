@@ -946,6 +946,10 @@ AbilityItem.BasicItem {
     }
 
     Component.onDestruction: {
+        //! eviction contract with the previews delegate cache, see
+        //! windowsPreviewDlg.dropCachedDelegateFor()
+        windowsPreviewDlg.dropCachedDelegateFor(taskItem);
+
         root.draggingFinished.disconnect(handlerDraggingFinished);
         root.publishTasksGeometries.disconnect(slotPublishGeometries);
         root.showPreviewForTasks.disconnect(slotShowPreviewForTasks);
