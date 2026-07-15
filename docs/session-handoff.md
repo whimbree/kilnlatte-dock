@@ -49,6 +49,17 @@ below are now RESOLVED and kept only as archaeology.
   frames; the only stalls were the previews dialog's first show, already
   behind the 150ms hoveredTimer, and startup). If hover lag is still
   felt, profile the previews first-show and swap backpressure next.
+- The hover stutter itself was then described precisely at the desk and
+  root-caused to something else entirely: preview task switches UNMAPPED
+  and REMAPPED the dialog per icon crossing (wire-logged: attach(nil),
+  231ms hole, fresh configure round each time) - a workaround from 07-13
+  02:44 whose premise died at 09:27 the same day when the dialog gained
+  live wayland re-anchoring. Fixed in c6eeeb20: switches now re-anchor
+  the mapped window via set_position; verified on the wire (zero nil
+  attaches across a stepped sweep) and by screenshot. The other half of
+  the report ("half a second to show up") is the previewsDelay default
+  (650ms, Qt5-faithful, user-tunable) plus the ~21-32ms first-show
+  build; deliberately untouched.
 - Colorfulness auto-exemption fixed same day it shipped (5c06b497): LCD
   subpixel fringes made the digital clock's white text measure 49-84%
   "saturated", so its colorizer switched off ~8s after load and palette
