@@ -2497,6 +2497,37 @@ prerequisites in the phases above are done.
       (implicit/preferred/minimum permutations), GUI-CI candidates
       for the microvm: drag-resize round trip, persistence across
       restart, reset entry.
+      IMPLEMENTATION SKETCH (2026-07-15, from the pinned libplasma
+      6.6.5 sources - appletpopup.cpp + windowresizehandler.cpp):
+      (1) VENDOR WindowResizeHandler (191 lines, self-contained
+      QWindow event filter: margin hit-test, resize cursors,
+      startSystemResize(sides) on press; LGPL-2.0-or-later, license
+      compatible - provenance stamp like plasmoid/plugin's). Wire it
+      in Latte::Quick::Dialog for type===AppletPopup only: margins
+      from the dialog frame, activeEdges excluding the dock-facing
+      edge (updatePopUpEnabledBorders already knows it; upstream's
+      equivalent is ~nearbyBorders()). (2) PERSISTENCE mirrors
+      upstream's C++ shape: upstream reads popupWidth/popupHeight
+      from applet->config() when the mainItem attaches
+      (m_sizeExplicitlySetFromConfig then suppresses hint-following)
+      and writes size().shrunkBy(padding()) on hideEvent - margins
+      excluded deliberately, robust against theme changes; keep that
+      detail. Give our Dialog an optional appletInterface property so
+      the C++ side owns the KConfigGroup reads/writes exactly like
+      upstream (QML cannot reach the applet's plain config group -
+      only the KConfigLoader [Configuration] schema). OUR DEVIATION:
+      track m_userResized (set when the handler fires
+      startSystemResize), save on hide ONLY if m_userResized or the
+      keys already exist. (3) The sizing chain in CompactApplet.qml
+      gains one arm: when the config size is set, it wins over the
+      implicit-size base (upstream's updateSize early-returns on
+      m_sizeExplicitlySetFromConfig). (4) Re-anchor suppression:
+      Dialog::updateGeometry holds off from startSystemResize until
+      the interactive resize ends (mouse release / configure
+      quiescence), then one re-anchor. (5) Reset entry in the
+      contextmenu containmentactions plugin, gated on the keys
+      existing; deletion clears the explicit-size flag and re-enters
+      hint-following live.
       Commits:
 - [ ] Background color picker: let a dock's background color be set
       directly from Appearance (requested 2026-07-15 while chasing
