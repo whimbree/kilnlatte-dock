@@ -12,16 +12,30 @@ namespace Latte {
 namespace Containment {
 
 namespace {
-//! analysis geometry and thresholds: a 24x24 downscale is plenty to judge
-//! color content; saturation above 0.30 marks a pixel as carrying real
-//! color; content is "multicolored" when more than 15% of its opaque
-//! pixels carry color
-constexpr int SAMPLESIZE = 24;
+//! analysis geometry and thresholds. The grab is taken at 48x48 (close to
+//! the rendered size, faithful), then CPU area-averaged down to 12x12
+//! cells BEFORE judging: subpixel-antialiased text (the digital clock's
+//! NativeRendering labels) fringes every glyph stroke cyan on one edge
+//! and orange on the other - individually saturated pixels engineered to
+//! sum to the stroke's neutral color - and judged per-pixel it measured
+//! 49-84% "saturated" for pure white text (grab dumps in hand,
+//! 2026-07-15), permanently exempting the clock from colorizing. The
+//! complementary pair always sits within one stroke width, so averaging
+//! over cells WIDER than a stroke cancels it locally, while an icon's
+//! solid color regions fill whole cells and survive. The averaging must
+//! be the CPU QImage::scaled smooth path (a true full-area box filter);
+//! grabbing small instead leaves the downscale to GPU bilinear filtering,
+//! which taps too few texels to guarantee both fringes land in the blend
+//! (measured: a 24x24 grab still judged 67% of the clock saturated).
+//! A cell is judged colorful above 0.30 saturation; content is
+//! "multicolored" when more than 15% of its opaque cells are colorful.
+constexpr int SAMPLESIZE = 48;
+constexpr int JUDGESIZE = 12;
 constexpr qreal SATURATIONTHRESHOLD = 0.30;
 constexpr qreal COLORFULFRACTION = 0.15;
-//! fewer opaque pixels than this means the content has not rendered yet
+//! fewer opaque cells than this means the content has not rendered yet
 //! (icons load late); the caller retries instead of trusting a blank grab
-constexpr int MINOPAQUEPIXELS = 16;
+constexpr int MINOPAQUEPIXELS = 8;
 }
 
 IconColorfulness::IconColorfulness(QObject *parent)
@@ -77,10 +91,13 @@ void IconColorfulness::measure()
     connect(grab.data(), &QQuickItemGrabResult::ready, this, [this, grab]() {
         m_grabInFlight = false;
 
-        const QImage img = grab->image();
-        if (img.isNull()) {
+        const QImage grabbed = grab->image();
+        if (grabbed.isNull()) {
             return;
         }
+
+        //! the subpixel-fringe canceling area average, see the constants
+        const QImage img = grabbed.scaled(QSize(JUDGESIZE, JUDGESIZE), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 
         int opaque = 0;
         int saturated = 0;
