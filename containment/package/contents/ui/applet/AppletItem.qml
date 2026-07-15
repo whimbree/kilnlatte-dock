@@ -836,6 +836,32 @@ Item {
                 }
             }
 
+            //! Deliberate Qt5 deviation, explicitly requested: applets whose
+            //! rendered content is multicolored are exempt from colorizing
+            //! automatically (flattening a full-color icon to the scheme text
+            //! color produces a featureless blob; monochrome line-art is what
+            //! the colorizer is for). Pixel-measured in C++, not icon-name
+            //! guessed - see plugin/iconcolorfulness.cpp for why QML Canvas
+            //! cannot do this analysis. Until the measurement lands the Qt5
+            //! default applies, so symbolic icons never flash unthemed.
+            LatteContainment.IconColorfulness {
+                id: colorfulnessProbe
+                target: appletItem.applet && root.colorizerEnabled
+                        && !appletItem.appletBlocksColorizing
+                        && !appletItem.isInternalViewSplitter ? appletItem.appletWrapper : null
+
+                readonly property bool blocksColorizing: known && colorful
+
+                //! icons often finish loading after the applet item exists;
+                //! retry until a grab carries enough opaque pixels to judge
+                readonly property Timer retry: Timer {
+                    interval: 2000
+                    repeat: true
+                    running: colorfulnessProbe.target !== null && !colorfulnessProbe.known
+                    onTriggered: colorfulnessProbe.measure()
+                }
+            }
+
             //! The Applet Colorizer
             Colorizer.Applet {
                 id: appletColorizer
@@ -858,6 +884,7 @@ Item {
                                                     && !appletItem.appletBlocksColorizing
                                                     && !appletItem.isInternalViewSplitter
                                                     && !appletItem.isShowingInlineFullRepresentation
+                                                    && !colorfulnessProbe.blocksColorizing
 
                 Behavior on opacity {
                     NumberAnimation {

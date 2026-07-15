@@ -5,6 +5,7 @@ plasma_install_package(package org.kde.latte.containment)
 set(containment_SRCS
     plugin/lattetypes.h
     plugin/types.cpp
+    plugin/iconcolorfulness.cpp
     plugin/layoutmanager.cpp
     plugin/lattecontainmentplugin.cpp
 )

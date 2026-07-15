@@ -6,6 +6,7 @@
 #include "lattecontainmentplugin.h"
 
 // local
+#include "iconcolorfulness.h"
 #include "layoutmanager.h"
 #include "types.h"
 
@@ -17,5 +18,6 @@ void LatteContainmentPlugin::registerTypes(const char *uri)
     Q_ASSERT(uri == QLatin1String("org.kde.latte.private.containment"));
     qmlRegisterUncreatableType<Latte::Containment::Types>(uri, 0, 1, "Types", "Latte Containment Types uncreatable");
     qmlRegisterType<Latte::Containment::LayoutManager>(uri, 0, 1, "LayoutManager");
+    qmlRegisterType<Latte::Containment::IconColorfulness>(uri, 0, 1, "IconColorfulness");
 }
 
