@@ -28,6 +28,13 @@ below are now RESOLVED and kept only as archaeology.
   immediately - both halves are now pinned (appletwindowparentingtest
   is the C++ half). If any future fix wants "the window's view", walk
   the QObject parent chain, not transientParent.
+- SECOND catch in the same fix, worth its own trap note: on a QWindow*,
+  window->parent() is QWindow::parent() - the window-parent overload,
+  null for QML-declared dialogs - and it converts silently to QObject*,
+  so a QObject-chain walk written with it compiles and matches nothing.
+  Use window->QObject::parent(). The walk now lives in
+  Latte::visualHostWindowOf (tools/commontools) with its own headless
+  test, df63fe9e.
 - Clean negative worth keeping: QQC2 popups on the pinned Qt 6.11 are
   in-scene items (popupType 0, probed offscreen through a scratch
   qmltestrunner case) - popup-as-native-window theories about the

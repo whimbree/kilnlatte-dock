@@ -2262,8 +2262,12 @@ multi-view, multi-monitor setup.
       transientParent and the new contract test killed it).
       LIVE VERIFICATION PENDING: open the comic zoom viewer from
       the DP-2 dock and confirm it lands on DP-2 (and centered,
-      not top-left cornered).
-      Commits: 377aad57
+      not top-left cornered). FOLLOW-UP the same session
+      (df63fe9e): the first walk read the shadowing
+      QWindow::parent() and matched nothing; the resolution now
+      lives in Latte::visualHostWindowOf with its own headless
+      test (visualhostwindowtest).
+      Commits: 377aad57, df63fe9e
 - [x] layershellmappingtest extended past the pure mapping functions
       to the apply helpers (headless worktree 2026-07-15): the
       ec5d2316 exclusive-zone rules (docks reserve exactly their
