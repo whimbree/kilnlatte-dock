@@ -2043,13 +2043,19 @@ multi-view, multi-monitor setup.
       (delegate cache generalized to a depth-4 LRU with an explicit
       TaskItem-onDestruction eviction contract - each task a hover
       session touches is built exactly once, revisits are free with
-      warm streams). REMAINING, in value order: ksvg upstream lacks
-      negative caching in theme file discovery (the 329-probes-per-
-      adoption storm is upstream-reproducible; consider filing/patching
-      ksvg); async incubation of ToolTipInstance bodies (needs a
-      size-placeholder story so the dialog does not pulse on first
-      builds).
-      Commits: 056f7e15 (XDG allow-list), f1edd103 (LRU cache)
+      warm streams). ASYNC INCUBATION LANDED (207a8084): each
+      ToolTipInstance loads through an asynchronous Loader behind a
+      placeholder shell sized by an estimate the first ready instance
+      pins exactly - fresh-build GUI stalls measured down from
+      100-400ms to 31-65ms, no dialog pulse, drag/hover reaches fixed
+      for the wrapped shape. Remaining stall inventory: ~480ms ONCE per
+      dock run (first-adoption QML compilation + dialog window
+      creation - could pre-warm at startup if it ever bothers), and
+      the upstream lever: ksvg lacks negative caching in theme file
+      discovery (the translucent/colors probe storm is
+      upstream-reproducible; consider filing/patching ksvg).
+      Commits: 056f7e15 (XDG allow-list), f1edd103 (LRU cache),
+      207a8084 (async incubation)
 - [x] Applet popups are mis-sized (caught live 2026-07-14: the volume
       applet popup renders ~260px wide with wrapping tabs and clipped
       content; plasmashell sizes the same applet correctly).
