@@ -396,6 +396,16 @@ PlasmoidItem {
             lastSwitchRequestTime = now;
 
             if (inBurst) {
+                //! a deferred switch never reaches show(), whose first act
+                //! is cancelling the hide countdown that EVERY task exit
+                //! arms - without this stop, a scrub across several tasks
+                //! deferred every adoption while the last exit's countdown
+                //! kept running, and the dialog hid mid-scrub (previews
+                //! "stopped appearing", reproduced at the desk scrubbing
+                //! dolphin<->konsole). The pointer is on a task right now,
+                //! exactly the situation the countdown must not survive.
+                hidePreviewWinTimer.stop();
+
                 pendingSwitchTask = taskItem;
                 previewSwitchSettleTimer.restart();
             }
