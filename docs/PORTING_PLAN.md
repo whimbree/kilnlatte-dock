@@ -2048,14 +2048,20 @@ multi-view, multi-monitor setup.
       placeholder shell sized by an estimate the first ready instance
       pins exactly - fresh-build GUI stalls measured down from
       100-400ms to 31-65ms, no dialog pulse, drag/hover reaches fixed
-      for the wrapped shape. Remaining stall inventory: ~480ms ONCE per
-      dock run (first-adoption QML compilation + dialog window
-      creation - could pre-warm at startup if it ever bothers), and
-      the upstream lever: ksvg lacks negative caching in theme file
-      discovery (the translucent/colors probe storm is
-      upstream-reproducible; consider filing/patching ksvg).
+      for the wrapped shape. THE PER-RUN ~480ms COMPILE STALL IS ALSO
+      GONE (45c15433): staging rm-rf'd and reinstalled the stage every
+      restart, refreshing every QML file's mtime, and Qt's disk cache
+      validates on timestamps - the dock recompiled its whole QML tree
+      per run (239 qmlcache rewrites/restart). Checksum-sync staging
+      keeps unchanged files' mtimes: 14 rewrites/restart, first
+      adoption 484ms -> 77ms, every staged applet warms at startup.
+      REMAINING: only the upstream lever - ksvg lacks negative caching
+      in theme file discovery (the translucent/colors probe storm is
+      upstream-reproducible; consider filing/patching ksvg). Steady
+      state now: adoptions 30-170ms sliced and non-blocking, revisits
+      free, sweeps coalesced.
       Commits: 056f7e15 (XDG allow-list), f1edd103 (LRU cache),
-      207a8084 (async incubation)
+      207a8084 (async incubation), 45c15433 (mtime-preserving staging)
 - [x] Applet popups are mis-sized (caught live 2026-07-14: the volume
       applet popup renders ~260px wide with wrapping tabs and clipped
       content; plasmashell sizes the same applet correctly).
