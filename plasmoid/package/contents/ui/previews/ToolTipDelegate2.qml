@@ -56,6 +56,23 @@ QQC2.ScrollView {
     readonly property real previewContentWidth: contentItem.width
     readonly property real previewContentHeight: contentItem.height
 
+    //! placeholder geometry for instances that are still incubating (see
+    //! the shell in the Repeater delegate): a coarse formula from the same
+    //! inputs ToolTipInstance's header and thumbnail use, PINNED to the
+    //! exact size the first ready instance reports - instances are uniform
+    //! by construction, so one correction settles every later shell.
+    property real estimatedInstanceWidth: textWidth + Kirigami.Units.iconSizes.medium + Kirigami.Units.gridUnit * 2
+    property real estimatedInstanceHeight: Math.round(estimatedInstanceWidth
+                                                      * (appletAbilities.myView.screenGeometry.height / appletAbilities.myView.screenGeometry.width))
+                                           + Kirigami.Units.gridUnit * 3
+
+    function pinEstimatedInstanceSize(w, h) {
+        if (w > 0 && h > 0) {
+            estimatedInstanceWidth = w;
+            estimatedInstanceHeight = h;
+        }
+    }
+
     property variant icon
     property url launcherUrl
     property bool isLauncher
@@ -130,7 +147,7 @@ QQC2.ScrollView {
                     for (var i=0; i<children.length; ++i) {
                         var child = children[i];
 
-                        if (child && child.descriptionIsVisible) {
+                        if (child && child.instanceItem && child.instanceItem.descriptionIsVisible) {
                             return true;
                         }
                     }
@@ -148,8 +165,35 @@ QQC2.ScrollView {
                             return mainToolTip.rootIndex;
                         }
 
-                        delegate: ToolTipInstance {
-                            submodelIndex: isGroup ? tasksModel.makeModelIndex(mainToolTip.rootIndex.row, index) : mainToolTip.rootIndex
+                        //! Each instance incubates ASYNCHRONOUSLY behind a
+                        //! placeholder shell: building a ToolTipInstance is
+                        //! the expensive part of a preview adoption (the
+                        //! 100-400ms synchronous GUI stall, KSvg-dominated,
+                        //! measured 2026-07-15), and slicing it across
+                        //! frames keeps the parabolic zoom and input alive
+                        //! while content pops in. The shell carries the
+                        //! ESTIMATED instance size so the grid - and through
+                        //! it the dialog - sizes correctly before any
+                        //! content exists; instances are uniform by
+                        //! construction, so the first ready one corrects
+                        //! the estimate exactly and the rest land on it.
+                        delegate: Item {
+                            id: instanceShell
+
+                            readonly property Item instanceItem: instanceLoader.item
+
+                            width: instanceLoader.item ? instanceLoader.item.width : mainToolTip.estimatedInstanceWidth
+                            height: instanceLoader.item ? instanceLoader.item.height : mainToolTip.estimatedInstanceHeight
+
+                            Loader {
+                                id: instanceLoader
+                                asynchronous: true
+                                sourceComponent: ToolTipInstance {
+                                    submodelIndex: isGroup ? tasksModel.makeModelIndex(mainToolTip.rootIndex.row, index) : mainToolTip.rootIndex
+                                    siblingHasVisibleDescription: instanceShell.parent ? instanceShell.parent.hasVisibleDescription === true : false
+                                }
+                                onLoaded: mainToolTip.pinEstimatedInstanceSize(item.width, item.height)
+                            }
                         }
                     }
                 }
@@ -158,12 +202,20 @@ QQC2.ScrollView {
     } //! Item
 
     function instanceAtPos(x, y){
-        var previewInstances = isGroup ? contentItem.children[0].children : contentItem.children;
-        var instancesLength = previewInstances.length;
+        //! children are the placeholder SHELLS; the real instance (when its
+        //! async incubation has finished) hangs off each shell's
+        //! instanceItem. Position comes from the shell, content from the
+        //! instance - a still-incubating shell has no instance to activate.
+        var shells = isGroup ? contentItem.children[0].children : contentItem.children;
+        var instancesLength = shells.length;
 
         for(var i=0; i<instancesLength; ++i){
-            var instance = previewInstances[i];
-            var choords = contentItem.mapFromItem(instance,0, 0);
+            var shell = shells[i];
+            var instance = shell && shell.instanceItem ? shell.instanceItem : null;
+            if (!instance) {
+                continue;
+            }
+            var choords = contentItem.mapFromItem(shell,0, 0);
 
             if(choords.y < 0)
                 choords.y = 0;

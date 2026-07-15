@@ -32,6 +32,11 @@ Column {
     property var submodelIndex
     property int flatIndex: isGroup && itemIndex>=0 ? itemIndex : 0
 
+    //! fed by the placeholder shell in ToolTipDelegate2: with instances
+    //! wrapped in async Loaders, .parent is the Loader, not the Grid the
+    //! old structural instance.parent.hasVisibleDescription reach expected
+    property bool siblingHasVisibleDescription: false
+
     property bool isActive: (typeof model !== 'undefined') && (typeof model.IsActive !== 'undefined') ? IsActive : false
     property bool isMinimized: (typeof model !== 'undefined') && (typeof model.IsMinimized !== 'undefined') ? IsMinimized : false
 
@@ -126,7 +131,7 @@ Column {
                 text: isWin ? generateSubText() : ""
                 textFormat: Text.PlainText
                 opacity: 0.6
-                visible: text !== "" || instance.parent.hasVisibleDescription
+                visible: text !== "" || instance.siblingHasVisibleDescription
             }
         }
         // close button
