@@ -1402,17 +1402,23 @@ multi-view, multi-monitor setup.
       viewConfig.availableScreenGeometry, which relates to the Phase 8
       stale/wrong-screen edit-window geometry item.
       Commits:
-- [ ] LatteComponents.ComboBox popup renders its dropdown rows
+- [x] LatteComponents.ComboBox popup renders its dropdown rows
       collapsed (~13px tall) with item text invisible - found while
       driving the Appearance page Palette / From Window dropdowns
-      headlessly (screenshots in the 2026-07-14 session): only the
-      highlighted current row is legible, the rest are blank slivers,
-      so selecting an entry needs pixel archaeology. Qt5 rendered
-      proper full-height rows. Suspect family: the component's
-      delegate height bindings under Plasma 6 (check
-      declarativeimports/components/ComboBox.qml against Qt5 and
-      against qqc2-desktop-style's ComboBox popup metrics).
-      Commits:
+      headlessly, then user-confirmed with a real mouse. ROOT CAUSE:
+      the delegate's Array.isArray(control.model) branch is always
+      false on Qt6 (the ComboBox hands the model back as a
+      QVariantList even when a JS array was assigned), so all seven
+      role lookups fell through to model[role], undefined for array
+      models - textless rows that also collapse because the label
+      drives the delegate height. Measured on the pin: array models
+      carry roles on modelData only, ListModels on model[role] only
+      (modelData undefined) - the delegate now resolves from whichever
+      exists. tst_comboboxpopup.qml pins all three model kinds the
+      config pages feed it (object arrays, ListModel, string arrays);
+      the ListModel case caught the first fix attempt being wrong.
+      Live-verified: Palette dropdown shows five readable rows.
+      Commits: a302d742
 - [ ] Startup latency (user-reported: 'takes way longer than it
       should'). Measure BOTH dev and production-shaped starts before
       optimizing: dev runs pay for cmake --install restaging, the gdb

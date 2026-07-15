@@ -167,6 +167,19 @@ below are now RESOLVED and kept only as archaeology.
   MAIN-thread for ~60-90s after start (render threads quiet) -
   layout/applet settling, not a render loop; noted in the item, no
   new plan entry.
+- Round twenty-three (2026-07-14 night, user-driven): the ComboBox
+  collapsed-popup defect user-confirmed and fixed (a302d742). Headless
+  qmltestrunner probes did the whole bisect without touching the live
+  dock: Array.isArray(control.model) is always false on Qt6 (model
+  reads back as QVariantList), so all role lookups took the
+  model[role] branch - undefined for array models. The pin's actual
+  semantics, measured: arrays put roles on modelData only, ListModels
+  on model[role] only. Fix resolves from whichever exists; regression
+  test covers the three model kinds the config pages use. TWO traps
+  banked: the interaction-test harness reuses _qmlstage, so component
+  edits need a restage before the test sees them (a probe cycle died
+  to the old file); and the ListModel case is what proved the obvious
+  modelData-only fix wrong - test all model kinds, not the broken one.
 - SESSION CLOSE STATE (2026-07-14 night): everything committed and
   pushed; working tree clean; the user's dock runs the latest build
   under the gdb wrapper with --user-config, config fully restored
