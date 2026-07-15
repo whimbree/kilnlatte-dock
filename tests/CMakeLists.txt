@@ -84,3 +84,14 @@ ecm_add_test(contracts/destroyedtypedemotiontest.cpp
 )
 set_tests_properties(destroyedtypedemotiontest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# libplasma askDestroy() undo-window signal ordering (71b0d75a): constructs
+# real Plasma::Containment/Applet objects offscreen, so it needs libplasma
+# itself, not Latte code. The DBus session address is neutered inside the
+# test so the "Widget Removed" KNotification can never reach the desktop.
+ecm_add_test(contracts/askdestroysignalorderingtest.cpp
+    TEST_NAME askdestroysignalorderingtest
+    LINK_LIBRARIES Qt6::Test Qt6::Gui Plasma::Plasma KF6::CoreAddons
+)
+set_tests_properties(askdestroysignalorderingtest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
