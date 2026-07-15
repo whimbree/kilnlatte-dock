@@ -336,7 +336,7 @@ belongs in a later phase instead.
 ### Phase 4: Window-system backends (Wayland primary, X11 best-effort)
 
 Scope decision (revised from the original Wayland-only plan, on
-explicit user request): Wayland is the primary target and the only
+explicit decision): Wayland is the primary target and the only
 one verified live - the author does not run X11. X11 stays as a
 best-effort port: it must keep compiling under `HAVE_X11=ON`, gets
 the mechanical Qt6/KF6 migration done properly (there is real
@@ -816,7 +816,7 @@ before implementing, not just before merging.
       Kirigami's `DropArea` QML ever sees them, and letting both paths
       partially handle overlapping cases caused a double-widget-
       creation bug in latte-dock-ng.
-      RESOLVED WITHOUT NEW CODE, user-verified working 2026-07-14:
+      RESOLVED WITHOUT NEW CODE, hand-verified working 2026-07-14:
       drag-from-Widget-Explorer adds widgets on the live dock. The
       ownership split exists by construction in this port - our
       View::event() only OBSERVES drag events (setContainsDrag for
@@ -926,7 +926,7 @@ wallpaper stacking across the dock and CanvasConfigView surfaces).
       Commits: 608a509e
 - [x] UX: when the rearrange toggle is centered, open the settings
       window to the right side instead of also centered
-      (app/view/settings/primaryconfigview.cpp). Grew on user request
+      (app/view/settings/primaryconfigview.cpp). Grew deliberately
       into the full edit-chrome layout: settings window pinned right
       (wayland was compositor-centering it mid-screen), ruler flush
       with the blueprint top, rearrange toggle at the left end, canvas
@@ -937,7 +937,7 @@ wallpaper stacking across the dock and CanvasConfigView surfaces).
 
 ### Phase 8: Layout/config persistence, session shutdown, multi-screen
 
-PHASE OPENED 2026-07-11 (user go), starting from live crashes on a
+PHASE OPENED 2026-07-11 (go given), starting from live crashes on a
 multi-view, multi-monitor setup.
 
 - [x] Render-thread crash whenever an overflowing dock relayouts (enter
@@ -958,7 +958,7 @@ multi-view, multi-monitor setup.
       churn (reproduces on the basic loop too, so corruption, not a
       race). Reliable reproducer was a broken Comic Strip applet whose
       representation flapped error/default on every focus change.
-      User-verified stable after the fix set
+      Hand-verified stable after the fix set
       Commits: 73da8400 (providers), c7200e3d (basic render loop
       default, which made the corruption debuggable), df747ebf and
       e88af680 (the two dead-effect removals found on the way)
@@ -968,7 +968,7 @@ multi-view, multi-monitor setup.
       window's polish/sync/render on the gui thread and measured
       400-610ms frame hitches opening the clock's calendar popup
       (threaded: p50 5ms, p99 6ms, max 41ms, zero >100ms on the same
-      interaction - the user's 'calendar chugs at low fps' report).
+      interaction - my 'calendar chugs at low fps' report).
       All historical crash recipes ran clean on threaded before the
       flip. QSG_RENDER_LOOP=basic stays as a supported override.
 - [x] WebEngine-backed applets (org.kde.plasma.comic) free-run under
@@ -992,7 +992,7 @@ multi-view, multi-monitor setup.
       3-dock throwaway burns 40-100% CPU for the first ~60-90s after
       start, MAIN thread (35%), render threads quiet (~1%) - applet/
       network settling on a heavy layout, not a render loop; the
-      user's single-dock layout shows nothing similar.
+      my single-dock layout shows nothing similar.
       Commits: (verification only, no change)
 - [x] Harden CompactApplet against representation churn: plasma 6
       destroys/recreates compact representations at runtime (observed
@@ -1103,7 +1103,7 @@ multi-view, multi-monitor setup.
       family 7 note in 73da8400).
       Commits: 69baabf0
 - [x] SIGSEGV dropping/pinning a launcher onto the tasks applet
-      (user-reproduced 2026-07-13 under the gdb wrapper, full trace at
+      (reproduced by hand 2026-07-13 under the gdb wrapper, full trace at
       syncedlaunchers.cpp:87). Root cause: removeClientObject
       qobject_cast the dying QObject back to QQuickItem inside a
       destroyed() handler - the cast always returns null there because
@@ -1127,7 +1127,7 @@ multi-view, multi-monitor setup.
       terminal return. Verified zero occurrences on a fresh start.
       Commits: 04d8000c
 - [x] Right-click context menu on an applet offers no 'Applet Settings'
-      entry (user-reported 2026-07-12; pre-existing since the port).
+      entry (caught live 2026-07-12; pre-existing since the port).
       FIXED 2026-07-13: four stacked defects. The ROOT was one level
       deeper than the mapped architecture: Panel.qml resolved its
       viewLayout by scanning containment.children for the
@@ -1141,7 +1141,7 @@ multi-view, multi-monitor setup.
       coordinate resolution (gated to window()==view), and no layer in
       the dock window at all (the containment now instantiates one at
       the bottom of the stacking order; tasks keep their own menus,
-      empty areas keep the containment menu). Owner decision honored:
+      empty areas keep the containment menu). Standing decision honored:
       the Configure entry is available ALWAYS. Verified live: clock
       right-click shows its section + Configure, activating it opened
       the Digital Clock Settings dialog, re-verified on the clean
@@ -1150,7 +1150,7 @@ multi-view, multi-monitor setup.
       recurrence, may be popUpRelevantToGlobalPoint quirk for
       full-window rects.
       Commits: afefa442
-- [x] Edit Dock opens the chrome for the WRONG VIEW (user-reported
+- [x] Edit Dock opens the chrome for the WRONG VIEW (caught live
       three times 2026-07-12 night: right-click bottom dock -> chrome
       appeared on the left dock, later the top dock). ROOT CAUSE: the
       per-view m_primaryConfigView pointer to the shared chrome
@@ -1164,7 +1164,7 @@ multi-view, multi-monitor setup.
       parked on the top then the left dock: Edit Dock on the bottom
       dock opened the bottom chrome both times (dumpwins).
       Commits: 66114774
-- [x] Edit mode first-open latency (user-reported: first open slow,
+- [x] Edit mode first-open latency (caught live: first open slow,
       subsequent opens fast). Suspect: cold QML compilation of the
       chrome packages (settings pages, canvas) on first
       instantiation; the staged tree carries no qmlcachegen output and
@@ -1221,8 +1221,8 @@ multi-view, multi-monitor setup.
       option (b) not needed. Watch item: first open on a NON-warmed
       view goes through the standard retarget (deferred slide-out) -
       untouched code, but the never-shown-ensemble variant was not
-      driven headlessly (dodge kept hiding the top dock); user will
-      hit it naturally.
+      driven headlessly (dodge kept hiding the top dock); it will be
+      hit naturally at the desk.
       Commits: fd8cbc45
 - [x] TOP PRIORITY: idle render-loop + filesystem-stat storm in the
       applet-shadow path (discovered 2026-07-13 while measuring the
@@ -1278,11 +1278,11 @@ multi-view, multi-monitor setup.
       jitter), MultiEffect autoPadding oscillation;
       (4) QSG_VISUALIZE=changes was tried and is USELESS here - it
       tints the whole (dodge-hidden) layer surface and blackens the
-      user's screen; do not repeat.
+      my screen; do not repeat.
       Also caught on the idle main thread: QtWebEngine performing a
       lazy Vulkan/RhiGpuInfo init ~20s after startup (some applet
       pulls QtWebEngine in) - one-time jank, separate small item.
-      FOLLOW-UPS from the fix (both user-reported ghost regressions,
+      FOLLOW-UPS from the fix (both caught live ghost regressions,
       fixed same day): paddingRect components are PER-SIDE extras,
       not totals (6c7001ce, Qt updateSourcePadding() semantics), and
       the sibling shadow pattern (effect sampling a still-visible
@@ -1290,16 +1290,16 @@ multi-view, multi-monitor setup.
       ShortcutBadge shadows are layer.effect now (c7c46226).
       Commits: e3376405, 6c7001ce, c7c46226
 - [x] Applet popup SLIDE-IN animation still missing (plasma parity;
-      user-driven session 2026-07-13 evening). The slide-OUT works
-      (user-verified) since f630d2ad; the open still animates with a
+      desk-driven session 2026-07-13 evening). The slide-OUT works
+      (hand-verified) since f630d2ad; the open still animates with a
       generic quick fade (the scale effect - it persisted with KWin's
       fade effect unloaded, and it stayed quick while slidingpopups
       was configured to 1500ms, which is how it was identified as NOT
-      slidingpopups). Target behavior, user-stated: the popup must
+      slidingpopups). Target behavior: the popup must
       emerge FROM BEHIND the dock, exactly like plasmashell popups
       emerge from their panel (that is the slide offset/clip at the
       panel edge, free once the slide-in engages).
-      SOLVED (1f8770fd), user-verified 'it slides in now'. FINAL
+      SOLVED (1f8770fd), hand-verified 'it slides in now'. FINAL
       LAYER: PlasmaQuick::Dialog derives its OWN slide hint from its
       location property inside its first-expose handler, immediately
       before the call that renders and commits the mapping frame; on
@@ -1349,7 +1349,7 @@ multi-view, multi-monitor setup.
       effect unloading as discriminators.
       Commits: f630d2ad (role + slide machinery, slide-out works)
 - [x] Latte -> Plasma indicator style switch CRASHES the dock
-      (user-reported 2026-07-13 evening, twice). ROOT-CAUSED with the
+      (caught live 2026-07-13 evening, twice). ROOT-CAUSED with the
       gdb harness (two identical stacks, rdi=0 at the fault):
       KSvg::SvgItem::setSvg(nullptr) null-derefs in
       updateDevicePixelRatio() - KSvg 6 dropped Qt5's if (m_svg)
@@ -1402,7 +1402,7 @@ multi-view, multi-monitor setup.
       Commits: 1f835402
 - [x] Settings window (edit chrome) reported overflowing the screen
       top, intermittently. CAUGHT LIVE with a geometry-sampling loop
-      (user watched the same repro): first open shortly after a dock
+      (watched on screen as the loop reproduced it): first open shortly after a dock
       restart mapped +99px too tall / 93px past the screen top and
       STAYED wrong; warm reopens always correct. The +99px is the
       dock's own reserved thickness: corona integrates this view's
@@ -1423,7 +1423,7 @@ multi-view, multi-monitor setup.
 - [x] LatteComponents.ComboBox popup renders its dropdown rows
       collapsed (~13px tall) with item text invisible - found while
       driving the Appearance page Palette / From Window dropdowns
-      headlessly, then user-confirmed with a real mouse. ROOT CAUSE:
+      headlessly, then confirmed with a real mouse. ROOT CAUSE:
       the delegate's Array.isArray(control.model) branch is always
       false on Qt6 (the ComboBox hands the model back as a
       QVariantList even when a JS array was assigned), so all seven
@@ -1437,7 +1437,7 @@ multi-view, multi-monitor setup.
       the ListModel case caught the first fix attempt being wrong.
       Live-verified: Palette dropdown shows five readable rows.
       Commits: a302d742
-- [ ] Startup latency (user-reported: 'takes way longer than it
+- [ ] Startup latency (caught live: 'takes way longer than it
       should'). Measure BOTH dev and production-shaped starts before
       optimizing: dev runs pay for cmake --install restaging, the gdb
       wrapper and -d logging before the first frame; a clean timing
@@ -1445,7 +1445,7 @@ multi-view, multi-monitor setup.
       offenders (layout load, QML compilation, screen wait).
       MEASURED 2026-07-13, no wrapper, no -d, KWin window poller for
       ground truth (~150ms granularity); the -d run matched within
-      50ms so -d numbers are trustworthy. User-perceived restart is
+      50ms so -d numbers are trustworthy. Perceived restart is
       ~9.4s, split into two distinct problems:
       (1) LAUNCHER ~4.1s before the binary even execs: kill-wait 0.6s
       + nix develop 3.0s (measured alone) + restaging ~0.5s. Lever:
@@ -1506,7 +1506,7 @@ multi-view, multi-monitor setup.
       here has poor cost/benefit; revisit only if upstream grows
       async applet loading.
       Commits: 37acf9ca (launcher cache), 70fe5390 (staggered views)
-- [x] Edit-mode chrome lifecycle trilogy (user-reported 2026-07-12
+- [x] Edit-mode chrome lifecycle trilogy (caught live 2026-07-12
       evening: blueprint flashes at open then vanishes, rearrange mode
       dies moments after enabling with no blue frames and no dragging,
       closing the chrome leaves the dock stuck in edit visuals). Three
@@ -1528,7 +1528,7 @@ multi-view, multi-monitor setup.
       Commits: fb621102 (transient sub-mode), 4a8ac480 (family focus
       + session end on deliberate close)
 - [x] Rearrange input mask carved from stale/wrong geometry
-      (user-reported 2026-07-12 late evening: wheel-opacity tooltip on
+      (caught live 2026-07-12 late evening: wheel-opacity tooltip on
       every applet's middle band, only applet edges draggable, per-dock
       variance). The canvas carve sampled rearrangeToggleRect exactly
       once and the published rect mapped the outer Button item, which
@@ -1548,7 +1548,7 @@ multi-view, multi-monitor setup.
       NON-reloaded chrome, this is the family fingerprint.
       Commits: 8be2b388 (made it inert for the mask), 9aeda562
       (removed the class)
-- [x] Plain edit mode blocked all widget interaction (user-reported
+- [x] Plain edit mode blocked all widget interaction (caught live
       2026-07-12 night: wheel-opacity tooltip over every widget, no
       right-click, no hover config without entering rearrange). Design
       mismatch, not a point bug: Qt5/X11 stacked the edited dock ABOVE
@@ -1560,7 +1560,7 @@ multi-view, multi-monitor setup.
       mode, wheel tooltip only on the blueprint margin.
       Commits: 3d714d63
 - [x] Rearrange drag: cursor drifts away from the dragged widget over
-      long back-and-forth drags (user-reported 2026-07-12 night). The
+      long back-and-forth drags (caught live 2026-07-12 night). The
       delta-tracked drag stored lastX/lastY as int while wayland
       delivers fractional pointer coordinates: every event truncated
       the stored position and injected the lost fraction into the
@@ -1574,18 +1574,18 @@ multi-view, multi-monitor setup.
 - [x] Applet edit-tooltip modal (rearrange mode) and task hover
       previews: misposition during fast pointer movement AND the
       rearrange-mode applet hover modal appears INCONSISTENTLY
-      (user-reported 2026-07-12 night). PARTIALLY FIXED 2026-07-13
+      (caught live 2026-07-12 night). PARTIALLY FIXED 2026-07-13
       (e6c5ae76): the parked-preview half is gone - the preview dialog
       updated its content per hovered task but a mapped wayland popup
       silently ignores visualParent changes, so fast sweeps left the
-      window at the sweep origin (user screenshot: Firefox preview over
+      window at the sweep origin (screenshot: Firefox preview over
       the clock, 380px off). e6c5ae76 unmapped before adopting a new
       task but hid and re-showed synchronously, which COALESCES: no
-      real unmap, user re-reproduced within minutes with a real mouse
+      real unmap, re-reproduced within minutes with a real mouse
       (synthetic fakepointer moves left ~150ms gaps that masked it -
       LESSON: verify input fixes at realistic event rates). 15558f40
       defers the re-show one event loop pass so the unmap commits.
-      The user re-reproduced AGAINST 15558f40 too (recipe: hover the
+      Re-reproduced by hand AGAINST 15558f40 too (recipe: hover the
       system monitor TASK, wait for its preview, glide to firefox -
       firefox thumbnails ~370px left). THIRD ROOT CAUSE (d619ae08,
       instrumented anchors proved every prepare's anchor CORRECT): the
@@ -1598,11 +1598,11 @@ multi-view, multi-monitor setup.
       reaches the map point and assigns visualParent from the mapped
       taskItem itself (TaskItem exposes previewsVisualParent), making
       anchor and content atomic per task under any interleaving.
-      Verified: the user's recipe at realistic event rates (fakepointer
+      Verified: my recipe at realistic event rates (fakepointer
       glide, 8ms steps) mapped the firefox preview centered on its
       logged anchor (2352 vs 2351.5), plus two adversarial overshoot
-      zigzags and a clean-build pass, all correct. The user
-      re-reproduced AGAINST d619ae08 as well. FOURTH AND STRUCTURAL
+      zigzags and a clean-build pass, all correct. By hand it
+      re-reproduced AGAINST d619ae08 as well though. FOURTH AND STRUCTURAL
       ROOT CAUSE (77aac4b4, instrumented both the QML show() path and
       every C++ position push): the dialog MAPS with the previous
       task's content size still in the mainItem (1112px, system
@@ -1614,12 +1614,12 @@ multi-view, multi-monitor setup.
       and was armed only by the mainItem-resize hook, which never
       fired for the final task of a sweep - intermediate stops in the
       SAME sweep won the race, which is why every slow retest passed
-      while the user kept failing. Correctness depended on event
+      while by-hand runs kept failing. Correctness depended on event
       ordering. 77aac4b4 stores nothing: after every Move/Expose/Show
       the target is recomputed from the CURRENT anchor and CURRENT
       pending content size and pushed to the plasmashell surface, so
       any ordering self-heals on the next event. Verified clean-build
-      with the user recipe and bidirectional multi-speed sweeps
+      with the by-hand recipe and bidirectional multi-speed sweeps
       (window at 2213 where it parked at 1796), idle-silent.
       LESSON for the whole series: when a fix depends on which of two
       event handlers runs last, it is a patch, not a fix - remove the
@@ -1649,13 +1649,13 @@ multi-view, multi-monitor setup.
       Commits: e6c5ae76 (incomplete, coalescing), 15558f40 (deferred
       remap, still incomplete), d619ae08 (atomic anchor+content,
       still incomplete), 77aac4b4 (recompute-fresh positioning, the
-      structural fix, user-confirmed) + dbe5a03b (layershellmappingtest
+      structural fix, confirmed by hand) + dbe5a03b (layershellmappingtest
       signature catch-up found by the same session's build) + 8f821310
-      (rearrange modal, same class, user-confirmed) + c622da1b (live
+      (rearrange modal, same class, confirmed by hand) + c622da1b (live
       anchor restored, resting machinery deleted)
 - [x] Vertical (left/right) dock canvas header renders off-surface
       (rearrange chip at y=-552/-596, rearrange unusable on the left
-      dock, user-reported twice). MECHANISM DEMONSTRATED: the header's
+      dock, caught live twice). MECHANISM DEMONSTRATED: the header's
       positional bindings branch on per-view context and each ternary
       branch captures different dependencies, so a binding evaluated
       mid-retarget through the old view's branch strands on a transient
@@ -1683,10 +1683,10 @@ multi-view, multi-monitor setup.
       CPU. Inherited from upstream 747d4870, latent on X11. Both loops
       now clamp and exit on inequality, and recalculation skips the
       unsized-window degenerate input (re-run by onMaxLengthChanged).
-      Verified with the throwaway layout at 78 and the user's real
+      Verified with the throwaway layout at 78 and my real
       layout, which starts again
       Commits: ad9b823f
-- [x] Expose plasma applets' PRIVATE QML modules to the dock (user hit
+- [x] Expose plasma applets' PRIVATE QML modules to the dock (hit live
       it live: 'module org.kde.private.desktopcontainment.folder is not
       installed'; ALL third-party applets error in the staged run while
       working under plasmashell). Likely the reason broken applets like
@@ -1697,12 +1697,12 @@ multi-view, multi-monitor setup.
       plasma-nm, kdeconnect-kde, kdeplasma-addons, qtwebengine,
       powerdevil, print-manager) - same-pin whole-package roots cannot
       shadow with a foreign build, and staged Latte modules still win
-      last. Verified on the user's full layout: nine distinct failing
+      last. Verified on my full layout: nine distinct failing
       modules -> zero errors, and the right-click menu is still Latte's
       (the shadowing regression check)
       Commits: 4c9f3bc7
 - [x] Duplicated docks: applets come out in a DIFFERENT ORDER than the
-      original (user-observed live) - matches the ng-documented
+      original (observed live) - matches the ng-documented
       applet-order sync defect class. Note: live config mirroring
       (e.g. pinned tasks appearing on the copy) is NOT expected for
       duplicates, only for screens-group clones; document that
@@ -1805,14 +1805,14 @@ multi-view, multi-monitor setup.
       that output). See "Multi-monitor" section in
       docs/session-handoff.md for the measured evidence
       Commits: d670c97a (canvas, settings window and widget explorer are
-      pinned to the edited view's output; user-verified on the
+      pinned to the edited view's output; hand-verified on the
       portrait+landscape setup), 7ac419d1 (secondary advanced-mode
       window, the last compositor-placed surface: applyFixedGeometry on
       the edited view's screen, verified sitting above the canvas band
       at the dock's start)
 - [x] Settings window screen selector is broken on multi-monitor: the
       'On Primary Screen' combobox neither opens other screens nor
-      applies a change (user-reported while trying to move a dock to
+      applies a change (caught live while trying to move a dock to
       the other monitor's bottom edge). RESOLVED 2026-07-11: of the
       three suspected layers, none was the cause. Qt6 made
       QQC2 ComboBox.pressed read-only; the write in onGenericPressed
@@ -1831,8 +1831,8 @@ multi-view, multi-monitor setup.
       USER-VERIFIED 2026-07-12: dock moved to the portrait monitor and
       back to the main one on the real desk setup
 - [ ] Full settings-window control audit against Qt5 semantics (split
-      from the screen-selector item; user reports more controls broken,
-      with the user at the desk driving both tabs). PROGRESS
+      from the screen-selector item; more controls look broken,
+      driving both tabs by hand at the desk). PROGRESS
       2026-07-11 late session: the two biggest breakage classes fixed.
       (a) Every LatteComponents.ComboBox popup was unopenable (Qt6
       read-only pressed, commit 0474e20c under the selector item).
@@ -1858,7 +1858,7 @@ multi-view, multi-monitor setup.
       vs acceptable noise; (b) our own BindingsExternal.qml:281 reads
       'localGeometry' of null twice during startup; (c) digitalclock
       Tooltip.qml 'text' of null, third-party internal noise.
-      Also still owed: the with-user semantic walk of
+      Also still owed: the at-the-desk semantic walk of
       every control on both tabs against Qt5 (check especially
       TaskMouseArea handling all 9 TaskAction enum values - ng
       eabf7c89a found 3/9, 5/9, 5/9 handled for left/middle/modifier
@@ -1900,7 +1900,7 @@ multi-view, multi-monitor setup.
       Commits: a774ee55
 - [ ] Duplicate-dock + add-widget crash from the handoff: RESOLVED as
       a downstream of the config-sync fix (c3d15966) as far as the
-      recipe drives - kept as a watch item until the user's real
+      recipe drives - kept as a watch item until my real
       rearranged layout also survives duplication in the interactive
       session
       Commits: c3d15966
@@ -1959,7 +1959,7 @@ multi-view, multi-monitor setup.
       test-infrastructure decision (real widget add/remove driven
       through KWin D-Bus with actual screenshot capture, modeled on
       latte-dock-qt6's) and verify the coverage ratchet baseline is
-      still honest against the Phase 0 standard. The owner plans to
+      still honest against the Phase 0 standard. A microvm is planned to
       provide a microvm for real-GUI CI; tests written meanwhile
       should assume that runtime (fakepointer already covers
       move/click/rightclick/drag/glide/scroll - drag doubles as
@@ -2067,7 +2067,7 @@ prerequisites in the phases above are done.
       2-3): upstream latte-dock has had no real development since
       2022 (only po/docbook syncs since), so find out whether the
       invent.kde.org repo still accepts MRs and whether anyone
-      reviews there. REFRAMED 2026-07-12 (user call: latte-dock
+      reviews there. REFRAMED 2026-07-12 (my call: latte-dock
       upstream is dead for practical purposes, and ng's
       scope-narrowing decisions will NOT be repeated here): plan for
       the maintained-continuation outcome, with a latte-dock MR as
@@ -2078,7 +2078,7 @@ prerequisites in the phases above are done.
       actions, smart-launcher badge tracking) - see
       docs/taskmanager-integration-research.md; the evidence is that
       three independent ports all vendor the same plasma-desktop
-      file, and ng's attempt to shrink that vendor cost four user
+      file, and ng's attempt to shrink that vendor cost four end-user
       features plus silent breakage (itemized in the research doc).
       X11 support-level remains the other direction question if a
       latte-dock submission ever becomes real. Keep vendored-file

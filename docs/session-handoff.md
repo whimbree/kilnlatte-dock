@@ -22,7 +22,7 @@ below are now RESOLVED and kept only as archaeology.
   clicks, layout in pieces) while the QML gate stayed green - the gate
   cannot catch semantics, only compilation. Anchor multi-line
   expressions in full when editing.
-- Edit-mode chrome trilogy (user-reported: blueprint flash+vanish,
+- Edit-mode chrome trilogy (caught live: blueprint flash+vanish,
   rearrange dying instantly, dock stuck in edit visuals) root-caused as
   THREE stacked latent defects, none introduced today: stale persisted
   inConfigureAppletsMode (fb621102), chrome focus-grab racing its own
@@ -37,8 +37,8 @@ below are now RESOLVED and kept only as archaeology.
 - Still open, filed: startup 'No QSGTexture' warnings (48/run, source
   unidentified, family 7 by fingerprint), default indicator main.qml:92
   dead binding, right-click menu missing 'Applet Settings'
-  (pre-existing per user recollection).
-- Round two, user-driven: the rearrange input mask was carved from a
+  (pre-existing per my recollection).
+- Round two, desk-driven: the rearrange input mask was carved from a
   once-sampled, wrong rect (outer Button item stretched to 2544 wide
   after chrome retargeting) - a full-width stripe ate hover and drags
   across every applet's middle. Fixed by re-carving on the rect's
@@ -61,7 +61,7 @@ below are now RESOLVED and kept only as archaeology.
   previous owner). Vertical-dock rearrange fixed via the canvas content
   reload on retarget (cross-view binding stranding class, mechanism
   demonstrated on the header's frozen y). Applet context menus restored
-  with the Configure entry available ALWAYS (owner decision): the root
+  with the Configure entry available ALWAYS (my call): the root
   was Panel.qml's viewLayout discovery missing that Plasma 6
   containment roots ARE ContainmentItems, plus three layered defects
   above it - see the plan item for the full chain. Default indicator
@@ -74,8 +74,8 @@ below are now RESOLVED and kept only as archaeology.
   startup latency (measure without the gdb wrapper first), containment
   menu corner-placement watch item, left canvas geometry flip-flop
   watch item.
-- Round six, autonomous (d619ae08, d98bff98, 69baabf0 + docs): the
-  user's minimal preview recipe (hover System Monitor, glide to
+- Round six, autonomous (d619ae08, d98bff98, 69baabf0 + docs): my minimal
+  preview recipe (hover System Monitor, glide to
   Firefox, preview ~370px left) root-caused past the deferred re-show:
   the timer path skipped preparePreviewWindow so content and anchor
   could interleave across tasks. show() now binds visualParent and
@@ -84,11 +84,10 @@ below are now RESOLVED and kept only as archaeology.
   preview dead-center (2395 vs icon 2394). Effect-source layering then
   landed (69baabf0): startup warnings 45 -> 7, ZERO accrual over 95s
   idle and over hover churn; residuals are first-frame bursts (~28
-  applet-shadow, known lower-risk class). USER-VISIBLE: task
+  applet-shadow, known lower-risk class). VISIBLE CHANGE: task
   hover-brighten/click effects render for the first time since the
-  port - they were invalid-sampler no-ops before. If the user asks
-  why icons suddenly brighten on hover, that is restored Qt5 behavior,
-  not new. Badged-icon effect rendering still unverified (no badge app
+  port - they were invalid-sampler no-ops before. The sudden
+  hover brightening is restored Qt5 behavior, not a new effect. Badged-icon effect rendering still unverified (no badge app
   was running). Next in queue: hover-modal inconsistency in rearrange
   mode, residual ~40px preview offset during zoom dwell (live vs
   resting rect, refine d98bff98), then the latency items.
@@ -104,7 +103,7 @@ below are now RESOLVED and kept only as archaeology.
   Loader on the svg existing (deterministic: Loader active binding
   subscribes before any arrow exists, connections fire in
   establishment order). Verified live: switch, round trips, cold
-  start with plasma persisted, frames render; user's indicator
+  start with plasma persisted, frames render; my indicator
   setting restored to Latte afterwards. METHOD note: the crash
   always killed the process before KConfig synced, so the persisted
   type stayed latte - which both kept the repro armed across runs
@@ -152,7 +151,7 @@ below are now RESOLVED and kept only as archaeology.
   Unexplained leftover: during two mid-session probe runs the dock
   window mapped but painted nothing for ~2 minutes; not reproduced
   under the final code (four clean sub-30s starts), so only noted.
-  User config fully restored (no colorizing keys, shadows on) and
+  My config fully restored (no colorizing keys, shadows on) and
   verified rendering unchanged.
 - Round twenty-two (2026-07-14 evening, verification only): the
   comic/WebEngine free-run under threaded is GONE on HEAD. First
@@ -167,8 +166,8 @@ below are now RESOLVED and kept only as archaeology.
   MAIN-thread for ~60-90s after start (render threads quiet) -
   layout/applet settling, not a render loop; noted in the item, no
   new plan entry.
-- Round twenty-three (2026-07-14 night, user-driven): the ComboBox
-  collapsed-popup defect user-confirmed and fixed (a302d742). Headless
+- Round twenty-three (2026-07-14 night, desk-driven): the ComboBox
+  collapsed-popup defect confirmed by hand and fixed (a302d742). Headless
   qmltestrunner probes did the whole bisect without touching the live
   dock: Array.isArray(control.model) is always false on Qt6 (model
   reads back as QVariantList), so all role lookups took the
@@ -180,9 +179,9 @@ below are now RESOLVED and kept only as archaeology.
   edits need a restage before the test sees them (a probe cycle died
   to the old file); and the ListModel case is what proved the obvious
   modelData-only fix wrong - test all model kinds, not the broken one.
-- Round twenty-four (2026-07-14 night, user-driven): the intermittent
-  settings-window overflow root-caused and fixed (1b932ed9) with the
-  user WATCHING the repro live. Method: a geometry-sampling loop
+- Round twenty-four (2026-07-14 night, desk-driven): the intermittent
+  settings-window overflow root-caused and fixed (1b932ed9) watching
+  the repro live on screen as it ran. Method: a geometry-sampling loop
   (dumpwins every 300-400ms) around cold restarts vs warm reopens -
   warm was 12/12 correct, cold mapped +99px too tall (93px past the
   screen top) and STAYED wrong. The 99px equals the dock's own
@@ -192,7 +191,7 @@ below are now RESOLVED and kept only as archaeology.
   self-origin exclusion in updateAvailableScreenGeometry dropped the
   correction forever. Fix accepts self-origin updates (commented
   deviation). Verified across three cold runs after the fix: stale
-  mapping lasts <1s then snaps correct; user confirmed no overflow.
+  mapping lasts <1s then snaps correct; confirmed on screen: no overflow.
   RESIDUAL filed in the plan item (Phase 8 family): the <1s stale
   flash exists because corona's rect itself is late - the real lever
   is why reserved-area integration lags ~10s behind first paint.
@@ -209,14 +208,14 @@ below are now RESOLVED and kept only as archaeology.
   then found our own test file documenting why it is unnecessary
   here and REVERTED before commit - check what this tree already
   decided before folding a fork's fix for the fork's own bug. Also:
-  add-via-drag ticked (user-verified; ownership single by
+  add-via-drag ticked (hand-verified; ownership single by
   construction), missing "Show Alternatives" MENU ENTRY filed (the
   restored handler is unreachable until it exists), fakepointer
   needs no extension for drag-and-drop (drag is
   press/waypoints/release), GUI-CI candidate tests banked in the
-  Phase 10 e2e item pending the owner's microvm.
+  Phase 10 e2e item pending the planned microvm.
 - SESSION CLOSE STATE (2026-07-14 night): everything committed and
-  pushed; working tree clean; the user's dock runs the latest build
+  pushed; working tree clean; my dock runs the latest build
   under the gdb wrapper with --user-config, config fully restored
   (Latte indicator, no colorizing keys, shadows on). The 2026-07-13
   queue is CLEARED: indicator switch crash fixed (841c2ca4), child
@@ -225,12 +224,12 @@ below are now RESOLVED and kept only as archaeology.
   verified gone (docs only). The throwaway 3-dock layout has its
   comic applet back (with-comic.bak made active again). OPEN, in
   rough priority: the settings-window-overflows-screen-top report
-  (needs the user's repro - which monitor/mode; plan item filed),
+  (needs my repro - which monitor/mode; plan item filed),
   the LatteComponents.ComboBox collapsed-popup defect (plan item
   with symptoms), startup latency phase 2, and the Phase 8 backlog.
 - SESSION CLOSE STATE (2026-07-13 night): everything committed and
   pushed through 1a49f118; working tree clean; the dock runs the
-  latest build with --user-config (the user's REAL ~/.config, single
+  latest build with --user-config (my REAL ~/.config, single
   bottom dock - their Jul 10 layout). NOTE: plain restart-staged.sh
   without --user-config loads the THROWAWAY 3-dock test layout from
   build/_runconfig (which contains two comic/WebEngine applets that
@@ -246,7 +245,7 @@ below are now RESOLVED and kept only as archaeology.
   colorizer double-draw, comic/WebEngine spin, the corona
   double-windowAdded curiosity (mixed single/double adds per popup
   open - benign for the slide but unexplained).
-- Round eighteen, the slide saga SOLVED (1f8770fd, user: 'it slides
+- Round eighteen, the slide saga SOLVED (1f8770fd, confirmed live: 'it slides
   in now!!'): the final layer was PlasmaQuick::Dialog deriving its
   own slide hint from location INSIDE its first-expose handler, which
   on the threaded loop blocks until the mapping frame is committed -
@@ -261,14 +260,14 @@ below are now RESOLVED and kept only as archaeology.
   orthogonal). Our Dialog updateSlideEffect machinery stays as
   reinforcement for surface-recreation cases.
 - Round seventeen, the popup slide saga (347f413a, f630d2ad; slide-in
-  STILL OPEN, full evidence chain + leads in the plan item): user
-  wants plasma-parity popup animations - popup must emerge from
+  STILL OPEN, full evidence chain + leads in the plan item): the goal is
+  plasma-parity popup animations - popup must emerge from
   behind the dock like plasmashell's from their panel. Banked along
   the way: the staged env was missing kwindowsystem's wayland plugin
   ENTIRELY (dialog shadows had silently never worked - allow-listed
   the exact linked package's plugin dir in run-staged), and applet
   popups now carry the appletpopup role (slide-OUT works,
-  user-verified). Slide-in remains eaten by the scale effect; the
+  hand-verified). Slide-in remains eaten by the scale effect; the
   hottest lead is a DOUBLE windowAdded per open seen by the KWin
   probe. HARD-WON METHODOLOGY NOTES: popupWindow=false is CORRECT
   for appletpopup-role windows (wasted a probe cycle); client-side
@@ -280,12 +279,12 @@ below are now RESOLVED and kept only as archaeology.
   and READ upstream sources at the pinned tag before hypothesizing
   about them (three ordering theories died to source reading).
   Also new: audio-badge volume wheel now matches plasma-pa exactly
-  (299a241b, user-verified) and fakepointer has a scroll subcommand.
+  (299a241b, hand-verified) and fakepointer has a scroll subcommand.
   QUEUED NEXT: the Latte->Plasma indicator switch crash (gdb harness
   item in the plan), the colorizer double-draw check, comic/WebEngine
   free-run under threaded.
-- Round sixteen, threaded render loop (28fdca5f): the user set the
-  bar - 'behave like plasma where possible' - and reported jittery
+- Round sixteen, threaded render loop (28fdca5f): the bar was set -
+  'behave like plasma where possible' - and reported jittery
   per-task volume scroll plus a chugging calendar popup. Both traced
   toward the basic render loop: plasmashell runs threaded here (8
   QSGRenderThreads), latte ran basic (a stabilization-era default
@@ -338,7 +337,7 @@ below are now RESOLVED and kept only as archaeology.
   is exactly one commit. NEXT startup lever if wanted: profile the
   ~2.4s corona init (theme mask parsing was one visible chunk).
 - Round twelve-c, ghosts finished (c7c46226): the per-side rect fix
-  was not enough - the user re-reproduced on the clock. The sibling
+  was not enough - it re-reproduced by hand on the clock. The sibling
   shadow pattern (ShadowedItem Loader sampling a still-visible
   original) draws content twice and trusts MultiEffect to place its
   padded copy pixel-exactly; it lands a few px off, double-striking
@@ -358,7 +357,7 @@ below are now RESOLVED and kept only as archaeology.
   totals; Qt's updateSourcePadding() defines them as PER-SIDE extras
   (left/top/right/bottom), and the shader's centerOffset scales with
   (x - width), so the asymmetric rect drew a smaller offset ghost of
-  every applet inside itself. User caught it within minutes of the
+  every applet inside itself. Caught by eye within minutes of the
   build going live. Fixed to Qt.rect(pad,pad,pad,pad); the test now
   pins all four sides equal. LESSON: MultiEffect verification needs a
   VISUAL pass, not just CPU numbers and green tests - and when Qt
@@ -410,7 +409,7 @@ below are now RESOLVED and kept only as archaeology.
   one wayland root (mapped popups cannot be repositioned by
   QWindow-level calls) wearing four costumes. When a workaround's
   reason disappears, delete the workaround - do not refine it.
-- Round nine (8f821310): 77aac4b4 user-confirmed with a real mouse.
+- Round nine (8f821310): 77aac4b4 confirmed with a real mouse.
   The rearrange hover-modal inconsistency then fell to the same class:
   ConfigOverlay's tooltip was a stock PlasmaCore.Dialog with a
   visualParent binding hopping between hovered applets while mapped -
@@ -422,7 +421,7 @@ below are now RESOLVED and kept only as archaeology.
   other PlasmaCore.Dialog uses with mutable visualParent if a similar
   'appears in the wrong place / does not appear' report shows up.
 - Round eight, the previews bug's real ending (77aac4b4, dbe5a03b):
-  the user re-reproduced against d619ae08 with the same recipe. Full
+  re-reproduced by hand against d619ae08 with the same recipe. Full
   instrumentation of QML show() plus every C++ position push caught
   it: the dialog maps with the PREVIOUS task's content width, the base
   recenters on the resize, then libplasma's stale-position re-send
@@ -430,7 +429,7 @@ below are now RESOLVED and kept only as archaeology.
   only by the mainItem-resize hook, which fired for every intermediate
   stop of the sweep but not the final one. Ordering-dependent
   correctness, which is why three fixes passed synthetic retests and
-  kept failing under the user's hand. 77aac4b4 removes the stored
+  kept failing under my hand. 77aac4b4 removes the stored
   state entirely: recompute the anchored target fresh from current
   anchor + pending content size after every Move/Expose/Show and push
   it; any ordering self-heals next event. Clean-build verified, recipe
@@ -459,9 +458,9 @@ below are now RESOLVED and kept only as archaeology.
   edit-mode first-open cost is in-engine type instantiation - warm-up,
   not qmlcachegen, is the candidate fix. Benign oddity explained:
   latte-dock windows 4/5 appear ~18.5s post-start in every run (lazy
-  ToolTipDialog/KlipperPopup), not user hover.
+  ToolTipDialog/KlipperPopup), not pointer hover.
 - Round four, decisions and mapping (e70bccf7, e85e18d8, 98b7419e):
-  parabolic zoom disabled for ALL of edit mode by owner decision
+  parabolic zoom disabled for ALL of edit mode as a deliberate call
   (deliberate Qt5 deviation, comment at the site). The missing 'Applet
   Settings' menu entry got its architecture mapped: Qt5's
   ViewPart::ContextMenu was removed in the port (d3538eee), the canvas
@@ -469,10 +468,10 @@ below are now RESOLVED and kept only as archaeology.
   applet-under-cursor resolution (direct-children method lookup misses
   Plasma 6 wrappers; cross-window fallback; use-before-null-check at
   :229), and dock-window right-clicks reach the containment-only
-  containmentactions plugin. Owner decision: configure entry belongs in
+  containmentactions plugin. Decided: configure entry belongs in
   the menu ALWAYS (matches Qt5/plasmashell). Also filed: Edit Dock
   wrong-view targeting (stale singleton chrome shows before retarget,
-  observed in the 20:53 trace and twice by the user), edit-mode
+  observed in the 20:53 trace and twice by hand), edit-mode
   first-open latency (cold QML compile suspect), startup latency
   (measure without the gdb wrapper and -d before optimizing). Left
   dock rearrange remains dead pending the off-surface header item.
@@ -558,7 +557,7 @@ below are now RESOLVED and kept only as archaeology.
 
 Still open from this sweep (all filed in the plan): duplicated-dock applet
 ORDER retest on a rearranged layout (default-order layouts cannot exhibit
-it - use the real user layout, interactive), the with-user settings
+it - use my real layout, interactive), the at-the-desk settings
 control walk (TaskMouseArea's 9 TaskAction values especially), folder-view
 calling corona.isScreenUiReady (shim vs noise decision),
 BindingsExternal.qml:281 localGeometry-of-null startup transient, and the
@@ -585,14 +584,14 @@ Phase 8 day-one results (all commits on master, plan items ticked):
   on a 'CLEARED SCREEN :: DP-3' output removal - the portrait monitor
   flaps, and it MUST be eliminated as a variable before trusting further
   verdicts. CompactApplet churn hardening is filed and NOT implemented.
-- Multi-monitor edit chrome fixed and user-verified (d670c97a): canvas,
+- Multi-monitor edit chrome fixed and hand-verified (d670c97a): canvas,
   settings window and widget explorer pin to the edited view's output.
   The secondary advanced-mode window is NOT yet covered.
 - Debugging kit that made all of this work: LATTE_RUN_WRAPPER gdb batch
   script (catches every crash with full backtraces; KCrash self-destructs
   here), fakepointer move/click/rightclick, the KWin dumpwins scripting
   one-liner for true window geometries, WAYLAND_DEBUG=1 for protocol-level
-  truth, and the user at the desk as the reproduction engine.
+  truth, and by-hand desk driving as the reproduction engine.
 
 ## What landed this session (all committed, all live-verified with screenshots)
 
@@ -642,7 +641,7 @@ Crash + infrastructure:
 ## Hover preview jitter: ROOT CAUSE CONFIRMED LIVE, fix proposed, awaiting go
 
 Reproduced with fakepointer + temporary QML logging (instrumentation added,
-driven, read, then removed; tree carries none of it). The user's symptom
+driven, read, then removed; tree carries none of it). My symptom
 (preview disappears and reappears in a different spot when nudging the cursor)
 is the visible edge of a parabolic-zoom feedback loop that runs even with a
 COMPLETELY STATIONARY pointer:
@@ -674,11 +673,11 @@ COMPLETELY STATIONARY pointer:
    QWindow::size() vs x=681 from the new mainItem size) every ~10ms while the
    on-screen popup stayed at the first mapped position.
 
-IMPLEMENTED (user go given), iterated live with the user across four rounds,
+IMPLEMENTED (go given), iterated live at the desk across four rounds,
 currently UNCOMMITTED in the working tree awaiting their final verdict:
 
 1. Parabolic::onEvent drops MouseMove-derived updates whose window position
-   has not changed (kills the stationary feedback loop; user confirmed "it no
+   has not changed (kills the stationary feedback loop; confirmed live: "it no
    longer jitters"). Honest caveat: the guard's drop path was never observed
    firing post-fix; the original storm conditions did not fully reproduce.
 2. Dialog::updateGeometry() positions with the size the dialog is about to
@@ -692,11 +691,11 @@ currently UNCOMMITTED in the working tree awaiting their final verdict:
 4. The previews dialog opts out of the applets-layout clamp
    (respectsAppletsLayoutGeometry: false): the clamp shoved wide previews for
    tasks near the dock ends sideways off their icon.
-5. Previews anchor to a RESTING midpoint (user's own suggestion): every task
+5. Previews anchor to a RESTING midpoint (my own suggestion): every task
    carries an invisible anchor whose center is sampled while the row is fully
    at rest and frozen during zoom AND during the restore animation
    (3*animationTime + margin; unfreezing right when currentParabolicItem
-   clears sampled mid-restore midpoints, reproduced by the user with quick
+   clears sampled mid-restore midpoints, reproduced by hand with quick
    hover-away-and-back). TaskItem.qml _previewsVisualParent.
 
 6. THE ACTUAL WAYLAND ROOT CAUSE of every "popup stuck at the previous
@@ -718,13 +717,13 @@ currently UNCOMMITTED in the working tree awaiting their final verdict:
 
 The PORTING_PLAN Phase 7 "always-visible MouseArea, synchronous parabolic
 calc" note (latte-dock-ng 0deca9e18) remains the structural long-term shape.
-User confirmed no jitter within an icon; the final cross-icon slide test on
+Confirmed by hand: no jitter within an icon; the final cross-icon slide test on
 the (now multi-monitor) setup is still awaiting their verdict, then the
 whole set can be committed in reviewable pieces.
 
 ## Multi-monitor: edit-mode windows use stale/wrong screen geometry (NEW, Phase 8)
 
-User added a second monitor (portrait 1440x2560 at (0,0), landscape 2560x1440
+I added a second monitor (portrait 1440x2560 at (0,0), landscape 2560x1440
 at (1440,447)) and entered edit mode on the portrait dock. The settings
 window landed at (2031,7) sized 529x1287: exactly the values computed for
 the OLD single-screen 2560x1440 layout (x = 2560-529, y = 1440-146-1287),
@@ -741,7 +740,7 @@ that both reference forks fought multi-screen repeatedly.
 
 ## Duplicate-dock + add-widget crash (NEW, open, no core)
 
-User duplicated their dock, then added a widget to it; latte crashed and
+I duplicated the dock, then added a widget to it; latte crashed and
 KCrash itself crashed while handling it (log: 'KCrash: appFilePath points
 to nullptr!', crashRecursionCounter = 2), so there is NO core. The log
 fingerprint: at duplication time a storm of
@@ -767,7 +766,7 @@ crashes because teardown itself segfaulted (~Theme null schemes).
 
 ## Add-panel crash (open, core retained)
 
-User's 'add default panel' crashed: Storage::importLayoutFile iterated
+'Add default panel' crashed: Storage::importLayoutFile iterated
 corona()->importLayout() results and one containment pointer was ALREADY
 FREED (first bytes 0x1) when isLatteContainment() copied its metadata
 (kcoreaddons KPluginMetaData copy ctor SEGV). Something destroys a containment
@@ -780,9 +779,9 @@ importLayout, subcontainment (systemtray) handling, and the icontasks
 package-load failure ('Could not find required file mainscript') seen during
 imports.
 
-## Edit mode layout (user-requested, COMMITTED, live-verified)
+## Edit mode layout (my request, COMMITTED, live-verified)
 
-User request: rearrange button to the LEFT, settings panel to the RIGHT, the
+The request: rearrange button to the LEFT, settings panel to the RIGHT, the
 Maximum Length ruler aligned with the top of the blueprint. Root causes found
 with a KWin-script window dump (see verification loop below):
 
@@ -806,14 +805,14 @@ Landed as:
 - 5e873329 fix(settings): completes the cf05d856 STUB. In configure-applets
   mode the whole canvas was click-through, so unclicking the rearrange
   toggle fell through to the dock, the settings window lost focus and edit
-  mode closed entirely (user-reported). updateInputRegion now reads the
+  mode closed entirely (caught live). updateInputRegion now reads the
   QML-published rearrangeToggleRect and keeps that rect interactive.
 
 All verified live with KWin-script geometry dumps + the screenshot loop:
 canvas at (0,1294) 2560x146 == the blueprint band, settings at (2031,7)
 flush right with its bottom on the blueprint top, ruler line is the grid's
 top boundary, toggle at the left under it, and the rearrange toggle
-round-trip keeps edit mode open (user-confirmed working).
+round-trip keeps edit mode open (confirmed working by hand).
 
 One quirk seen only with fakepointer, not reproduced with a real mouse:
 the click that ENTERS rearrange mode shrinks the input mask mid-click, and
@@ -824,7 +823,7 @@ pressed so the next synthetic click was a no-op. If a real-mouse report of
 ## iconSize startup hang (NEW, root cause bisected, code fix pending)
 
 The port hangs at startup at 100% CPU (main thread, event loop starved, dbus
-times out) when the layout contains iconSize=78. Bisected live: user layout
+times out) when the layout contains iconSize=78. Bisected live: my layout
 in a throwaway config hangs; same layout minus iconSize=78 starts; iconSize=64
 starts; 78 alone re-adds the hang. gdb backtrace (child run, since yama
 blocks attach): a QML bound-signal handler triggered from the
@@ -835,11 +834,11 @@ flip-flopping once the icon size crosses a threshold between 64 and 78. The
 log always freezes on the same line: 'Updating visibility mode ::
 AlwaysVisible' right before indicator QML would load.
 
-IMPORTANT: the REAL user layout (~/.config/latte/"My Layout.layout.latte")
+IMPORTANT: my REAL layout (~/.config/latte/"My Layout.layout.latte")
 acquired iconSize=78 at 22:20:35 on 07-10, written when a staged dock was
 killed while edit mode was open. Until the loop is fixed in code (preferred;
 CLAUDE.md failure rules: fix the origin, do not clamp), --user-config runs
-will hang. Do not silently edit the user's config; ask, or fix the code first.
+will hang. Do not silently edit my config; ask, or fix the code first.
 
 ## The live-verification loop (the big infrastructure win, use it every time)
 
@@ -858,12 +857,12 @@ Do NOT claim a UI change works without driving it and reading pixels. Yesterday'
 - Capture: spectacle -b -n [-p for cursor] -o <file>, then Read the png.
 - A ~14KB all-white png means the screen is LOCKED (loginctl show-session
   <wayland session> -p LockedHint) or the display slept, NOT a spectacle flake.
-  User gave standing consent to loginctl unlock-session for verification; re-lock
+  Standing decision: loginctl unlock-session is fine for verification; re-lock
   with loginctl lock-session when done. Run kscreen-doctor --dpms on before
   capturing. The session auto-locks on a timer, so expect to unlock repeatedly.
 - Confirm a capture landed inside edit mode by checking the png mtime against the
   dock log's "#primaryconfigview#" init line. The settings window closes on focus
-  loss and edit mode dies within seconds of the user typing elsewhere, so capture
+  loss and edit mode dies within seconds of typing elsewhere, so capture
   ~2s after the invoke.
 - Screenshots and the fakepointer binary go under $CLAUDE_JOB_DIR/tmp, not /tmp.
 

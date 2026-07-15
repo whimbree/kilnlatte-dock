@@ -106,7 +106,7 @@ Item {
                     //! handler stepped on ANY event past 16 units but then
                     //! blocked for 80ms, so held scrolling lagged plasma's,
                     //! and reversals inside the block window were swallowed
-                    //! (user-reported: different thresholds up vs down,
+                    //! (caught live: different thresholds up vs down,
                     //! slower response than plasma's own applet).
                     onWheel: (wheel) => {
                         const delta = (wheel.inverted ? -1 : 1) * (wheel.angleDelta.y ? wheel.angleDelta.y : -wheel.angleDelta.x);

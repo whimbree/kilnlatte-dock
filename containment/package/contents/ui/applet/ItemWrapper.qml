@@ -455,7 +455,7 @@ Item{
         //! this container: a sibling redraws the content over the still
         //! visible original, and MultiEffect's padded-source placement is
         //! not guaranteed pixel-exact, so applets rendered with a shifted
-        //! ghost copy of themselves (user-reported twice: clock text
+        //! ghost copy of themselves (caught twice live: clock text
         //! double-struck). As the layer effect it REPLACES this item's
         //! rendering - misalignment cannot double-draw by construction.
         layer.enabled: shadowIsEnabled

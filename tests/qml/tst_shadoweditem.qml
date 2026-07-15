@@ -52,7 +52,7 @@ TestCase {
         //! blur extent plus offsets on every side. paddingRect components
         //! are PER SIDE (x/y/width/height = left/top/right/bottom extra,
         //! per Qt's updateSourcePadding()); asymmetric values draw the
-        //! source scaled and offset inside itself (user-reported ghost
+        //! source scaled and offset inside itself (live-reproduced ghost
         //! copies of every applet), so all four sides must be equal
         shadowed.shadowSizePx = 20;
         verify(shadowed.paddingRect.x >= 20 + Math.abs(shadowed.shadowVerticalOffset),

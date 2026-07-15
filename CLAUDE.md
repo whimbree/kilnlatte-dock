@@ -10,7 +10,7 @@ community fork below.
 ## End goal
 
 Two things, explicitly, not in tension: a production-grade daily-driver
-dock, and a learning vehicle for the user (new to Qt6/KF6 and its
+dock, and a learning vehicle for me, the author (new to Qt6/KF6 and its
 moving parts). Eventual upstream contribution to KDE is the aspiration
 - keep history clean and commits reviewable-shaped from the start
 because of this, not as an afterthought before submitting.
@@ -78,6 +78,15 @@ stale checkboxes."
   before accepting a fork's version of any behavior.
 - Never add Co-Authored-By or other AI attribution to commits (global
   preference, not specific to this repo).
+- Everything committed is written in the author's voice: commit
+  messages, docs, and code comments never say "the user", "the owner",
+  "user-reported" or "user-verified" as if reports arrive from a third
+  party - I am the author, reporter and verifier. Write "caught live",
+  "reproduced twice", "verified with a real mouse", "my real config".
+  Generic end-user prose in UX comments ("shown long enough for the
+  user to observe") is fine and matches upstream style; the ban is on
+  operator framing, not on the word itself. Already-pushed messages
+  get reworded at the pre-PR history cleanup, not amended now.
 - No em-dashes, no AI-sounding marketing-style phrasing in docs, commit
   messages, or code comments - write plainly, like a programmer.
 - Push to origin (whimbree/latte-dock) after each big chunk of landed,
@@ -208,7 +217,7 @@ from here, not a re-read of the whole history:
 ## Current status
 
 (This section was stale for a long time - keep it honest.) The port is
-a daily driver: the user runs it against their real config. Phases 0-7
+a daily driver: I run it against my real config. Phases 0-7
 are substantially done, Phase 8 is OPEN (docs/PORTING_PLAN.md has the
 live checklist), and current work is stabilization polish driven by
 live use. docs/session-handoff.md carries the running session state.

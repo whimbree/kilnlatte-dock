@@ -71,7 +71,7 @@ Loader{
             //! a sibling redraws the content over the still visible original
             //! and MultiEffect's padded placement is not pixel-exact, which
             //! ghosted a shifted copy (same defect as the ItemWrapper applet
-            //! shadow, user-reported on the clock)
+            //! shadow, caught live on the clock)
             layer.enabled: appletItem.myView.itemShadow.isEnabled
                            && appletItem.environment.isGraphicsSystemAccelerated
             layer.effect: LatteComponents.ShadowedItem{

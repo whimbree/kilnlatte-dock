@@ -32,7 +32,7 @@ MultiEffect {
     // qquickmultieffect.cpp): x/y/width/height are the EXTRA pixels on the
     // left/top/right/bottom respectively - per side values, NOT totals.
     // Getting that wrong draws the source scaled and offset inside itself
-    // (user-reported: a smaller ghost copy of every applet).
+    // (caught live: a smaller ghost copy of every applet).
     readonly property int shadowPaddingPx: Math.ceil(shadowSizePx
                                                      + Math.max(Math.abs(shadowHorizontalOffset), Math.abs(shadowVerticalOffset))
                                                      + 2)
