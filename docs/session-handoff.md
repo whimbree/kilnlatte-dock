@@ -1,9 +1,62 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-14. PHASE 8 IS OPEN - read its section in
+Last updated 2026-07-15. PHASE 8 IS OPEN - read its section in
 docs/PORTING_PLAN.md first; every item is current there, several sections
 below are now RESOLVED and kept only as archaeology.
+
+## 2026-07-15: headless effect-contract sweep (agent worktree, no dock runs)
+
+Everything in this section was done WITHOUT launching the dock; all
+mechanisms are pinned from the flake-pinned Qt/libplasma sources and
+headless probes, and the visual/warning halves are queued for the next
+live session (each fix's commit body says exactly what to look at).
+
+- The churn 't1 ... (QQuickItem*)' warning is ROOT-CAUSED (5f8c10be):
+  the (QQuickItem*) suffix means the sampler variant holds a NULL item;
+  libplasma nulls the expander's compactRepresentation on the inline
+  switch to full rep (appletquickitem.cpp:384), and CompactApplet's
+  click flash (alwaysRunToEnd) kept sampling it. Gate now includes the
+  representation. LIVE CHECK: click an applet, hover-zoom it across
+  switchWidth, confirm zero t1 warnings.
+- MECHANISM CORRECTION for family 7, earned from qquickmultieffect.cpp
+  + qgfxsourceproxy.cpp and pinned in tst_multieffectcontracts.qml:
+  Qt6 MultiEffect DOES auto-wrap plain Item sources in an internal
+  ShaderEffectSource (hasProxySource). The real trap is that the proxy
+  decides direct-vs-wrapped at polish time and NEVER repolishes when
+  the source's layer.enabled flips, in either direction - so a source
+  whose layer drops while any effect node can still preprocess it
+  (opacity-0 nodes still preprocess; only visible:false removes the
+  node) strands a dead provider. That refined rule produced: the
+  colorizer visible gate (230774d0) and the forceMonochromaticIcons
+  layer hold (1932db32). Masks are NOT proxied at all (maskSrc is set
+  raw), so plain-item masks stay outright invalid - unchanged rule.
+- Sibling-copy shadows finished off in tasks (b634ef67): ParabolicItem
+  task shadow, basicitem ShortcutBadge (missed twin of c7c46226), and
+  the remove-from-group ghost (shadow+desaturate collapsed into one
+  layer effect; ShadowedItem carries saturation riders, contract in
+  tst_shadoweditem). Forced monochromatic icons restored to
+  ColorOverlay semantics at both sites (1932db32, 1f835402 family).
+  Drag-greying badge effect gated visible (2c726d4b).
+- Startup 'No QSGTexture' first-frame bursts EXPLAINED, no action:
+  MultiEffect's internal shadow/blur chain is layered BlurItems
+  sampling each other; first frames after a window maps warm the chain
+  level by level. Bounded, never accrues at idle. Plan item updated.
+- Tests: qmleffectrules ctest (autoPaddingEnabled only ever literal
+  false in shipped QML, negative case verified),
+  tst_multieffectcontracts.qml (autoPadding default, per-side
+  paddingRect via itemRect, proxy behavior both directions),
+  tst_shadoweditem rider test. All 7 ctest entries green.
+- Tooling note: the offscreen platform never starts a scenegraph
+  render loop - QSG_INFO prints nothing and TestCase.grabImage returns
+  blank white for everything. Sampler warnings and texture content are
+  NOT headlessly observable; polish-level state (hasProxySource,
+  itemRect) is. Do not write pixel assertions into offscreen tests.
+- Open, filed in the plan: the window-preview thumbnail shadow is
+  still a sibling ShadowedItem whose proxy layer-grabs the live
+  pipewire item every frame (PipeWireSourceItem is not a texture
+  provider) - the e88af680 crash-class question needs a live gdb
+  reproduction attempt before touching it.
 
 ## 2026-07-12 late evening: comic hover crash + edit-mode chrome trilogy
 

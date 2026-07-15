@@ -1101,6 +1101,16 @@ multi-view, multi-monitor setup.
       risk if wrong. The ~28 applet-shadow first-frame nulls remain as
       the known lower-risk transient population (layered sources,
       family 7 note in 73da8400).
+      RESIDUAL EXPLAINED 2026-07-15 from the pinned qtdeclarative
+      6.11.0 source: any MultiEffect with shadow/blur builds an
+      internal chain of LAYERED BlurItem ShaderEffects (blurSrc1..n,
+      qquickmultieffect.cpp updateBlurLevel), each sampling the
+      previous level; on the first frames after a shadowed window maps
+      or re-shows, downstream levels sample layers that have not
+      produced a texture yet - one 'No QSGTexture provided' per level
+      per effect. Internal to Qt's MultiEffect, bounded per map or
+      re-show (never accrues at idle), not fixable from Latte QML
+      without dropping shadows; accepted as benign, no action.
       Commits: 69baabf0
 - [x] SIGSEGV dropping/pinning a launcher onto the tasks applet
       (reproduced by hand 2026-07-13 under the gdb wrapper, full trace at
@@ -2184,6 +2194,79 @@ multi-view, multi-monitor setup.
       (visualParent/transientParent forwarding). Compare with
       plasmashell: where does the same button place its window
       there. Phase 8 multi-screen family.
+      Commits:
+- [x] 'ShaderEffect: Texture t1 is not assigned a valid texture
+      provider (QQuickItem*)' during representation churn (observed
+      live: an applet crossing switchWidth/switchHeight on hover).
+      ROOT-CAUSED 2026-07-15 headlessly from the pinned sources: the
+      (QQuickItem*) suffix means the sampler variant holds a NULL item
+      (qsgrhishadereffectnode.cpp prints the live source's class name
+      otherwise), and libplasma's compactRepresentationCheck NULLS the
+      expander's compactRepresentation property on the inline switch
+      to full (appletquickitem.cpp:384 at 6.6.5). CompactApplet's
+      clicked flash kept sampling that property while running
+      (alwaysRunToEnd), warning per material sync for the rest of the
+      flash. Gate includes the representation now; visible:false
+      removes the node before the next sync. Live re-verification of
+      warning disappearance queued for the next live session.
+      Commits: 5f8c10be
+- [x] Colorizer disengage armed a dead-provider sampler: effect
+      SourceProxies decide direct-vs-proxy at polish time and NEVER
+      repolish when the source's layer.enabled flips (pinned by the
+      new contract tests). ItemWrapper's provider layer drops at fade
+      end while the ColorOverlay stayed in the scenegraph at opacity
+      0, still preprocessing per repaint against the destroyed layer.
+      Colorizer subtree now leaves the scenegraph at opacity 0.
+      Commits: 230774d0
+- [x] Sibling-copy shadow arrangements surviving in tasks after
+      c7c46226 banned the class in the containment: ParabolicItem's
+      task shadow, basicitem/ShortcutBadge (twin of the converted
+      containment badge), RemoveWindowFromGroupAnimation's fly-away
+      ghost (shadow + desaturate siblings, now one layer effect with
+      saturation riding ShadowedItem). All layer.effect on
+      settings-stable gates now. Visual confirmation (single-struck
+      shadows on live task icons) queued for the next live session.
+      Commits: b634ef67
+- [x] Forced monochromatic icons (side painting) a near no-op since
+      the port: both sites used MultiEffect.colorization (gray-level
+      multiply) where Qt5 used ColorOverlay - identical mechanism to
+      the applet colorizer defect 1f835402. Restored ColorOverlay at
+      ParabolicItem and TaskIcon's badge branch; taskIconItem's
+      provider layer is held on while the feature is enabled so the
+      no-repolish proxy can never be stranded by hover churn. Visual
+      confirmation needs forceMonochromaticIcons armed live.
+      Commits: 1932db32
+- [x] Drag-greying badge effect sampled at opacity 0: missed sibling
+      of the 69baabf0 gates - with any badge showing, every badge
+      repaint re-grabbed the source for an effect drawing nothing
+      (e3376405 idle-cost family). visible: opacity > 0 now.
+      Commits: 2c726d4b
+- [x] Effect-contract enforcement made executable: qmleffectrules
+      ctest greps shipped QML so autoPaddingEnabled can only ever be
+      assigned literal false (negative case verified: a flipped
+      ShadowedItem fails the scan with file:line), and
+      tst_multieffectcontracts.qml pins autoPadding default TRUE,
+      per-side paddingRect via itemRect, plain-source proxying, and
+      the no-repolish-on-layer-flip gap in both directions. NOTE for
+      future testing: the offscreen platform never starts a scenegraph
+      render loop (QSG_INFO silent, grabs return blank), so sampler
+      warnings and texture content are live-only; polish-level state
+      (hasProxySource, itemRect) is the headless observable.
+      Commits: 032c3d4d, ba57eb37
+- [ ] Window-preview thumbnail shadow is still a sibling-copy
+      ShadowedItem sampling previewThumbLoader.item (ToolTipInstance
+      .qml:189, from c25cb3e1). Two open questions for a live
+      session: kpipewire's PipeWireSourceItem is NOT a texture
+      provider (no isTextureProvider override at 6.6.5), so the
+      effect's SourceProxy layer-grabs the live video item every
+      frame - the arrangement e88af680 refused to create for the
+      player-controls mask because layer grabs of the churning
+      pipewire item raced teardown; and converting to layer.effect
+      would layer the pipewire item directly (same class). It has run
+      live since c25cb3e1 without an attributed crash, so decide with
+      a live reproduction attempt (preview sweeps + teardown churn
+      under gdb) rather than headless guessing; the double-draw is
+      invisible on video content.
       Commits:
 
 ### Phase 11: Nix packaging + Docker build verification
