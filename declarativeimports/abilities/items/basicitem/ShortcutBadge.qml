@@ -49,21 +49,21 @@ Loader{
     }
 
     sourceComponent: Item{
-        Loader{
-            anchors.fill: taskNumber
-            active: abilityItem.abilities.myView.itemShadow.isEnabled
-                    && abilityItem.abilities.environment.isGraphicsSystemAccelerated
-
-            sourceComponent: LatteComponents.ShadowedItem{
-                anchors.fill: parent
-                shadowColor: abilityItem.abilities.myView.itemShadow.shadowColor
-                source: taskNumber
-                shadowSizePx: abilityItem.abilities.myView.itemShadow.size/2
-            }
-        }
-
         LatteComponents.BadgeText {
             id: taskNumber
+
+            //! layer EFFECT, not a sibling MultiEffect sampling this badge:
+            //! a sibling redraws the content over the still visible original
+            //! and MultiEffect's padded placement is not pixel-exact, which
+            //! ghosted a shifted copy (same defect as the containment badge,
+            //! fixed the same way in c7c46226 - this is its twin that stayed
+            //! on the sibling arrangement)
+            layer.enabled: abilityItem.abilities.myView.itemShadow.isEnabled
+                           && abilityItem.abilities.environment.isGraphicsSystemAccelerated
+            layer.effect: LatteComponents.ShadowedItem{
+                shadowColor: abilityItem.abilities.myView.itemShadow.shadowColor
+                shadowSizePx: abilityItem.abilities.myView.itemShadow.size/2
+            }
             // when iconSize < 48, height is always = 24, height / iconSize > 50%
             // we prefer center aligned badges to top-left aligned ones
             property bool centerInParent: abilityItem.abilities.metrics.iconSize < 48

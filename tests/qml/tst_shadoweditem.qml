@@ -63,6 +63,27 @@ TestCase {
         shadowed.shadowSizePx = 0;
     }
 
+    function test_effectRidersKeepThePaddingContract() {
+        //! the task remove-from-group ghost rides saturation on the same
+        //! layer effect and gates the shadow through shadowEnabled instead
+        //! of a separate sibling effect (sibling-copy shadows double-draw,
+        //! c7c46226). Riders must not disturb the static padding contract.
+        shadowed.shadowSizePx = 12;
+        shadowed.saturation = -1;
+        shadowed.shadowEnabled = false;
+
+        verify(!shadowed.autoPaddingEnabled,
+               "riders must not re-enable autoPadding");
+        compare(shadowed.paddingRect.x, shadowed.shadowPaddingPx);
+        compare(shadowed.paddingRect.y, shadowed.paddingRect.x);
+        compare(shadowed.paddingRect.width, shadowed.paddingRect.x);
+        compare(shadowed.paddingRect.height, shadowed.paddingRect.x);
+
+        shadowed.saturation = 0;
+        shadowed.shadowEnabled = true;
+        shadowed.shadowSizePx = 0;
+    }
+
     function test_shadowBlurNormalization() {
         //! shadowSizePx carries the old DropShadow.radius in pixels and maps
         //! linearly onto MultiEffect's 0..1 shadowBlur, saturating at blurMaxPx

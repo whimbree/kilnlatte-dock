@@ -118,28 +118,29 @@ Item{
             }
         }
 
-        //! Shadows
-        Loader{
-            anchors.fill: _contentItemContainer
-            active: abilityItem.abilities.myView.itemShadow.isEnabled
-                    && !abilityItem.isSeparator
-                    && abilityItem.abilities.environment.isGraphicsSystemAccelerated
-
-            sourceComponent: LatteComponents.ShadowedItem{
-                anchors.fill: parent
-                transformOrigin: abilityItem.iconTransformOrigin
-                opacity: abilityItem.iconOpacity
-                rotation: abilityItem.iconRotation
-                scale: abilityItem.iconScale
-                shadowColor: abilityItem.abilities.myView.itemShadow.shadowColor
-                source: _contentItemContainer
-                shadowSizePx: abilityItem.abilities.myView.itemShadow.size
-            }
-        }
-
         //! Main contented item
         Item {
             id: _contentItemContainer
+
+            //! the item shadow is a layer EFFECT, not the Qt5-shaped sibling
+            //! ShadowedItem that sampled this container: a sibling redraws
+            //! the sampled content over the still visible original, and
+            //! MultiEffect's padded-source placement is not pixel-exact -
+            //! the same arrangement double-struck text applets in the
+            //! containment (caught live on the clock, c7c46226). The layer
+            //! REPLACES this item's rendering, so a double-draw is impossible
+            //! by construction; opacity/rotation/scale mirror automatically
+            //! (QQuickItemLayer::updateMatrix), so the sibling's transform
+            //! copies are not needed. Gated on settings-stable conditions
+            //! only - layer churn while grabs are in flight is a crash
+            //! vector (df747ebf).
+            layer.enabled: abilityItem.abilities.myView.itemShadow.isEnabled
+                           && !abilityItem.isSeparator
+                           && abilityItem.abilities.environment.isGraphicsSystemAccelerated
+            layer.effect: LatteComponents.ShadowedItem{
+                shadowColor: abilityItem.abilities.myView.itemShadow.shadowColor
+                shadowSizePx: abilityItem.abilities.myView.itemShadow.size
+            }
             anchors.bottom: (abilityItem.location === PlasmaCore.Types.BottomEdge) ? parent.bottom : undefined
             anchors.top: (abilityItem.location === PlasmaCore.Types.TopEdge) ? parent.top : undefined
             anchors.left: (abilityItem.location === PlasmaCore.Types.LeftEdge) ? parent.left : undefined

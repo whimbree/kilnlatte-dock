@@ -5,7 +5,6 @@
 */
 
 import QtQuick 2.0
-import QtQuick.Effects
 
 import org.kde.plasma.plasmoid 2.0
 import org.kde.plasma.core 2.0 as PlasmaCore
@@ -57,23 +56,26 @@ Item{
             height: taskIcon.height
             visible: false
 
-            //! Shadow
-            Loader{
-                id: tempTaskShadow
-                anchors.fill: tempRemoveIcon
-                active: taskItem.abilities.myView.itemShadow.isEnabled
-                        && taskItem.abilities.environment.isGraphicsSystemAccelerated
-
-                sourceComponent: LatteComponents.ShadowedItem{
-                    anchors.fill: parent
-                    shadowColor: "#ff080808"
-                    source: tempRemoveIcon
-                    shadowSizePx: taskItem.abilities.myView.itemShadow.size
-                }
-            }
-
             Kirigami.Icon{
                 id: tempRemoveIcon
+
+                //! one layer EFFECT carrying both the Qt5 Colorize(0,0,0)
+                //! desaturation and the DropShadow, instead of the two
+                //! sibling effects that each redrew a copy of the icon over
+                //! the still visible original (the sibling-copy arrangement
+                //! banned in c7c46226 - MultiEffect's padded placement is
+                //! not pixel-exact). The layer replaces this icon's
+                //! rendering, so the fly-away ghost draws exactly once,
+                //! desaturated, with the shadow riding the same effect.
+                //! Gated on acceleration like every other effect site; the
+                //! shadow alone follows its setting via shadowEnabled.
+                layer.enabled: taskItem.abilities.environment.isGraphicsSystemAccelerated
+                layer.effect: LatteComponents.ShadowedItem{
+                    shadowEnabled: taskItem.abilities.myView.itemShadow.isEnabled
+                    shadowColor: "#ff080808"
+                    shadowSizePx: taskItem.abilities.myView.itemShadow.size
+                    saturation: -1
+                }
                 anchors.rightMargin: root.location === PlasmaCore.Types.LeftEdge ? taskItem.abilities.metrics.margin.thickness : 0
                 anchors.leftMargin: root.location === PlasmaCore.Types.RightEdge ? taskItem.abilities.metrics.margin.thickness : 0
                 anchors.topMargin: root.location === PlasmaCore.Types.BottomEdge ? taskItem.abilities.metrics.margin.thickness : 0
@@ -90,15 +92,6 @@ Item{
                 height: width
 
                 source: taskIconItem.source
-            }
-
-
-
-            MultiEffect{
-                source: tempRemoveIcon
-                anchors.fill: tempRemoveIcon
-
-                saturation: -1
             }
 
             ParallelAnimation{
