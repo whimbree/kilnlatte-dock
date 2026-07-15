@@ -26,6 +26,16 @@ if [[ "${1:-}" == "--user-config" ]]; then
 fi
 mkdir -p "$confighome"
 
+# The throwaway config dir needs the session's color scheme: without a
+# kdeglobals the dock resolves the default LIGHT scheme, the bar renders
+# white under a dark session, and themeExtended's dark/light palette
+# variants degrade (Dark Colors then colorizes applets with a wrong
+# applyColor - the black-silhouette report). Copy, do not link: throwaway
+# runs must not write back into the real session config.
+if [[ "$confighome" == "$build/_runconfig" && ! -f "$confighome/kdeglobals" && -f "${XDG_CONFIG_HOME:-$HOME/.config}/kdeglobals" ]]; then
+    cp "${XDG_CONFIG_HOME:-$HOME/.config}/kdeglobals" "$confighome/kdeglobals"
+fi
+
 # flatten the -import list into a colon path for the app's engine
 importpath=""
 for ((i = 1; i < ${#imports[@]}; i += 2)); do

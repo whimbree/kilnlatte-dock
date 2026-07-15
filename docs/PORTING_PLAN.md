@@ -2077,7 +2077,7 @@ multi-view, multi-monitor setup.
       band, plain edit leaves the background undimmed.
       Commits: 38e60eb9
 
-- [ ] Dock background renders LIGHT/white while the palette is set to
+- [x] Dock background renders LIGHT/white while the palette is set to
       Dark Colors (reported 2026-07-15 with a screenshot, throwaway
       bottom dock in plain edit mode, Background Opacity 100%).
       NOT introduced tonight: the same light pill shows in captures
@@ -2105,27 +2105,35 @@ multi-view, multi-monitor setup.
       renders LIGHT - they MATCH. Latte resolves the theme exactly
       as plasmashell does; the system's plasma desktop theme has a
       light panel surface while the application scheme is dark, so
-      there is NO port defect in theme resolution. REMAINING
-      ACTIONABLE ARMS: (a) the Dark Colors palette background arm
-      is genuinely dead (proven 2026-07-15: palette flip changed
-      applet icons but never the background) - that is the real
-      route to a dark bar and stays open as suspect (b) above;
-      (c) seed build/_runconfig with a kdeglobals copy so throwaway
-      runs match the real session visually.
-      Commits:
-- [ ] Applet colorizer applies too broadly: under a non-default
-      palette it flattens FULL-COLOR applet icons to single-color
-      silhouettes (confirmed live 2026-07-15: Dark Colors turned the
-      comic's multicolor icon into a black disc; flipping the
-      palette back restored it instantly). The 1f835402 restoration
-      brought back Qt5's ColorOverlay mechanism but apparently not
-      Qt5's applicability rules. READ THE QT5 SOURCE for which
-      applets got colorized vs left full-color (per-applet blocking
-      exists - userBlocksColorizingApplets - and Qt5 likely also had
-      an automatic monochrome/low-color heuristic); restore the
-      scope, not just the mechanism. CLAUDE.md fork-trap rule
-      applies: Qt5 is the spec.
-      Commits:
+      there is NO port defect in theme resolution. CLOSED
+      2026-07-15 second pass: the "Dark Colors background arm dead"
+      suspicion was ALSO the throwaway kdeglobals gap - on the real
+      config the palette darkens the background correctly (proven
+      live, palette restored afterwards; see the colorizer item
+      below). run-staged.sh now seeds the throwaway config with the
+      session kdeglobals so throwaway runs match the real session.
+      The route to a permanently dark bar on a light plasma theme
+      is the Dark Colors palette (works) or the filed color-picker
+      continuation feature.
+      Commits: (kdeglobals seeding commit)
+- [x] Applet colorizer applies too broadly - RESOLVED AS NOT A BUG,
+      plus a harness fix. Qt5 source read end to end (Manager.qml
+      applyTheme, applet/colorizer/Applet.qml): Qt5 runs the same
+      ColorOverlay over EVERY non-blocked applet's whole wrapper
+      whenever a non-default palette applies; flattening applet
+      icons to a single scheme color IS the Qt5 Dark Colors
+      behavior, tasks are exempt through the communicator indexer
+      block, and the port matches. The BLACK disc and the
+      non-darkening background were the throwaway environment:
+      build/_runconfig had no kdeglobals, so themeExtended's
+      dark/light variant resolution degraded and applyColor came
+      out wrong. Proven live on the real config 2026-07-15: Dark
+      Colors darkens the background at the stored opacity, text
+      goes light, applet icons flatten to LIGHT silhouettes
+      (Qt5-correct), task icons stay full color; palette restored
+      to default afterwards. run-staged.sh now seeds the throwaway
+      config with the session kdeglobals (copy, never a link).
+      Commits: (kdeglobals seeding commit)
 - [x] Comic Strip applet "not rendering" (reported 2026-07-15; two
       symptoms, RESOLVED as three separate causes, none the suspected
       commit regression). (1) The black-disc icon: the applet
