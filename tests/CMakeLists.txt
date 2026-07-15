@@ -44,6 +44,26 @@ target_include_directories(indicatorfactoryremovaltest PRIVATE
     ${CMAKE_SOURCE_DIR}/app
     ${CMAKE_BINARY_DIR}/app)
 
+# Removal parking state machine (71b0d75a): compiles the real containment
+# plugin sources (they live in the QML plugin, not lattedock-core) and
+# drives them with real Plasma applets built through itemForApplet plus a
+# QML harness standing in for the containment main.qml. Needs the devShell's
+# LATTE_QML_MODULE_PATH at runtime, like the contract tests.
+qt6_add_resources(parkingharness_QRC parkingharness/parkingharness.qrc)
+ecm_add_test(layoutmanagerparkingtest.cpp
+    ${CMAKE_BINARY_DIR}/containment/plugin/lattetypes.h # AUTOMOC source for Latte::Types::staticMetaObject, like the plugin's own list
+    ${CMAKE_SOURCE_DIR}/containment/plugin/layoutmanager.cpp
+    ${CMAKE_SOURCE_DIR}/containment/plugin/types.cpp
+    ${parkingharness_QRC}
+    TEST_NAME layoutmanagerparkingtest
+    LINK_LIBRARIES Qt6::Test Qt6::Gui Qt6::Qml Qt6::Quick KF6::ConfigCore KF6::ConfigQml KF6::CoreAddons Plasma::Plasma Plasma::PlasmaQuick
+)
+set_tests_properties(layoutmanagerparkingtest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_include_directories(layoutmanagerparkingtest PRIVATE
+    ${CMAKE_SOURCE_DIR}/containment
+    ${CMAKE_BINARY_DIR}/containment)
+
 # Headless QML checks (Phase 5, docs/TESTING.md): the compile gate stages an
 # install and compiles every package QML file in a real engine; the
 # interaction harness drives real Latte components through qmltestrunner.

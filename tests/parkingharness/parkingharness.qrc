@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/qt/qml/plasma/applet">
+        <file alias="test/parkapplet/main.qml">appletmain.qml</file>
+    </qresource>
+    <qresource prefix="/parkingtest">
+        <file>Harness.qml</file>
+    </qresource>
+</RCC>
