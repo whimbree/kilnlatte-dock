@@ -244,6 +244,35 @@ below are now RESOLVED and kept only as archaeology.
   mapped, decisive next step is reading the Qt5 original main.qml
   from this repo's own history - CLAUDE.md names this exact area as a
   fork trap).
+- Round twenty-seven (2026-07-15 small hours, with me watching live and
+  narrating to claude.ai in the browser): both round twenty-six bug
+  filings root-caused and fixed the same night. Edit-mode opacity
+  (38e60eb9): the blueprint drew OVER the dock background; Qt5's
+  composite is wallpaper > grid > background > applets, and my
+  persisted editBackgroundOpacity=0.5 was exactly the "half" wash -
+  the fix is child reorder in DragDropArea, the opacity chain itself
+  was already byte-identical to Qt5. Removal ghost (71b0d75a):
+  libplasma askDestroy() guards its immediate appletRemoved with
+  !isContainment() and the systemtray IS a containment
+  (CustomEmbedded), so its only appletRemoved comes from inside
+  ~Applet when the undo window ends - measured 59.8s ghost pre-fix
+  (destroyedChanged at click+159ms, appletRemoved at +59.8s = the
+  libplasma 60s fallback timer), first-frame collapse post-fix,
+  hand-confirmed ("it instantly deleted this time"). Fix restores
+  Qt5's two-phase parking keyed to destroyedChanged, with undo
+  restore-in-place and a duplicate-container guard; the undo arm
+  still wants one live Undo click (popup auto-hides faster than a
+  headless locate-then-click loop). METHOD notes: read the pinned
+  libplasma tarball straight out of /nix/store (no checkout needed);
+  the spectacle task icon shifts dock applet positions DURING
+  capture, so never locate-then-click across a spectacle run; the
+  rearrange-toggle window position varies between edit sessions -
+  read it from dumpwins (it is its own 133x77 latte window), not
+  from a previous session's coordinates. THROWAWAY layout note: the
+  active copy was restored from with-comic.bak twice during the
+  repro; it ends the session WITH its systray back. My real dock was
+  NOT restarted back to --user-config yet at write time - do that
+  (or I do it by hand) before daily-driving resumes.
 - SESSION CLOSE STATE (2026-07-14 night): everything committed and
   pushed; working tree clean; my dock runs the latest build
   under the gdb wrapper with --user-config, config fully restored

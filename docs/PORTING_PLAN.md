@@ -2023,50 +2023,59 @@ multi-view, multi-monitor setup.
       ContextMenuLayer for where Qt5 injected it
       (appletAlternativesRequested wiring exists and is connected).
       Commits:
-- [ ] Widget removal leaves a ghost slot in rearrange mode (caught
+- [x] Widget removal leaves a ghost slot in rearrange mode (caught
       live 2026-07-14 with screenshots: deleting the System Tray in
-      rearrange mode left its layout slot visible - empty highlighted
-      slot, "System Tray" title chip, drag handle - for MULTIPLE
-      SECONDS before it vanished). The C++ removal is already
-      immediate (33830b2c: LayoutManager::removeAppletItem finalized
-      by destroyAppletContainer), so the lag is downstream: either
-      the containment layout not collapsing until some later resync,
-      or the edit-mode overlay (ConfigOverlay / rearrange chrome)
-      holding its chip on a destroyed applet. REPRO PROTOCOL: on the
-      throwaway layout only (plain restart-staged.sh, NO
-      --user-config), add a disposable widget, delete it in rearrange
-      mode, measure time-to-visual-removal with timestamped
-      screenshots. Never test deletion on the real layout.
-      Commits:
-- [ ] Edit-mode background opacity is not WYSIWYG (caught live
+      rearrange mode left its layout slot visible for multiple
+      seconds). ROOT CAUSE, measured on the throwaway layout with
+      probes and timestamped screenshots: libplasma keeps the deleted
+      applet alive for undo, and askDestroy()'s immediate
+      appletRemoved emit is guarded with !isContainment() - the
+      systemtray applet IS a Plasma::Containment (CustomEmbedded), so
+      its only appletRemoved arrives from inside ~Applet when the
+      undo window ends (measured exactly 59.8s, the libplasma 60s
+      deleteNotificationTimer; feels like seconds when the Widget
+      Removed notification closes earlier). The one-phase
+      removeAppletItem finalization therefore did nothing until then,
+      while destroyedChanged(true) hid the content instantly, leaving
+      the ghost slot. FIXED by restoring Qt5's two-phase parking
+      keyed to the Plasma 6 signal timeline: AppletItem watches
+      destroyedChanged (park on true = slot hides instantly via the
+      existing isScheduledForDestruction binding, unpark on false =
+      undo restores in place), removeAppletItem parks while
+      destroyed() is set, physical cleanup rides the
+      AppletItem.onAppletChanged self-destroy with the parking entry
+      pruning itself by identity, and addAppletItem guards against
+      duplicate containers after undo. Verified: post-fix slot gone
+      by the first frame 1.4s after the click (was 59.8s),
+      finalization at the 60s mark silent and persisted,
+      hand-confirmed at the desk. WATCH ITEM: the undo arm
+      (notification Undo click restores the slot in place) is
+      implemented per the libplasma contract but still wants one live
+      confirmation - the popup auto-hid before a headless click could
+      land.
+      Commits: 71b0d75a
+- [x] Edit-mode background opacity is not WYSIWYG (caught live
       2026-07-14 with screenshots: Background -> Opacity at 100% in
       the settings chrome, but the dock in PLAIN edit mode renders
-      its background at roughly HALF opacity, so the result after
-      closing edit mode does not match what was tuned). Observed to
-      interact with editBackgroundOpacity (the blueprint layer).
-      INVESTIGATION STATE: the blueprint (containment main.qml ~842,
-      Image editBlueprint) draws BEHIND the dock background at
-      opacity = editBackgroundOpacity in plain edit mode, 1 in
-      rearrange, 0 outside. The real background chain has NO
-      edit-mode modifier found yet: MultiLayered.qml
-      solidBackground.appliedOpacity <- overlayedBackground
-      .midOpacity <- root.myView.backgroundStoredOpacity
-      (MyViewPrivate.qml:23 = panelTransparency/100, or theme
-      maxOpacity when panelTransparency is -1). NEXT: (a) check
-      ancestors of the background for an edit-mode opacity
-      (DragDropArea/layoutsContainer, main.qml:815-880), (b) check
-      forceTransparentPanel / forceSolidPanel (main.qml:126-147) for
-      edit-mode arms, (c) DECISIVE: read the ORIGINAL Qt5 main.qml
-      from this repo's own git history to establish Qt5's edit-mode
-      semantics - whether the real background draws during edit mode
-      at all, at what opacity, and how editBackgroundOpacity
-      composes. CLAUDE.md literally cites edit-mode opacity rewiring
-      as a fork trap: Qt5 is the spec. Candidate mechanisms for
-      "half": an edit-mode opacity multiplier on an ancestor, or the
-      port drawing the translucent background OVER the whitish
-      blueprint so the composite reads half-solid when Qt5 composed
-      them differently.
-      Commits:
+      its background at roughly HALF opacity). ROOT CAUSE: the
+      candidate mechanism "the port draws the background and
+      blueprint composed differently than Qt5" was right, inverted:
+      the port drew the BLUEPRINT OVER the background. Qt5 composited
+      wallpaper > grid > dock background > applets (the grid window
+      stacked behind the whole dock window on X11); the port had the
+      grid between background and applets, so the whitish grid tile
+      washed the background at editBackgroundOpacity - the persisted
+      0.5 in my config is exactly the observed "roughly half", and
+      the suspected editBackgroundOpacity interaction was literally
+      it multiplying in on top. The background opacity chain itself
+      (solidBackground <- midOpacity <- backgroundStoredOpacity) is
+      byte-identical to Qt5, no edit-mode arm anywhere - the child
+      order inside DragDropArea was the whole defect. FIXED by
+      moving editBlueprint below the background Item; comment at the
+      site records the Qt5 composite. Verified in the throwaway:
+      rearrange mode draws the solid grid behind the background
+      band, plain edit leaves the background undimmed.
+      Commits: 38e60eb9
 
 ### Phase 11: Nix packaging + Docker build verification
 
