@@ -43,6 +43,13 @@ below are now RESOLVED and kept only as archaeology.
     from the systray-noticed save path); the feature now HONORS them, so
     the real clock popup opens 560x400 on first run. Reset is one
     right-click away if that reads wrong at the desk.
+- Colorfulness auto-exemption fixed same day it shipped (5c06b497): LCD
+  subpixel fringes made the digital clock's white text measure 49-84%
+  "saturated", so its colorizer switched off ~8s after load and palette
+  changes never reached it again (caught at the desk under
+  LightThemeColors). Judgment now area-averages the grab to 12x12 cells
+  first - fringe pairs cancel within a stroke-width cell, solid icon
+  color survives. Full measurement trail in the commit body.
 - The throwaway 3-dock layout's bottom view is viewType=1 (Panel) +
   alignment=10 (Justify) + panelSize=100 - the full-width background it
   draws is the correct rendering for that config, not a regression
