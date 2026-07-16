@@ -4,6 +4,10 @@ include(ECMAddTests)
 # lattedock-core object library - no mocks of Latte's own logic, per
 # docs/TESTING.md. QT_QPA_PLATFORM=offscreen keeps them headless.
 
+# Pure-core unit tests (docs/QML_EXTRACTION_PLAN.md): one paired test per
+# extracted core header, enforced by scripts/coverage-ratchet.sh.
+add_subdirectory(units)
+
 ecm_add_test(importerregressiontest.cpp
     TEST_NAME importerregressiontest
     LINK_LIBRARIES lattedock-core Qt6::Test
