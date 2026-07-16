@@ -6,11 +6,13 @@
 #include "windowstracker.h"
 
 // local
+#include "extraviewhints.h"
 #include "lastactivewindow.h"
 #include "schemes.h"
 #include "trackedlayoutinfo.h"
 #include "trackedviewinfo.h"
 #include "../abstractwindowinterface.h"
+#include "../windowtrackingpredicates.h"
 #include "../schemecolors.h"
 #include "../../apptypes.h"
 #include "../../lattecorona.h"
@@ -681,14 +683,17 @@ WindowInfoWrap Windows::infoFor(const WindowId &wid) const
 
 
 //! Windows Criteria Functions
+//! EX-23 (docs/QML_EXTRACTION_PLAN.md): the window-state predicates live
+//! in WindowTrackingPredicates; these adapters keep the live reads (view
+//! geometry, tracked screen geometry incl. the X11 scale fix)
 bool Windows::intersects(Latte::View *view, const WindowInfoWrap &winfo)
 {
-    return (!winfo.isMinimized() && !winfo.isShaded() && winfo.geometry().intersects(view->absoluteGeometry()));
+    return WindowTrackingPredicates::intersects(winfo, view->absoluteGeometry());
 }
 
 bool Windows::isActive(const WindowInfoWrap &winfo)
 {
-    return (winfo.isValid() && winfo.isActive() && !winfo.isMinimized());
+    return WindowTrackingPredicates::isActive(winfo);
 }
 
 bool Windows::isActiveInViewScreen(Latte::View *view, const WindowInfoWrap &winfo)
@@ -704,10 +709,7 @@ bool Windows::isActiveInViewScreen(Latte::View *view, const WindowInfoWrap &winf
                                qRound(screenGeometry.height() * factor));
     }
 
-    return (winfo.isValid()
-            && winfo.isActive()
-            && !winfo.isMinimized()
-            && screenGeometry.intersects(winfo.geometry()));
+    return WindowTrackingPredicates::isActiveInViewScreen(winfo, screenGeometry);
 }
 
 bool Windows::isMaximizedInViewScreen(Latte::View *view, const WindowInfoWrap &winfo)
@@ -725,11 +727,7 @@ bool Windows::isMaximizedInViewScreen(Latte::View *view, const WindowInfoWrap &w
 
     //! updated implementation to identify the screen that the maximized window is present
     //! in order to avoid: https://bugs.kde.org/show_bug.cgi?id=397700
-    return (winfo.isValid()
-            && !winfo.isMinimized()
-            && !winfo.isShaded()
-            && winfo.isMaximized()
-            && screenGeometry.intersects(winfo.geometry()));
+    return WindowTrackingPredicates::isMaximizedInViewScreen(winfo, screenGeometry);
 }
 
 bool Windows::isTouchingView(Latte::View *view, const WindowSystem::WindowInfoWrap &winfo)
@@ -855,38 +853,43 @@ void Windows::updateAllHints()
 
 void Windows::updateExtraViewHints()
 {
-    for (const auto horView : m_views.keys()) {
-        if (!m_views.contains(horView) || !m_views[horView]->enabled() || !m_views[horView]->isTrackingCurrentActivity()) {
-            continue;
-        }
+    //! EX-23 (docs/QML_EXTRACTION_PLAN.md): the bucket pass lives in
+    //! Tracker::ExtraViewHints; this adapter snapshots the tracked views
+    //! (viewKey = index into the parallel list) and keeps the edge-touch
+    //! check as a live-geometry callback
+    QList<Latte::View *> trackedViews;
+    QList<Tracker::TrackedViewGeometry> snapshots;
 
-        if (horView->formFactor() == Plasma::Types::Horizontal) {
-            bool touchingBusyVerticalView{false};
+    for (auto it = m_views.constKeyValueBegin(); it != m_views.constKeyValueEnd(); ++it) {
+        Latte::View *view = it->first;
+        const TrackedViewInfo *info = it->second;
 
-            for (const auto verView : m_views.keys()) {
-                if (!m_views.contains(verView) || !m_views[verView]->enabled() || !m_views[verView]->isTrackingCurrentActivity()) {
-                    continue;
-                }
+        Tracker::TrackedViewGeometry snapshot;
+        snapshot.viewKey = trackedViews.size();
+        snapshot.enabled = info->enabled();
+        snapshot.trackingCurrentActivity = info->isTrackingCurrentActivity();
+        snapshot.isHorizontal = (view->formFactor() == Plasma::Types::Horizontal);
+        snapshot.isVertical = (view->formFactor() == Plasma::Types::Vertical);
+        snapshot.screenId = view->positioner()->currentScreenId();
+        snapshot.location = view->location();
+        snapshot.isTouchingTopViewAndIsBusy = view->isTouchingTopViewAndIsBusy();
+        snapshot.isTouchingBottomViewAndIsBusy = view->isTouchingBottomViewAndIsBusy();
+        snapshot.absoluteGeometry = view->absoluteGeometry();
 
-                bool sameScreen = (verView->positioner()->currentScreenId() == horView->positioner()->currentScreenId());
+        trackedViews << view;
+        snapshots << snapshot;
+    }
 
-                if (verView->formFactor() == Plasma::Types::Vertical && sameScreen) {
-                    bool hasEdgeTouch = isTouchingViewEdge(horView, verView->absoluteGeometry());
+    const auto hasEdgeTouch = [&](const Tracker::TrackedViewGeometry &hor,
+                                  const Tracker::TrackedViewGeometry &ver) {
+        return isTouchingViewEdge(trackedViews[hor.viewKey], ver.absoluteGeometry);
+    };
 
-                    bool topTouch = horView->location() == Plasma::Types::TopEdge && verView->isTouchingTopViewAndIsBusy() && hasEdgeTouch;
-                    bool bottomTouch = horView->location() == Plasma::Types::BottomEdge && verView->isTouchingBottomViewAndIsBusy() && hasEdgeTouch;
+    const QHash<int, bool> touching =
+        Tracker::ExtraViewHints::bucketHorizontalTouchingBusyVertical(snapshots, hasEdgeTouch);
 
-                    if (topTouch || bottomTouch) {
-                        touchingBusyVerticalView = true;
-                        break;
-                    }
-                }
-            }
-
-            //qDebug() << " Touching Busy Vertical View :: " << horView->location() << " - " << horView->positioner()->currentScreenId() << " :: " << touchingBusyVerticalView;
-
-            setIsTouchingBusyVerticalView(horView, touchingBusyVerticalView);
-        }
+    for (auto it = touching.constKeyValueBegin(); it != touching.constKeyValueEnd(); ++it) {
+        setIsTouchingBusyVerticalView(trackedViews[it->first], it->second);
     }
 }
 

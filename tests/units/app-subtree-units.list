@@ -7,3 +7,5 @@ app/layouts/activitysetalgebra.h
 app/layouts/storageidremapper.h
 app/screengeometrycalculator.h
 app/view/positionergeometry.h
+app/wm/windowtrackingpredicates.h
+app/wm/tracker/extraviewhints.h

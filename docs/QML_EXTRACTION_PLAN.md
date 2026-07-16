@@ -162,7 +162,21 @@ Per-unit specs (section C), in rank order:
     representable invalid states - list-in/list-out pure functions
     with no sentinels, no indexes, no lifetime capture
 - [x] EX-23 WindowTrackingPredicates - window predicate + extra-view-hints pass (capt blueprint)
-  - [ ] executed
+  - [x] executed: LANDED (both headers adopted from capt after body
+    diffs; predicates verbatim with the X11 scale fix staying in the
+    adapters; updateExtraViewHints cut over to the O(views) bucket
+    pass with the edge-touch callback seam and keyValue iteration -
+    capt's c94676b9 fold; abstractwindowinterface filter members
+    delegate with their lists). Both capt slot sets ported; the
+    WindowId fixtures adapted QVariant->QByteArray (our 8e8cdf31
+    normalization - capt kept upstream's QVariant). The
+    dodge-maximized live check remains on the standing consolidated
+    list (family behavior, needs a real maximized window at the
+    desk). ALSO root-caused during this unit: the
+    storageidremapapplicationtest flake was a per-process QHash-seed
+    order dependence in the appletOrder assertion (KConfig groupList
+    follows hash iteration) - assertion made order-independent,
+    6/6 green.
 - [x] EX-24 IconSourceClassifier - icon source classification (capt blueprint)
   - [ ] executed
 - [x] EX-25 PanelBackgroundScan - panel background scanline math (capt blueprint)

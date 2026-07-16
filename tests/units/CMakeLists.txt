@@ -68,3 +68,21 @@ target_include_directories(positionergeometrytest PRIVATE
 target_link_libraries(positionergeometrytest
     Qt6::Gui
     Plasma::Plasma)
+
+# EX-23 WindowTrackingPredicates + ExtraViewHints: two header-only cores,
+# one spec. The predicates test needs windowinfowrap's types (Qt Gui);
+# the hints test needs the Plasma location enum.
+latte_add_unit_test(windowtrackingpredicatestest
+    ${CMAKE_SOURCE_DIR}/app/wm/windowinfowrap.cpp) # compiled IN, per the
+    # sanitized-core rule: WindowInfoWrap's methods are out-of-line
+target_include_directories(windowtrackingpredicatestest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app)
+target_link_libraries(windowtrackingpredicatestest
+    Qt6::Gui)
+
+latte_add_unit_test(extraviewhintstest)
+target_include_directories(extraviewhintstest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app)
+target_link_libraries(extraviewhintstest
+    Qt6::Gui
+    Plasma::Plasma)

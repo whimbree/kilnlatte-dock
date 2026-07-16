@@ -8,9 +8,8 @@
 #include "abstractwindowinterface.h"
 
 // local
+#include "windowtrackingpredicates.h"
 #include "../data/activitiesinfo.h"
-
-// local
 #include "tracker/schemes.h"
 #include "tracker/windowstracker.h"
 #include "../lattecorona.h"
@@ -135,7 +134,7 @@ Tracker::Windows *AbstractWindowInterface::windowsTracker() const
 
 bool AbstractWindowInterface::isIgnored(const WindowId &wid) const
 {
-    return m_ignoredWindows.contains(wid);
+    return WindowTrackingPredicates::isIgnored(m_ignoredWindows, wid);
 }
 
 bool AbstractWindowInterface::isFullScreenWindow(const QRect &wGeometry) const
@@ -243,19 +242,21 @@ bool AbstractWindowInterface::isSidepanel(const QRect &wGeometry) const
     return (thicknessIsAcccepted && lengthIsAccepted && sideRatio<0.4);
 }
 
+//! EX-23 (docs/QML_EXTRACTION_PLAN.md): the whitelist-wins composition
+//! lives in WindowTrackingPredicates with a pinned truth table
 bool AbstractWindowInterface::hasBlockedTracking(const WindowId &wid) const
 {
-    return (!isWhitelistedWindow(wid) && (isRegisteredPlasmaIgnoredWindow(wid) || isIgnored(wid)));
+    return WindowTrackingPredicates::hasBlockedTracking(m_ignoredWindows, m_plasmaIgnoredWindows, m_whitelistedWindows, wid);
 }
 
 bool AbstractWindowInterface::isRegisteredPlasmaIgnoredWindow(const WindowId &wid) const
 {
-    return m_plasmaIgnoredWindows.contains(wid);
+    return WindowTrackingPredicates::isRegisteredPlasmaIgnored(m_plasmaIgnoredWindows, wid);
 }
 
 bool AbstractWindowInterface::isWhitelistedWindow(const WindowId &wid) const
 {
-    return m_whitelistedWindows.contains(wid);
+    return WindowTrackingPredicates::isWhitelisted(m_whitelistedWindows, wid);
 }
 
 bool AbstractWindowInterface::inCurrentDesktopActivity(const WindowInfoWrap &winfo)
