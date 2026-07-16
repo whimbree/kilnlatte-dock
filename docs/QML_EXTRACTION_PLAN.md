@@ -1931,6 +1931,29 @@ Conventions used by all specs:
   before.
 - Delegation tag: delegate-safe.
 - Risk + rollback: minimal.
+- Deviations (recorded at execution, 2026-07-16; full reasoning in
+  docs/agent-logs/EX-20.md):
+  - Header placed at `declarativeimports/core/units/badgemath.h`
+    instead of plasmoid/plugin/units: the arc geometry and 9999+
+    label live in BadgeText.qml (org.kde.latte.components), which
+    the containment's ShortcutBadge instantiates too - serving it
+    from the tasks-private plugin would make the shared components
+    module depend on org.kde.latte.private.tasks. LatteCore is the
+    module every consumer already imports (EX-19 makes the same
+    placement argument; the core units/README.md charter is exactly
+    "logic both containment and plasmoid consume"). Wrapper:
+    BadgeMathTools singleton as org.kde.latte.core/BadgeMath.
+  - Value-parse unification: Qt5 coerced the same stored badge value
+    two different ways (main.qml updateBadge: JS Number(), "2abc" ->
+    0; TaskItem re-derive: parseInt(), "2abc" -> 2), so the shown
+    badge depended on which path ran last. One parse now
+    (parseBadgeCount): empty -> 0, numeric -> truncate toward zero,
+    malformed -> refused loudly at the wrapper and shown as 0 (the
+    D-Bus path's Qt5-visible result).
+  - updateBadge's QML parameters stay UNTYPED by contract:
+    containmentinterface.cpp:224 resolves the method by metaobject
+    signature "updateBadge(QVariant,QVariant)"; typing them would
+    silently break the D-Bus badge path.
 
 ### EX-21 ScrollOverflowMath [delegate-safe]
 
