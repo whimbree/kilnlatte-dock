@@ -96,9 +96,15 @@ map, not the territory.
    subsection - read it in full; these are requirements, not polish):
    a. Keyboard navigation for EVERYTHING (audit surface-by-surface,
       written shortcut map, focus order + visible indicators).
-   b. D-Bus exposure for e2e testability (one reviewed interface
-      design; anything a test needs to drive or inspect gets a
-      surface; state readbacks replace pixel-peeping).
+   b. Observability first - D-Bus exposure for everything (one
+      reviewed interface design; any subsystem's state cheaply
+      inspectable, anything a test drives gets a surface, state
+      readbacks replace pixel-peeping; safety rules in the plan item
+      and CLAUDE.md's Observability-first section are binding: reads
+      expose state never execution, mutations stay coarse or
+      debug-gated). This principle also applies to every OTHER item
+      in this list: whatever you fix, ship its observability surface
+      in the same unit of work.
    c. Convert nondeterministic e2e tests to deterministic ones (live
       cursor ONLY where pointer delivery is itself under test - those
       keep fakepointer).

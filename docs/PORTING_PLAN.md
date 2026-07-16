@@ -2037,17 +2037,31 @@ showed how much of the dock can only be driven by a pointer today.
       visible focus indicators are part of the requirement, not
       separate.
       Commits:
-- [ ] D-Bus exposure for e2e testability: anything a test needs to
-      drive or inspect gets a D-Bus surface - view geometry and
+- [ ] Observability first - everything instrumentable, D-Bus as the
+      primary surface: any subsystem's runtime state must be cheaply
+      inspectable from outside the process, and anything a test needs
+      to drive gets a driving surface. Concretely: view geometry and
       visibility state queries, applet/task enumeration with ids and
-      positions, badge state readback, action triggers (activate task
-      N, open settings for view X, enter/exit edit mode for view X).
-      The existing org.kde.lattedock interface is the seed
+      positions, badge state readback, tracker facts (touching/
+      maximized/active per view), colorizer decisions in force, mask
+      and input-region rects, action triggers (activate task N, open
+      settings for view X, enter/exit edit mode for view X). The
+      existing org.kde.lattedock interface is the seed
       (updateDockItemBadge, showSettingsWindow, duplicateView already
       exist); design the additions as one reviewed interface, not
-      accreted one-offs. Rule: if a live check in this plan needed
-      pixel-peeping or pointer acrobatics to observe STATE (not to
-      exercise input), that state gets a D-Bus readback.
+      accreted one-offs. Rules: (a) if a live check in this plan
+      needed pixel-peeping or pointer acrobatics to observe STATE (not
+      to exercise input), that state gets a readback; (b) new
+      subsystems ship their observability surface as part of the
+      definition of done, not as a follow-up; (c) safety is a
+      constraint - read surfaces expose state, never arbitrary
+      execution; mutating surfaces stay coarse-grained user actions
+      (the kind the UI already offers) or sit behind an explicit
+      debug-mode gate; nothing exposes secrets or other apps' content.
+      D-Bus is the default; where D-Bus fits badly (per-frame data,
+      high-rate traces) categorized qCDebug logging or the debug
+      window are acceptable alternates, but state that a test asserts
+      on should be pull-queryable, not log-scraped.
       Commits:
 - [ ] Convert nondeterministic e2e tests to deterministic ones: every
       screenshot-compare or sleep-and-hope check that is really about

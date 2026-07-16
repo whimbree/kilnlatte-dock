@@ -265,6 +265,26 @@ preference. Concretely:
   boundary that can receive bad input from outside still refuses it
   loudly at runtime.
 
+### Observability first
+
+Everything should be cheaply instrumentable from outside the process,
+with D-Bus as the primary surface (decided 2026-07-16; the Phase 10
+requirements subsection in docs/PORTING_PLAN.md carries the full
+contract). The extraction initiative's live-verification tail proved
+the cost of its absence: state had to be read by pixel-peeping
+screenshots and pointer acrobatics. Concretely:
+
+- New subsystems ship their observability surface as part of the
+  definition of done - a state readback (D-Bus query) and, where a
+  test would drive it, a driving surface.
+- State a test asserts on is pull-queryable, never log-scraped.
+  Categorized qCDebug logging and the debug window are for high-rate
+  traces D-Bus fits badly, not a substitute for queries.
+- Safety is a constraint, not an afterthought: read surfaces expose
+  state, never arbitrary execution; mutating surfaces stay
+  coarse-grained user actions or sit behind an explicit debug-mode
+  gate; nothing exposes secrets or other applications' content.
+
 ### Pure-core discipline
 
 New pure cores (the QML extraction initiative) follow the step-2.5
