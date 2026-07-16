@@ -53,6 +53,15 @@ target_link_libraries(screengeometrycalculatortest
 # EX-04 AutoSizeEngine: header-only pure search step, value-type history.
 latte_add_unit_test(autosizeenginetest)
 
+# EX-13 ViewTypeAndBackgroundPredicates: header-only pure predicates plus
+# their QML-facing wrapper compiled IN per the sanitized-core rule (the
+# wrapper's boundary refusals and enum-int classification run
+# instrumented); the wrapper includes the generated plugin/lattetypes.h.
+latte_add_unit_test(backgroundstatetest
+    ${CMAKE_SOURCE_DIR}/containment/plugin/backgroundstateresolver.cpp)
+target_include_directories(backgroundstatetest PRIVATE
+    ${CMAKE_BINARY_DIR}/containment) # plugin/lattetypes.h is generated there
+
 # EX-01 PreviewSwitchEngine: header-only pure core, injected clock.
 latte_add_unit_test(previewswitchenginetest)
 

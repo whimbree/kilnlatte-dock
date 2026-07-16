@@ -1606,6 +1606,23 @@ Conventions used by all specs:
 - Delegation tag: delegate-safe.
 - Risk + rollback: low-medium (everything reads these); cutover in
   one commit, revert restores bindings.
+- Execution design record (2026-07-16, agent worktree; full detail in
+  docs/agent-logs/EX-13.md): implemented as per-predicate pure
+  functions with per-predicate QML bindings instead of the sketched
+  single BackgroundEnv->resolved struct, because one resolved blob
+  recreates the binding loops the QML property split exists to break
+  (viewTypeInQuestion's own comment; background.currentOpacity feeds
+  panelShadowsActive back from layers whose states read
+  forceSolidPanel/forceTransparentPanel). Two adjacent single-consumer
+  bindings folded in to keep one authority: blurEnabled (main.qml:93,
+  consumes two cluster outputs and feeds panelShadowsActive) and
+  normalBusyForTouchingBusyVerticalView (main.qml:151, only consumer
+  is forcePanelForBusyBackground; property deleted). Inherited dead
+  clause pinned not fixed: panelShadowsActive's currentOpacity>20
+  compares a unit-interval opacity, dead in Qt5 f0ad7b23 too -
+  named test pins the degeneracy, behavior change deferred to a
+  deliberate decision.
+- Commits: (filled at landing)
 
 ### EX-14 DropEventClassifier [delegate-safe]
 
