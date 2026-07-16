@@ -11,6 +11,7 @@
 #include "dialog.h"
 #include "environment.h"
 #include "iconitem.h"
+#include "parabolicmathtools.h"
 #include "quickwindowsystem.h"
 #include "tools.h"
 
@@ -28,5 +29,6 @@ void LatteCorePlugin::registerTypes(const char *uri)
     qmlRegisterType<Latte::Quick::Dialog>(uri, 0, 2, "Dialog");
     qmlRegisterSingletonType<Latte::Environment>(uri, 0, 2, "Environment", &Latte::environment_qobject_singletontype_provider);
     qmlRegisterSingletonType<Latte::Tools>(uri, 0, 2, "Tools", &Latte::tools_qobject_singletontype_provider);
+    qmlRegisterSingletonType<Latte::ParabolicMathTools>(uri, 0, 2, "ParabolicMath", &Latte::parabolicmathtools_qobject_singletontype_provider);
     qmlRegisterSingletonType<Latte::QuickWindowSystem>(uri, 0, 2, "WindowSystem", &Latte::windowsystem_qobject_singletontype_provider);
 }

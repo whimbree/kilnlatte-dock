@@ -5,6 +5,7 @@ set(lattecoreplugin_SRCS
     dialog.cpp
     environment.cpp
     iconitem.cpp
+    parabolicmathtools.cpp
     quickwindowsystem.cpp
     tools.cpp
     types.h

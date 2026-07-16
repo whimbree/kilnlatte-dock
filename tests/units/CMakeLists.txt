@@ -22,3 +22,11 @@ ecm_add_test(previewswitchenginetest.cpp
 )
 set_tests_properties(previewswitchenginetest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# EX-03 ParabolicMathCore: header-only pure math.
+ecm_add_test(parabolicmathtest.cpp
+    TEST_NAME parabolicmathtest
+    LINK_LIBRARIES Qt6::Test
+)
+set_tests_properties(parabolicmathtest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

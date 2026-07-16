@@ -8,6 +8,8 @@ import QtQuick 2.0
 import org.kde.plasma.plasmoid 2.0
 import org.kde.plasma.core 2.0 as PlasmaCore
 
+import org.kde.latte.core 0.2 as LatteCore
+
 import "./paraboliceffect" as ParabolicEffectTypes
 
 Item {
@@ -34,49 +36,17 @@ Item {
 
     readonly property int _spreadSteps: (spread - 1) / 2
 
+    //! the curve math lives in LatteCore.ParabolicMath (EX-03,
+    //! declarativeimports/core/units/parabolicmath.h, equivalence-tested
+    //! against the QML body this replaced); this keeps ownership of the
+    //! layout-direction read and the signal emissions
     function applyParabolicEffect(itemIndex, itemMousePosition, itemLength) {
-        var percentage = Math.max(0, Math.min(1, itemMousePosition / itemLength));
-
-        //! left scales
-        var leftScales = [];
-        for (var i=_spreadSteps; i>=1; --i) {
-            leftScales.push(scaleForItem(1-percentage, i, _spreadSteps));
-        }
-        leftScales.push(1); //! clearing
-
-        //! right scales
-        var rightScales = [];
-        for (var j=_spreadSteps; j>=1; --j) {
-            rightScales.push(scaleForItem(percentage, j, _spreadSteps));
-        }
-        rightScales.push(1); //! clearing
-
         var reversed = Qt.application.layoutDirection === Qt.RightToLeft && (Plasmoid.formFactor === PlasmaCore.Types.Horizontal);
+        var stacks = LatteCore.ParabolicMath.computeScales(itemMousePosition / itemLength, _spreadSteps, factor.zoom, reversed);
 
-        if (reversed) {
-            var temp = leftScales;
-            leftScales = rightScales;
-            rightScales = temp;
-        }
+        sglUpdateHigherItemScale(itemIndex+1, stacks.right);
+        sglUpdateLowerItemScale(itemIndex-1, stacks.left);
 
-        sglUpdateHigherItemScale(itemIndex+1, rightScales);
-        sglUpdateLowerItemScale(itemIndex-1, leftScales);
-
-        return {leftScale:leftScales[0], rightScale:rightScales[0]};
-    }
-
-    function scaleForItem(mousePosPercentage, itemIndex, itemsCount) {
-        //! split x axis to different slices and find for the current slice its minimum and maximum x values
-        var xSliceLength = 1/itemsCount;
-        var minX = (itemIndex-1) * xSliceLength;
-        var maxX = itemIndex * xSliceLength;
-        //! use minimum and maximum values in order to adjust mousePorPercentage and provide the current x for that slice
-        var curX = minX + (maxX-minX) * mousePosPercentage;
-        return 1+scaleLinear(curX);
-    }
-
-    function scaleLinear(x) {
-        //! just a simple linear function y=a*x where [a = maxZoom - 1]
-        return (factor.zoom - 1) * x;
+        return {leftScale:stacks.left[0], rightScale:stacks.right[0]};
     }
 }
