@@ -170,7 +170,11 @@ Per-unit specs (section C), in rank order:
     recipe and the SmartThemeColors edit-mode check stay on the live
     desk list for the next throwaway-profile session.
 - [x] EX-13 ViewTypeAndBackgroundPredicates - Panel-vs-Dock chain + background states
-  - [ ] executed
+  - [x] executed: LANDED c2e1ac99 lineage (rebased; see the spec Commits
+    line). Merge evidence: 40/40 ctest green post-rebase incl. the
+    60-row decision tables and the staged-wrapper qmltest; a mutation
+    probe proved the tables bite. The Dock/Panel flip, background-state
+    matrix and effects-area recipes stay on the live desk list.
 - [x] EX-14 DropEventClassifier - drag mime classification + insert index
   - [ ] executed
 - [x] EX-15 WheelAccumulator - wheel delta accumulation/threshold semantics
