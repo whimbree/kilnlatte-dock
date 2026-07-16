@@ -65,6 +65,7 @@
             pkg-config
             kdePackages.extra-cmake-modules
             jq # scripts/qmllint-gate.sh parses qmllint --json with it
+            imagemagick # cropping live-verification and docs screenshots
           ];
 
           # The QML module search path for the headless QML checks and the

@@ -329,7 +329,18 @@ from here, not a re-read of the whole history:
 ## Current status
 
 (This section was stale for a long time - keep it honest.) The port is
-a daily driver: I run it against my real config. Phases 0-7
-are substantially done, Phase 8 is OPEN (docs/PORTING_PLAN.md has the
-live checklist), and current work is stabilization polish driven by
-live use. docs/session-handoff.md carries the running session state.
+a daily driver: I run it against my real config. Phases 0-7 are
+substantially done, Phase 8 is OPEN (docs/PORTING_PLAN.md has the live
+checklist). Current work (2026-07-16) is the QML extraction initiative:
+the strong-model shortlist is COMPLETE (Wave 0 + EX-22/EX-01/EX-03/
+EX-02, 4 of 25 units executed - the two-box ledger in
+docs/QML_EXTRACTION_PLAN.md is the tracker), the step-2.5 law is in
+force (C++20, sanitized unit tests with forced asserts, qmllint
+ratchet, type discipline, the code-clarity rules above), and the
+delegate-safe waves 2-4 are the ungated backlog. Two companion-applet
+continuation items are planned as sibling repos consumed by flake
+input (separator first, then the applet-window-appmenu port) - see the
+continuation-features section of the porting plan. The README carries
+the public-facing roadmap and real-dock screenshots
+(docs/screenshots/). docs/session-handoff.md carries the running
+session state.
