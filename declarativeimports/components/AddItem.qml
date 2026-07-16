@@ -8,7 +8,7 @@ import QtQuick 2.1
 import org.kde.plasma.plasmoid 2.0
 import org.kde.kirigami 2.20 as Kirigami
 
-import "code/ColorizerTools.js" as ColorizerTools
+import org.kde.latte.core 0.2 as LatteCore
 
 Item{
     id: addItem
@@ -22,14 +22,14 @@ Item{
 
         radius: 0.05 * Math.max(width,height)
 
-        color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, backgroundOpacity)
+        color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, addItem.backgroundOpacity)
         border.width: 1
         border.color: outlineColor
 
         property int crossSize: Math.min(0.4*parent.width, 0.4 * parent.height)
 
         readonly property color outlineColorBase: Kirigami.Theme.backgroundColor
-        readonly property real outlineColorBaseBrightness: ColorizerTools.colorBrightness(outlineColorBase)
+        readonly property real outlineColorBaseBrightness: LatteCore.Tools.colorBrightness(outlineColorBase)
         readonly property color outlineColor: {
             if (outlineColorBaseBrightness > 127.5) {
                 return Qt.darker(outlineColorBase, 1.5);

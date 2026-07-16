@@ -2131,6 +2131,22 @@ assessed every file the landed cutovers touched):
   main.qml now assigns parabolic: _parabolic like Metrics already
   did. Everything own-property got qualified through the sizer id
   and every implicit Connections handler moved to function syntax.
+- The EX-19 cutover's residue, same classes: basicitem
+  ShortcutBadge.qml (22, down from 24) - abilityItem context-chain
+  reads in root-level BINDINGS plus references from inside its
+  sourceComponent (qmllint cannot resolve file ids or context names
+  across the Component boundary; the Loader context resolves them at
+  runtime - the correct-id references demonstrably work, see the
+  8ee3b3bb probe). components AddingArea.qml (1, down from 3) -
+  appletItem.animationTime inside the opacity Behavior: a Qt5-dead
+  reference (its only instantiation site, plasmoid main.qml, has no
+  appletItem in context - Qt5-identical, so the Behavior has always
+  fallen back to NumberAnimation's default duration); "fixing" it
+  would change observed animation timing, so it stays counted, named
+  here. LatteIndicator.qml reached ZERO (57 -> 0): its indicator
+  reads all qualify through root.indicator because IndicatorItem
+  declares the property - no injection needed, ids outrank nothing
+  (same object).
 - What the retroactive pass DID fix in the touched files: implicit
   Connections handlers to function syntax, own-property qualification
   through the component id (safe: ids outrank scope properties, same

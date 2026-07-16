@@ -9,17 +9,18 @@ import QtQuick 2.7
 
 import org.kde.plasma.plasmoid 2.0
 import org.kde.kirigami 2.20 as Kirigami
+import org.kde.latte.core 0.2 as LatteCore
 import org.kde.latte.components 1.0 as LatteComponents
 
 Loader{
     //! the id was misspelled "shorcutBadge" (missing t) since Qt5, and the two
-    //! references
-    //! that spelled it CORRECTLY (the Connections handler and BadgeText's
-    //! borderColor) therefore threw ReferenceError at runtime: badge indexes
-    //! never updated on reorder and the border color stayed at BadgeText's
-    //! default instead of the theme-contrasted pick (both reproduced with an
-    //! offscreen probe, docs/agent-logs/EX-19.md). Fixing the id at the
-    //! source repairs both; the qmllint gate pins the file from here on.
+    //! references that spelled it CORRECTLY (the Connections handler and
+    //! BadgeText's borderColor) therefore threw ReferenceError at runtime:
+    //! badge indexes never updated on reorder and the border color stayed at
+    //! BadgeText's default instead of the theme-contrasted pick (both
+    //! reproduced with an offscreen probe, docs/agent-logs/EX-19.md). Fixing
+    //! the id at the source repairs both; the qmllint gate pins the file from
+    //! here on.
     id: shortcutBadge
     active: abilityItem.abilities.shortcuts.showPositionShortcutBadges && !abilityItem.isSeparator && !abilityItem.isHidden && abilityItem.abilities.shortcuts.isEnabled
     asynchronous: true
@@ -28,7 +29,7 @@ Loader{
     property int fixedIndex:-1
 
     readonly property int maxFixedIndex: abilityItem.abilities.shortcuts.badges.length
-    readonly property real textColorBrightness: colorBrightness(Kirigami.Theme.textColor)
+    readonly property real textColorBrightness: LatteCore.Tools.colorBrightness(Kirigami.Theme.textColor)
     readonly property string badgeString: (shortcutBadge.fixedIndex>=1 && shortcutBadge.fixedIndex<=maxFixedIndex) ?
                                               abilityItem.abilities.shortcuts.badges[shortcutBadge.fixedIndex-1] : ""
     readonly property color lightTextColor: textColorBrightness > 127.5 ? Kirigami.Theme.textColor : Kirigami.Theme.backgroundColor
@@ -48,16 +49,6 @@ Loader{
         } else {
             fixedIndex = -1;
         }
-    }
-
-    function colorBrightness(color) {
-        return colorBrightnessFromRGB(color.r * 255, color.g * 255, color.b * 255);
-    }
-
-    // formula for brightness according to:
-    // https://www.w3.org/TR/AERT/#color-contrast
-    function colorBrightnessFromRGB(r, g, b) {
-        return (r * 299 + g * 587 + b * 114) / 1000
     }
 
     sourceComponent: Item{
