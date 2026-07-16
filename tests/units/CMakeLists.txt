@@ -58,3 +58,13 @@ latte_add_unit_test(parabolicmathtest)
 
 # EX-02 ParabolicRouter: header-only pure routing walk.
 latte_add_unit_test(parabolicroutertest)
+
+# EX-09 PositionerGeometry: header-only pure sizing/placement math; needs
+# the Latte/Plasma type enums like EX-08.
+latte_add_unit_test(positionergeometrytest)
+target_include_directories(positionergeometrytest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app
+    ${CMAKE_BINARY_DIR}/app) # coretypes.h is generated there
+target_link_libraries(positionergeometrytest
+    Qt6::Gui
+    Plasma::Plasma)

@@ -113,7 +113,25 @@ Per-unit specs (section C), in rank order:
     config, settings window mapped at 3471,432 529x1293 - fully inside
     DP-2 (y=432 > screen top 425), the 1b932ed9 regression check.
 - [x] EX-09 PositionerGeometry - view sizing/placement math (capt blueprint)
-  - [ ] executed
+  - [x] executed: LANDED (capt's 339-line header adopted after diffing
+    all six function families against our positioner.cpp - they
+    matched exactly; 28 test slots ported; the six adapters keep the
+    live parts: Floating->cached-location resolution, validGeometry
+    bookkeeping, effects flag application, window setters). Consumer
+    mapping verdict: every capt function has a live consumer here,
+    nothing dropped. The SlideEdge mirror enum is compiler-enforced in
+    sync via static_asserts in positioner.cpp (assert-early law).
+    Live recipe run: layershellmappingtest green, real-config restart
+    with dock geometry byte-identical to pre-cutover dumpwins
+    (slivers differ only by task-count width), DP-2 canvas at
+    1440,1725 2560x140 exactly per the math. The DP-3 view turned out
+    to be a CLONE (no independent settings/canvas - 'Edit Original
+    Dock...'), so the both-monitors canvas check resolves to: DP-2
+    live + the multi-screen offset arithmetic pinned by the ported
+    fixtures. WATCH: storageidremapapplicationtest failed ONCE in a
+    full serial ctest run during this unit, passed in isolation and
+    two subsequent full runs; no detail captured - if it recurs,
+    capture --output-on-failure and root-cause the order dependence.
 - [x] EX-10 MaskInputGeometry - visibility mask + input region rect math
   - [ ] executed
 - [x] EX-11 LauncherListOps - launcher order algebra, registries, stored-list parsing

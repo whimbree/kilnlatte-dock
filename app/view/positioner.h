@@ -8,6 +8,7 @@
 
 //local
 #include <coretypes.h>
+#include "positionergeometry.h"
 #include "../wm/abstractwindowinterface.h"
 #include "../wm/windowinfowrap.h"
 
@@ -160,6 +161,9 @@ private:
     QRect maximumNormalGeometry(QRect screenGeometry = QRect());
 
     WindowSystem::AbstractWindowInterface::Slide slideLocation(Plasma::Types::Location location);
+
+    //! snapshot of the View properties the PositionerGeometry core reads (EX-09)
+    PositionerGeometry::ViewGeometryInputs geometryInputs() const;
 
 private:
     bool m_inDelete{false};
