@@ -31,16 +31,35 @@ sessions are budgeted, in order:
    files classified, 25 units specced with delegation tags, completeness
    ledger CLEAR (every section done). Pin-in-place verdicts recorded for
    CompactApplet chain, ContextMenu, ConfigOverlay drag, and friends.
-4. REMAINING strong-model time: execute the plan's strong-model-window
-   shortlist, IN THIS ORDER (from the plan's section E): Wave 0
-   (tests/units scaffolding + scripts/coverage-ratchet.sh + EX-22
-   ActivitySetAlgebra as the proving unit), then EX-01
-   PreviewSwitchEngine (note its preview-contract-gate migration rule),
-   then EX-03 ParabolicMathCore, then EX-02 ParabolicRouter. Anything
-   not landed when the window closes DEFERS with its do-not-delegate
-   marker - never delegate a strong-model-only unit. The 21 remaining
-   delegate-safe units (waves 2-4) are the weaker model's backlog; each
-   spec is self-contained, start with Wave 2 (C++-only capt ports).
+4. IN PROGRESS (2026-07-15 night, the first execution session; re-run
+   the same prompt - docs/prompts/qml-extraction-execution-prompt.md -
+   to continue): capt sync came back EMPTY (origin/main still at
+   81384003, nothing to fold, CLAUDE.md hash unchanged). LANDED and
+   pushed: Wave 0 complete (353fd783 scaffolding, 70d38a3e ratchet
+   negative-tested x3, 8ccad784 EX-22 with live switchToLayout smoke;
+   66a41253 fixed the leaked install_manifest.txt the first full ctest
+   surfaced - appstreamtest is vacuous again and staging now
+   self-heals); EX-01 complete (03cf0289 core+19 tests, 2f23f9bd
+   cutover + gate rules 1-4 migrated and negative-tested x3; full
+   glide matrix run live incl. zero attach(nil) in 176 attaches, all
+   revives on warm cache, 7/7 group thumbnails; the hide/re-hover
+   cache defect fixed at origin - see the plan's EX-01 entry, plus a
+   dying-active-task WATCH item); EX-03 complete (c3c04e49, 39-row
+   12-decimal equivalence table baked from the shipped QML, live
+   glide pass matches pre-cutover geometry). EX-02 HALF DONE at the
+   session cut: design written into the spec (0613c2ae), core +
+   equality tests + the recording harness landed (ee66b07c, no
+   behavior change; tests/generators/parabolicchain re-generates the
+   14 recorded vectors). NEXT SESSION RESUMES AT: the EX-02 cutover
+   commits (containment twin then plasmoid twin, live glide matrix
+   per the spec BEFORE each merges) - strong-model-only, DO NOT
+   DELEGATE; if the strong-model window is closed, EX-02's remainder
+   stays deferred with its marker and the delegate backlog (waves
+   2-4, 21 units, start Wave 2) is the starting point instead.
+   Session notes: the dock was restored to --user-config at session
+   end; the throwaway's konsole spawns were cleaned up; fakepointer
+   glides need ~30ms/step exec overhead budgeted when choosing step
+   sizes (16px/no-sleep lands solidly in-burst, 8px/0.02s does not).
 
 Also done this session: CLAUDE.md reframed as maintained continuation
 (ce94bb1d) - upstream mergeability is no longer a planning constraint;

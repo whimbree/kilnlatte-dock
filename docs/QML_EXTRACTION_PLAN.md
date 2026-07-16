@@ -36,7 +36,11 @@ Ranking (section B): [x] done.
 
 Per-unit specs (section C), in rank order:
 - [x] EX-01 PreviewSwitchEngine - preview adoption/debounce/LRU decision core - LANDED 03cf0289+2f23f9bd
-- [x] EX-02 ParabolicRouter - neighbor scale-stack propagation chains
+- [x] EX-02 ParabolicRouter - neighbor scale-stack propagation chains -
+  IN PROGRESS: design (0613c2ae) + core/tests/harness (ee66b07c)
+  landed; REMAINING (strong-model-only, do-not-delegate): the two
+  cutover commits (containment twin, then plasmoid twin) with the
+  live glide matrix from the spec's recipe
 - [x] EX-03 ParabolicMathCore - the zoom curve math - LANDED c3c04e49
 - [x] EX-04 AutoSizeEngine - iconSize shrink/grow feedback loop
 - [x] EX-05 FillLengthDistributor - Justify/fill two-pass space distribution
@@ -624,6 +628,17 @@ Conventions used by all specs:
 
 ### EX-02 ParabolicRouter [strong-model-only]
 
+- Commits so far: 0613c2ae (design written into this spec), ee66b07c
+  (core + 13-slot equality tests + the recording harness at
+  tests/generators/parabolicchain, 14 recorded cases). REMAINING,
+  strong-model-only, DO NOT DELEGATE: the containment-twin cutover
+  (per-area sltUpdateItemScale deciders replaced by routeStack
+  application through the host ability; signals demoted to targeted
+  single-scale applications), then the plasmoid-twin cutover
+  (ParabolicEventsArea decider + sltTrack export replaced by
+  routeStack overflow/clearTailExported export through the existing
+  bridge functions), each with the spec's live glide matrix run
+  before it merges.
 - Header: `declarativeimports/core/units/parabolicrouter.h` (serves
   both containment and plasmoid sides through org.kde.latte.core).
 - Responsibility: replace the recursive neighbor-to-neighbor
