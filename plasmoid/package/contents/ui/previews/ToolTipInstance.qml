@@ -470,14 +470,26 @@ Column {
         var virtualDesktops = isGroup ? VirtualDesktops : virtualDesktopParent;
         var virtualDesktopNameList = [];
 
+        //! Plasma 6 libtaskmanager hands desktop IDs (UUID strings on
+        //! wayland), not the Qt5 1-based desktop numbers, so the inherited
+        //! desktopNames[id - 1] lookup indexed with NaN and every name
+        //! joined as empty ("On " / "On ,"). Resolve through desktopIds the
+        //! way ContextMenu.qml already does; an id missing from desktopIds
+        //! (desktop just removed) resolves to nothing instead of an empty
+        //! name.
+        var desktopInfo = virtualDesktopInfo;
+
         for (var i = 0; i < virtualDesktops.length; ++i) {
-            virtualDesktopNameList.push(virtualDesktopInfo.desktopNames[virtualDesktops[i] - 1]);
+            var desktopIndex = desktopInfo.desktopIds.indexOf(virtualDesktops[i]);
+            if (desktopIndex >= 0) {
+                virtualDesktopNameList.push(desktopInfo.desktopNames[desktopIndex]);
+            }
         }
 
         if (!root.showOnlyCurrentDesktop
             && virtualDesktopInfo.numberOfDesktops > 1
             && (isGroup ? IsOnAllVirtualDesktops : isOnAllVirtualDesktopsParent) !== true
-            && virtualDesktops.length > 0) {
+            && virtualDesktopNameList.length > 0) {
             subTextEntries.push(i18nc("Comma-separated list of desktops", "On %1", virtualDesktopNameList.join()));
         }
 
