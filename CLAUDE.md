@@ -1,11 +1,14 @@
-# latte-dock (Plasma 6 / Qt6 port)
+# KilnLatte Dock (Plasma 6 / Qt6 port)
 
 ## What this is
 
-A from-scratch Plasma 6/Qt6 port of upstream KDE latte-dock
-(`invent.kde.org/plasma/latte-dock`), forked to `whimbree/latte-dock`
-on GitHub with full original history intact - not derived from either
-community fork below.
+KilnLatte Dock ("Art in Coffee, kiln-fired for Plasma6/QT6"): a
+from-scratch Plasma 6/Qt6 port of upstream KDE latte-dock
+(`invent.kde.org/plasma/latte-dock`), forked to
+`whimbree/kilnlatte-dock` on GitHub with full original history intact -
+not derived from either community fork below. Package, binary and
+D-Bus names still say latte; renaming them is a deliberately deferred
+task in the porting plan's continuation section.
 
 ## End goal
 
@@ -96,7 +99,7 @@ stale checkboxes."
   get reworded at the pre-PR history cleanup, not amended now.
 - No em-dashes, no AI-sounding marketing-style phrasing in docs, commit
   messages, or code comments - write plainly, like a programmer.
-- Push to origin (whimbree/latte-dock) after each big chunk of landed,
+- Push to origin (whimbree/kilnlatte-dock) after each big chunk of landed,
   verified work - do not let long sessions accumulate dozens of unpushed
   commits.
 - Prefer new commits over amending, except when explicitly asked (e.g.

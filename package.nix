@@ -156,7 +156,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   meta = {
     description = "Dock-style launcher/task manager, Plasma 6/Qt6 port of Latte Dock";
-    homepage = "https://github.com/whimbree/latte-dock";
+    homepage = "https://github.com/whimbree/kilnlatte-dock";
     license = lib.licenses.gpl2Plus;
     platforms = lib.platforms.linux;
     mainProgram = "latte-dock";
