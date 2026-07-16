@@ -197,7 +197,12 @@ Per-unit specs (section C), in rank order:
 - [x] EX-20 BadgeMath - badge parsing, proportion, arc geometry
   - [ ] executed
 - [x] EX-21 ScrollOverflowMath - scrollable list overflow/autoscroll math
-  - [ ] executed
+  - [x] executed: LANDED 18d4f046 lineage (rebased; see the spec Commits
+    line). Merge evidence: the 28-case shipped-QML qmltest is green on
+    both sides of the cutover and rode the merge as the permanent
+    equality layer; 37/37 ctest green post-rebase. The overflow/wheel/
+    drag-autoscroll live recipes (scrollTasksEnabled defaults false, 12+
+    windows) stay on the live desk list for the throwaway session.
 - [x] EX-22 ActivitySetAlgebra - activity set filtering (capt blueprint)
   - [x] executed: LANDED 8ccad784.
     Type discipline (retroactive step-2.5 pass): reviewed, no
