@@ -69,6 +69,26 @@ sessions are budgeted, in order:
    equality instrument); one glide run captured its screenshots
    before the docks finished mapping under desk load - re-run warm
    rather than trusting a first pass when Bree is at the machine.
+   POST-CUT ADDITIONS (same night, at my direction, all pushed):
+   jq joined the devshell and the qmllint gate parses --json category
+   ids (9f62ce01 - the text grep silently undercounted: qmllint's
+   fix-suggestion lines carry no trailing newline, baseline corrected
+   to 7098); the step-2.5 law then applied RETROACTIVELY to the four
+   landed units (0119f6df cores: variant Action + optional sentinels
+   in ParabolicRouter, optionals replacing kNoTask in
+   PreviewSwitchEngine, itemsCount assert in ParabolicMath, EX-22
+   reviewed clean - eliminated states named per ledger entry;
+   365286e2 QML: plugins.qmltypes for org.kde.latte.core clears
+   unresolved-type tree-wide with the regen recipe in
+   declarativeimports/core/CMakeLists, implicit handlers +
+   own-property qualification fixed, bridge+client parabolic
+   abilities at ZERO, baseline 164 files / 6614, context-chain
+   residues NAMED as structural exceptions in the plan's section D -
+   zeroing them is the per-subtree injection endgame, not a per-unit
+   retrofit). Glide matrix re-verified after the QML edits: two
+   consecutive runs agree and match the pre-cutover anchor; the
+   observed deltas were desk-environment (window-content height,
+   one-run task-set variance), root-caused in the 365286e2 body.
 
 Also done this session: CLAUDE.md reframed as maintained continuation
 (ce94bb1d) - upstream mergeability is no longer a planning constraint;
