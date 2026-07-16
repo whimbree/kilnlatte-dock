@@ -55,42 +55,29 @@ ContainmentItem {
 
     readonly property bool viewIsAvailable: latteView && latteView.visibility && latteView.effects
 
-    property int viewType: {
-        if (!latteView || !latteView.visibility) {
-            return LatteCore.Types.DockView;
-        }
+    //! the Panel-vs-Dock chain and the background-state predicate cluster
+    //! below delegate to the BackgroundState core (EX-13 in
+    //! docs/QML_EXTRACTION_PLAN.md); the null guards around latteView and
+    //! its trackers stay here because call arguments evaluate eagerly,
+    //! unlike the short-circuiting && chains they replace
+    property int viewType: _backgroundState.viewType(!!(latteView && latteView.visibility),
+                                                     viewTypeInQuestion,
+                                                     screenEdgeMarginEnabled,
+                                                     floatingInternalGapIsForced)
 
-        if (screenEdgeMarginEnabled && root.floatingInternalGapIsForced) {
-            //! dont use when floating views are requesting internal floating gap which is in client side
-            return LatteCore.Types.DockView;
-        }
+    //! viewType as chosen before considering other options such as floating internal gap enforcement.
+    //! It helps with binding loops
+    property int viewTypeInQuestion: _backgroundState.viewTypeInQuestion(!!(latteView && latteView.visibility),
+                                                                         background.customShadowedRectangleIsEnabled,
+                                                                         Plasmoid.configuration.alignment,
+                                                                         Plasmoid.configuration.minLength,
+                                                                         Plasmoid.configuration.maxLength,
+                                                                         background.isGreaterThanItemThickness,
+                                                                         parabolic.factor.maxZoom)
 
-        return viewTypeInQuestion;
-    }
-
-    property int viewTypeInQuestion: {
-        //! viewType as chosen before considering other options such as floating internal gap enforcement.
-        //! It helps with binding loops
-        if (!latteView || !latteView.visibility) {
-            return LatteCore.Types.DockView;
-        }
-
-        if (background.customShadowedRectangleIsEnabled) {
-            return LatteCore.Types.DockView;
-        }
-
-        var staticLayout = (Plasmoid.configuration.minLength === Plasmoid.configuration.maxLength);
-
-        if ((Plasmoid.configuration.alignment === LatteCore.Types.Justify || staticLayout)
-                && background.isGreaterThanItemThickness
-                && (parabolic.factor.maxZoom === 1.0)) {
-            return LatteCore.Types.PanelView;
-        }
-
-        return LatteCore.Types.DockView;
-    }
-
-    property bool blurEnabled: Plasmoid.configuration.blurEnabled && (!forceTransparentPanel || forcePanelForBusyBackground)
+    property bool blurEnabled: _backgroundState.blurActive(Plasmoid.configuration.blurEnabled,
+                                                           forceTransparentPanel,
+                                                           forcePanelForBusyBackground)
 
     readonly property bool inDraggingOverAppletOrOutOfContainment: latteView && latteView.containsDrag && !backDropArea.containsDrag
 
@@ -123,34 +110,35 @@ ContainmentItem {
                                                      && !parabolic.isEnabled
                                                      && (root.behaveAsPlasmaPanel || (root.behaveAsDockWithMask && !root.floatingInternalGapIsForced))
 
-    property bool forceSolidPanel: (latteView && latteView.visibility
-                                    && LatteCore.WindowSystem.compositingActive
-                                    && !inConfigureAppletsMode
-                                    && userShowPanelBackground
-                                    && ( (Plasmoid.configuration.solidBackgroundForMaximized
-                                          && !(hasExpandedApplet && !plasmaBackgroundForPopups)
-                                          && (latteView.windowsTracker.currentScreen.existsWindowTouching
-                                              || latteView.windowsTracker.currentScreen.existsWindowTouchingEdge))
-                                        || (hasExpandedApplet && plasmaBackgroundForPopups) ))
-                                   || !LatteCore.WindowSystem.compositingActive
+    property bool forceSolidPanel: _backgroundState.solidPanelForced(!!(latteView && latteView.visibility),
+                                                                     LatteCore.WindowSystem.compositingActive,
+                                                                     inConfigureAppletsMode,
+                                                                     userShowPanelBackground,
+                                                                     Plasmoid.configuration.solidBackgroundForMaximized,
+                                                                     hasExpandedApplet,
+                                                                     plasmaBackgroundForPopups,
+                                                                     !!(latteView && latteView.windowsTracker && latteView.windowsTracker.currentScreen.existsWindowTouching),
+                                                                     !!(latteView && latteView.windowsTracker && latteView.windowsTracker.currentScreen.existsWindowTouchingEdge))
 
-    property bool forceTransparentPanel: root.backgroundOnlyOnMaximized
-                                         && latteView && latteView.visibility
-                                         && LatteCore.WindowSystem.compositingActive
-                                         && !inConfigureAppletsMode
-                                         && !forceSolidPanel
-                                         && !(latteView.windowsTracker.currentScreen.existsWindowTouching
-                                              || latteView.windowsTracker.currentScreen.existsWindowTouchingEdge)
-                                         && !(windowColors === LatteContainment.Types.ActiveWindowColors && selectedWindowsTracker.existsWindowActive)
+    property bool forceTransparentPanel: _backgroundState.transparentPanelForced(root.backgroundOnlyOnMaximized,
+                                                                                 !!(latteView && latteView.visibility),
+                                                                                 LatteCore.WindowSystem.compositingActive,
+                                                                                 inConfigureAppletsMode,
+                                                                                 forceSolidPanel,
+                                                                                 !!(latteView && latteView.windowsTracker && latteView.windowsTracker.currentScreen.existsWindowTouching),
+                                                                                 !!(latteView && latteView.windowsTracker && latteView.windowsTracker.currentScreen.existsWindowTouchingEdge),
+                                                                                 windowColors,
+                                                                                 !!(selectedWindowsTracker && selectedWindowsTracker.existsWindowActive))
 
-    property bool forcePanelForBusyBackground: userShowPanelBackground && (normalBusyForTouchingBusyVerticalView
-                                                                           || ( root.forceTransparentPanel
-                                                                               && colorizerManager.backgroundIsBusy
-                                                                               && root.themeColors === LatteContainment.Types.SmartThemeColors))
-
-    property bool normalBusyForTouchingBusyVerticalView: (latteView && latteView.windowsTracker /*is touching a vertical view that is in busy state and the user prefers isBusy transparency*/
-                                                          && latteView.windowsTracker.currentScreen.isTouchingBusyVerticalView
-                                                          && Plasmoid.configuration.backgroundOnlyOnMaximized)
+    //! normalBusyForTouchingBusyVerticalView (is touching a vertical view
+    //! that is in busy state and the user prefers isBusy transparency)
+    //! folded into the core - this predicate was its only consumer
+    property bool forcePanelForBusyBackground: _backgroundState.panelForcedForBusyBackground(userShowPanelBackground,
+                                                                                             !!(latteView && latteView.windowsTracker && latteView.windowsTracker.currentScreen.isTouchingBusyVerticalView),
+                                                                                             root.backgroundOnlyOnMaximized,
+                                                                                             forceTransparentPanel,
+                                                                                             colorizerManager.backgroundIsBusy,
+                                                                                             root.themeColors)
 
     property bool appletIsDragged: root.dragOverlay && root.dragOverlay.pressed
     property bool hideThickScreenGap: false /*set through binding*/
@@ -237,41 +225,18 @@ ContainmentItem {
                                                           && userShowPanelBackground
                                                           && Plasmoid.configuration.panelShadows
 
-    property bool panelShadowsActive: {
-        if (!userShowPanelBackground) {
-            return false;
-        }
-
-        if (inConfigureAppletsMode) {
-            return Plasmoid.configuration.panelShadows;
-        }
-
-        var forcedNoShadows = (Plasmoid.configuration.panelShadows && disablePanelShadowMaximized
-                               && latteView && latteView.windowsTracker && latteView.windowsTracker.currentScreen.activeWindowMaximized);
-
-        if (forcedNoShadows) {
-            return false;
-        }
-
-        var transparencyCheck = (blurEnabled || (!blurEnabled && background.currentOpacity>20));
-
-        //! Draw shadows for isBusy state only when current background opacity is greater than 10%
-        if (Plasmoid.configuration.panelShadows && root.forcePanelForBusyBackground && transparencyCheck) {
-            return true;
-        }
-
-        if (( (Plasmoid.configuration.panelShadows && !root.backgroundOnlyOnMaximized)
-             || (Plasmoid.configuration.panelShadows && root.backgroundOnlyOnMaximized && !root.forceTransparentPanel))
-                && !forcedNoShadows) {
-            return true;
-        }
-
-        if (hasExpandedApplet && plasmaBackgroundForPopups) {
-            return true;
-        }
-
-        return false;
-    }
+    property bool panelShadowsActive: _backgroundState.panelShadowsActive(userShowPanelBackground,
+                                                                          inConfigureAppletsMode,
+                                                                          Plasmoid.configuration.panelShadows,
+                                                                          disablePanelShadowMaximized,
+                                                                          !!(latteView && latteView.windowsTracker && latteView.windowsTracker.currentScreen.activeWindowMaximized),
+                                                                          blurEnabled,
+                                                                          background.currentOpacity,
+                                                                          forcePanelForBusyBackground,
+                                                                          backgroundOnlyOnMaximized,
+                                                                          forceTransparentPanel,
+                                                                          hasExpandedApplet,
+                                                                          plasmaBackgroundForPopups)
 
     property int offset: {
         if (behaveAsPlasmaPanel) {
@@ -764,6 +729,12 @@ ContainmentItem {
     }
 
     ///////////////END components
+
+    //! stateless resolver for the view-type chain and the background-state
+    //! predicate cluster (EX-13; units/backgroundstate.h)
+    LatteContainment.BackgroundStateResolver {
+        id: _backgroundState
+    }
 
     LatteContainment.LayoutManager{
         id:fastLayoutManager

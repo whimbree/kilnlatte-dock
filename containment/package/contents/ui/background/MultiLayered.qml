@@ -16,11 +16,18 @@ import org.kde.plasma.components 3.0 as PlasmaComponents
 import org.kde.kquickcontrolsaddons 2.0
 
 import org.kde.latte.core 0.2 as LatteCore
+import org.kde.latte.private.containment 0.1 as LatteContainment
 
 import "../colorizer" as Colorizer
 
 BackgroundProperties{
     id:barLine
+
+    //! stateless resolver for the per-edge padding math and the effects
+    //! area rect (EX-13; units/backgroundstate.h)
+    LatteContainment.BackgroundStateResolver {
+        id: backgroundStateResolver
+    }
 
     readonly property alias panelBackgroundSvg: solidBackground
 
@@ -53,76 +60,42 @@ BackgroundProperties{
     //! it can accept negative values in DockMode
     screenEdgeMargin: root.screenEdgeMarginEnabled ? metrics.margin.screenEdge - shadows.tailThickness : -shadows.tailThickness
 
-    paddings.top: {
-        if (hasTopBorder) {
-            var customAppliedRadius = customRadiusIsEnabled ? customRadius : 0;
-            var themePadding = themeExtendedBackground ? themeExtendedBackground.paddingTop : 0;
-            var solidBackgroundPadding = solidBackground.margins.top;
-
-            if (root.isVertical) {
-                var expected = customRadiusIsEnabled ? customAppliedRadius : Math.max(themePadding, solidBackgroundPadding);
-                expected = Math.max(0, expected - metrics.margin.length); //! remove from roundness padding the applied margins
-                return expected * indicators.info.backgroundCornerMargin;
-            } else {
-                return Math.max(themePadding, solidBackgroundPadding);
-            }
-        }
-
-        return 0;
-    }
-    paddings.bottom: {
-        if (hasBottomBorder) {
-            var customAppliedRadius = customRadiusIsEnabled ? customRadius : 0;
-            var themePadding = themeExtendedBackground ? themeExtendedBackground.paddingBottom : 0;
-            var solidBackgroundPadding = solidBackground.margins.bottom;
-
-            if (root.isVertical) {
-                var expected = customRadiusIsEnabled ? customAppliedRadius : Math.max(themePadding, solidBackgroundPadding);
-                expected = Math.max(0, expected - metrics.margin.length); //! remove from roundness padding the applied margins
-                return expected * indicators.info.backgroundCornerMargin;
-            } else {
-                return Math.max(themePadding, solidBackgroundPadding);
-            }
-        }
-
-        return 0;
-    }
-
-    paddings.left: {
-        if (hasLeftBorder) {
-            var customAppliedRadius = customRadiusIsEnabled ? customRadius : 0;
-            var themePadding = themeExtendedBackground ? themeExtendedBackground.paddingLeft : 0;
-            var solidBackgroundPadding = solidBackground.margins.left;
-
-            if (root.isHorizontal) {
-                var expected = customRadiusIsEnabled ? customAppliedRadius : Math.max(themePadding, solidBackgroundPadding);
-                expected = Math.max(0, expected - metrics.margin.length); //! remove from roundness padding the applied margins
-                return expected * indicators.info.backgroundCornerMargin;
-            } else {
-                return Math.max(themePadding, solidBackgroundPadding);
-            }
-        }
-
-        return 0;
-    }
-
-    paddings.right: {
-        if (hasRightBorder) {
-            var customAppliedRadius = customRadiusIsEnabled? customRadius : 0;
-            var themePadding = themeExtendedBackground ? themeExtendedBackground.paddingRight : 0;
-            var solidBackgroundPadding = solidBackground.margins.right;
-
-            if (root.isHorizontal) {
-                var expected = customRadiusIsEnabled ? customAppliedRadius : Math.max(themePadding, solidBackgroundPadding);
-                expected = Math.max(0, expected - metrics.margin.length); //! remove from roundness padding the applied margins
-                return expected * indicators.info.backgroundCornerMargin;
-            } else {
-                return Math.max(themePadding, solidBackgroundPadding);
-            }
-        }
-
-        return 0;
-    }
+    //! per-edge padding math delegates to the BackgroundState core (EX-13):
+    //! edges at the ends of the length axis (top/bottom of a vertical view,
+    //! left/right of a horizontal one) carry the roundness treatment, the
+    //! others take the theme padding as-is
+    paddings.top: backgroundStateResolver.edgePadding(barLine.hasTopBorder,
+                                                      root.isVertical,
+                                                      barLine.customRadiusIsEnabled,
+                                                      barLine.customRadius,
+                                                      barLine.themeExtendedBackground ? barLine.themeExtendedBackground.paddingTop : 0,
+                                                      solidBackground.margins.top,
+                                                      metrics.margin.length,
+                                                      indicators.info.backgroundCornerMargin)
+    paddings.bottom: backgroundStateResolver.edgePadding(barLine.hasBottomBorder,
+                                                         root.isVertical,
+                                                         barLine.customRadiusIsEnabled,
+                                                         barLine.customRadius,
+                                                         barLine.themeExtendedBackground ? barLine.themeExtendedBackground.paddingBottom : 0,
+                                                         solidBackground.margins.bottom,
+                                                         metrics.margin.length,
+                                                         indicators.info.backgroundCornerMargin)
+    paddings.left: backgroundStateResolver.edgePadding(barLine.hasLeftBorder,
+                                                       root.isHorizontal,
+                                                       barLine.customRadiusIsEnabled,
+                                                       barLine.customRadius,
+                                                       barLine.themeExtendedBackground ? barLine.themeExtendedBackground.paddingLeft : 0,
+                                                       solidBackground.margins.left,
+                                                       metrics.margin.length,
+                                                       indicators.info.backgroundCornerMargin)
+    paddings.right: backgroundStateResolver.edgePadding(barLine.hasRightBorder,
+                                                        root.isHorizontal,
+                                                        barLine.customRadiusIsEnabled,
+                                                        barLine.customRadius,
+                                                        barLine.themeExtendedBackground ? barLine.themeExtendedBackground.paddingRight : 0,
+                                                        solidBackground.margins.right,
+                                                        metrics.margin.length,
+                                                        indicators.info.backgroundCornerMargin)
 
     length: {
         if (root.behaveAsPlasmaPanel && LatteCore.WindowSystem.compositingActive) {
@@ -410,8 +383,6 @@ BackgroundProperties{
         //! instantly otherwise the transition is not smooth
         readonly property bool paintInstantly: (root.hasExpandedApplet && root.plasmaBackgroundForPopups && !customRadiusIsEnabled)
 
-        property rect efGeometry: Qt.rect(-1,-1,0,0)
-
         property int paddingsWidth: margins.left+margins.right
         property int paddingsHeight: margins.top + margins.bottom
 
@@ -460,41 +431,22 @@ BackgroundProperties{
             }
         }
 
+        //! the rect decision (no-compositing verbatim mapping, the 1x1
+        //! hide mask, panel-vs-dock anchoring) lives in the BackgroundState
+        //! core (EX-13); this shell keeps the latteView.effects.rect write
+        //! and the coalescing timer below
         function invUpdateEffectsArea(){
             if (!latteView)
                 return;
 
-            if (!LatteCore.WindowSystem.compositingActive) {
-                //! NOCOMPOSITING mode is a special case and Effects Area is also used for
-                //! different calculations for View::mask()
-                var rootGeometry = mapToItem(root, 0, 0);
-                efGeometry.x = rootGeometry.x;
-                efGeometry.y = rootGeometry.y;
-                efGeometry.width = width;
-                efGeometry.height = height;
-            } else {
-                if (latteView.visibility.isHidden) {
-                    //! valid hide mask
-                    efGeometry.x = -1;
-                    efGeometry.y = -1;
-                    efGeometry.width = 1;
-                    efGeometry.height = 1;
-                } else {
-                    if (!root.behaveAsPlasmaPanel) {
-                        var rootGeometry = mapToItem(root, 0, 0);
-                        efGeometry.x = rootGeometry.x;
-                        efGeometry.y = rootGeometry.y;
-                    } else {
-                        efGeometry.x = 0;
-                        efGeometry.y = 0;
-                    }
-
-                    efGeometry.width = width;
-                    efGeometry.height = height;
-                }
-            }
-
-            latteView.effects.rect = efGeometry;
+            var rootGeometry = solidBackground.mapToItem(root, 0, 0);
+            latteView.effects.rect = backgroundStateResolver.effectsArea(LatteCore.WindowSystem.compositingActive,
+                                                                         latteView.visibility.isHidden,
+                                                                         root.behaveAsPlasmaPanel,
+                                                                         rootGeometry.x,
+                                                                         rootGeometry.y,
+                                                                         solidBackground.width,
+                                                                         solidBackground.height);
         }
 
         Timer {
