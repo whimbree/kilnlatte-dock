@@ -858,6 +858,8 @@ PlasmoidItem {
 
     TasksExtendedManager {
         id: _tasksExtendedManager
+        launchersAbility: _appletAbilities.launchers
+        tasksModel: tasksModel
     }
 
     AppletAbilities {

@@ -1,11 +1,14 @@
 /*
     SPDX-FileCopyrightText: 2019 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
 import QtQuick 2.0
 
 import org.kde.plasma.plasmoid 2.0
+
+import org.kde.latte.private.tasks 0.1 as LatteTasks
 
 //! Trying to WORKAROUND all the Plasma LibTaskManager limitations
 //! concerning Tasks AND Launchers.
@@ -17,34 +20,21 @@ import org.kde.plasma.plasmoid 2.0
 //!
 //! All the logic that is trying to improve the mentioned limits is provided
 //! from this class
+//!
+//! EX-11: registry membership lives in the TasksExtendedRegistries C++
+//! shell (units/launcherlistops.h owns the semantics); this file keeps the
+//! state machine around it - the paused-state count latches, the signals,
+//! and the three timers.
 
 Item {
     id: tasksExtManager
 
-    /// Launchers that are playing an ADD or REMOVAL animation
-    /// and their Startups/Windows should be aware of
-    property variant waitingLaunchers: []
-
-    //! Launchers that must be shown IMMEDIATELY after a window removal
-    //! because they are already present from a present libtaskmanager state
-    property variant immediateLaunchers: []
-
-    //! New launchers in order to be moved in correct place:
-    //! launcher, pos)
-    property variant launchersToBeMoved: []
-
-    //! Launchers that are added from user actions. They can be used in order
-    //! to provide addition animations properly
-    property variant launchersToBeAdded: []
-
-    //! Launchers that are added from user actions. They can be used in order
-    //! to provide removal animations properly
-    property variant launchersToBeRemoved: []
-
-    //! Tasks that change state (launcher,startup,window) and
-    //! at the next state must look the same concerning the parabolic effect:
-    //! (id, zoom)
-    property variant frozenTasks: []
+    //! injected at the instantiation site (main.qml), so the reads below
+    //! stay off the context chain (QtObject deliberately: only signals and
+    //! functions are consumed, and the offscreen harness injects a plain
+    //! QtObject stand-in)
+    property QtObject launchersAbility: null
+    property QtObject tasksModel: null
 
     readonly property int launchersInPausedStateCount: launchersToBeMovedCount + launchersToBeAddedCount + launchersToBeRemovedCount
 
@@ -54,288 +44,168 @@ Item {
 
     signal waitingLauncherRemoved(string launch);
 
+    LatteTasks.TasksExtendedRegistries {
+        id: registries
+    }
 
     /////////// FUNCTIONALITY ////////////////////
 
-
-    /// WAITING LAUNCHERS
+    /// WAITING LAUNCHERS: launchers that are playing an ADD or REMOVAL
+    /// animation and their Startups/Windows should be aware of
     function addWaitingLauncher(launch){
         arraysGarbageCollectorTimer.restart();
-
-        if (waitingLauncherExists(launch)) {
-            return;
-        }
-
-        waitingLaunchers.push(launch);
+        registries.addWaiting(launch);
     }
 
     function removeWaitingLauncher(launch){
-        for(var i=0; i<waitingLaunchers.length; ++i){
-            if (equals(waitingLaunchers[i], launch)) {
-                waitingLaunchers.splice(i,1);
-                waitingLauncherRemoved(launch);
-                return;
-            }
+        if (registries.removeWaiting(launch)) {
+            tasksExtManager.waitingLauncherRemoved(launch);
         }
     }
 
     function waitingLauncherExists(launch){
-        for(var i=0; i<waitingLaunchers.length; ++i){
-            if (equals(waitingLaunchers[i], launch)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    function equals(waitingLauncher, launcher) {
-        var equals = ( launcher !== ""
-                      && waitingLauncher !== ""
-                      && (launcher.indexOf(waitingLauncher) >= 0 || waitingLauncher.indexOf(launcher) >= 0));
-
-        return equals;
+        return registries.waitingExists(launch);
     }
 
     function waitingLaunchersLength() {
-        return waitingLaunchers.length;
+        return registries.waitingCount();
     }
 
     function printWaitingLaunchers() {
-        console.log("WAITING LAUNCHERS ::: " + waitingLaunchers);
+        console.log("WAITING LAUNCHERS ::: " + registries.waitingItems());
     }
 
-    //! LAUNCHERSTOBEADDED
+    //! LAUNCHERSTOBEADDED: launchers that are added from user actions. They
+    //! can be used in order to provide addition animations properly
     function addToBeAddedLauncher(launcher){
         arraysGarbageCollectorTimer.restart();
 
-        if (toBeAddedLauncherExists(launcher)) {
-            return;
+        if (registries.addToBeAdded(launcher)) {
+            tasksExtManager.launchersToBeAddedCount++;
         }
-
-        launchersToBeAdded.push(launcher);
-        launchersToBeAddedCount++;
     }
 
     function removeToBeAddedLauncher(launcher){
-        for(var i=0; i<launchersToBeAdded.length; ++i){
-            if (equals(launchersToBeAdded[i], launcher)) {
-                launchersToBeAdded.splice(i,1);
-                launchersToBeAddedCount--;
-                return;
-            }
+        if (registries.removeToBeAdded(launcher)) {
+            tasksExtManager.launchersToBeAddedCount--;
         }
     }
 
     function toBeAddedLauncherExists(launcher) {
-        for(var i=0; i<launchersToBeAdded.length; ++i){
-            if (equals(launchersToBeAdded[i], launcher)) {
-                return true;
-            }
-        }
-
-        return false;
+        return registries.toBeAddedExists(launcher);
     }
-
 
     function printToBeAddedLaunchers() {
-        console.log("TO BE ADDED LAUNCHERS ::: " + launchersToBeAdded);
+        console.log("TO BE ADDED LAUNCHERS ::: " + registries.toBeAddedItems());
     }
 
-    //! LAUNCHERSTOBEREMOVED
+    //! LAUNCHERSTOBEREMOVED: launchers that are removed from user actions.
+    //! They can be used in order to provide removal animations properly
     function addToBeRemovedLauncher(launcher){
         arraysGarbageCollectorTimer.restart();
 
-        if (isLauncherToBeRemoved(launcher)) {
-            return;
+        if (registries.addToBeRemoved(launcher)) {
+            tasksExtManager.launchersToBeRemovedCount++;
         }
-
-        launchersToBeRemoved.push(launcher);
-        launchersToBeRemovedCount++;
     }
 
     function removeToBeRemovedLauncher(launcher){
-        if (!isLauncherToBeRemoved(launcher)) {
-            return;
-        }
-
-        for(var i=0; i<launchersToBeRemoved.length; ++i){
-            if (launchersToBeRemoved[i] === launcher) {
-                launchersToBeRemoved.splice(i,1);
-                launchersToBeRemovedCount--;
-                return;
-            }
+        if (registries.removeToBeRemoved(launcher)) {
+            tasksExtManager.launchersToBeRemovedCount--;
         }
     }
 
     function isLauncherToBeRemoved(launcher) {
-        return launchersToBeRemoved.indexOf(launcher)>=0;
+        return registries.toBeRemovedExists(launcher);
     }
-
 
     function printToBeRemovedLaunchers() {
-        console.log("TO BE REMOVED LAUNCHERS ::: " + launchersToBeRemoved);
+        console.log("TO BE REMOVED LAUNCHERS ::: " + registries.toBeRemovedItems());
     }
 
-    //! IMMEDIATELAUNCHERS
+    //! IMMEDIATELAUNCHERS: launchers that must be shown IMMEDIATELY after a
+    //! window removal because they are already present from a present
+    //! libtaskmanager state
     function addImmediateLauncher(launch){
         arraysGarbageCollectorTimer.restart();
-
-        if (!immediateLauncherExists(launch)) {
-            //console.log("Immediate Launcher Added::: "+launch);
-            immediateLaunchers.push(launch);
-        }
+        registries.addImmediate(launch);
     }
 
     function removeImmediateLauncher(launch){
-        for(var i=0; i<immediateLaunchers.length; ++i){
-            if (immediateLaunchers[i]===launch) {
-                immediateLaunchers.splice(i,1);
-                //console.log("Immediate Launcher Removed::: "+launch);
-                return;
-            }
-        }
+        registries.removeImmediate(launch);
     }
 
     function immediateLauncherExists(launch){
-        for(var i=0; i<immediateLaunchers.length; ++i){
-            if (immediateLaunchers[i]===launch) {
-                return true;
-            }
-        }
-
-        return false;
+        return registries.immediateExists(launch);
     }
 
     function printImmediateLaunchers() {
-        console.log("IMMEDIATE LAUNCHERS ::: " + immediateLaunchers);
+        console.log("IMMEDIATE LAUNCHERS ::: " + registries.immediateItems());
     }
-    //!
 
-    //! FROZENTASKS
+    //! FROZENTASKS: tasks that change state (launcher,startup,window) and
+    //! at the next state must look the same concerning the parabolic effect
     function getFrozenTask(identifier) {
-        for(var i=0; i<frozenTasks.length; ++i) {
-            if (frozenTasks[i].id === identifier) {
-                return frozenTasks[i];
-            }
-        }
+        var zoom = registries.frozenZoom(identifier);
+        return zoom === undefined ? undefined : { id: identifier, zoom: zoom };
     }
 
     function removeFrozenTask(identifier) {
-        var taskIndex = -1;
-        for(var i=0; i<frozenTasks.length; ++i) {
-            if (frozenTasks[i].id === identifier) {
-                taskIndex = i;
-            }
-        }
-
-        if (taskIndex > -1) {
-            frozenTasks.splice(taskIndex, 1);
-        }
+        registries.removeFrozenZoom(identifier);
     }
 
     function setFrozenTask(identifier, scale) {
         arraysGarbageCollectorTimer.restart();
-
-        var frozenTaskExists = false;
-        //console.log("SET FROZEN :: "+identifier+" - "+scale);
-        var frozenTask = getFrozenTask(identifier);
-
-        if (frozenTask) {
-            frozenTask.zoom = scale;
-        } else {
-            frozenTasks.push({id: identifier, zoom: scale});
-        }
+        registries.setFrozenZoom(identifier, scale);
     }
 
     function printFrozenTasks() {
-        var fzTasks= "";
-
-        for(var i=0; i<frozenTasks.length; ++i) {
-            fzTasks = frozenTasks[i].id + "," + frozenTasks[i].zoom + "__";
-        }
-
-        console.log("FROZEN TASKS ::: " + fzTasks);
+        console.log("FROZEN TASKS ::: " + JSON.stringify(registries.frozenEntries()));
     }
 
-    //! LAUNCHERSTOBEMOVED
-
-    //! launchersToBeMoved, new launchers to have been added and must be repositioned
+    //! LAUNCHERSTOBEMOVED: new launchers to have been added and must be
+    //! repositioned to their intended place
     function addLauncherToBeMoved(launcherUrl, toPos) {
         arraysGarbageCollectorTimer.restart();
 
-        if (!isLauncherToBeMoved(launcherUrl)) {
-            launchersToBeMoved.push({launcher: launcherUrl, pos: Math.max(0,toPos)});
-            launchersToBeMovedCount++;
+        if (registries.addMoveIntent(launcherUrl, toPos)) {
+            tasksExtManager.launchersToBeMovedCount++;
         }
     }
 
     function moveLauncherToCorrectPos(launcherUrl, from) {
-        if (isLauncherToBeMoved(launcherUrl)) {
-            launchersToBeMovedTimer.from = from;
-            launchersToBeMovedTimer.to = posOfLauncherToBeMoved(launcherUrl);
-            launchersToBeMovedTimer.launcherUrl = launcherUrl
+        //! consumes the intent atomically (the Qt5 get-then-remove pair)
+        var to = registries.takeMoveIntentPosition(launcherUrl);
 
-            removeLauncherToBeMoved(launcherUrl);
+        if (to !== undefined) {
+            launchersToBeMovedTimer.from = from;
+            launchersToBeMovedTimer.to = to;
+            launchersToBeMovedTimer.launcherUrl = launcherUrl;
             launchersToBeMovedTimer.start();
         }
     }
 
-    function removeLauncherToBeMoved(launcherUrl) {
-        if (isLauncherToBeMoved(launcherUrl)) {
-            var sLength = launchersToBeMoved.length;
-            var index = -1;
-
-            for (var i=0; i<sLength; ++i) {
-                //!safety checker
-                if (i>=launchersToBeMoved.length)
-                    return -1;
-
-                if (launchersToBeMoved[i].launcher === launcherUrl) {
-                    index = i;
-                    break;
-                }
-            }
-
-            if (index > -1) {
-                // console.log("removing launcher to be moved:: "+launcherUrl);
-                launchersToBeMoved.splice(index, 1);
-            }
-        }
-    }
-
-    function posOfLauncherToBeMoved(launcherUrl) {
-        var sLength = launchersToBeMoved.length;
-
-        for (var i=0; i<sLength; ++i) {
-            //!safety checker
-            if (i>=launchersToBeMoved.length)
-                return -1;
-
-            if (launchersToBeMoved[i].launcher === launcherUrl)
-                return launchersToBeMoved[i].pos;
-        }
-
-        return -1;
-    }
-
     function isLauncherToBeMoved(launcher) {
-        return (posOfLauncherToBeMoved(launcher) >= 0);
+        return registries.moveIntentExists(launcher);
     }
 
     function printToBeMovedLaunchers() {
-        var tbmLaunchers= "";
+        console.log("TO BE MOVED LAUNCHERS ::: " + JSON.stringify(registries.moveIntents()));
+    }
 
-        for(var i=0; i<launchersToBeMoved.length; ++i) {
-            tbmLaunchers = launchersToBeMoved[i].launcher + "," + launchersToBeMoved[i].pos + "__";
-        }
+    //! the GC sweep body; also the reset seam tests/qml/tst_launcherlistops.qml drives
+    function clearRegistries() {
+        registries.clearAll();
 
-        console.log("TO BE MOVED LAUNCHERS ::: " + tbmLaunchers);
+        //! clear up launchers counters
+        tasksExtManager.launchersToBeMovedCount = 0;
+        tasksExtManager.launchersToBeAddedCount = 0;
+        tasksExtManager.launchersToBeRemovedCount = 0;
     }
 
     //! Connections
     Connections {
-        target: appletAbilities.launchers
+        target: tasksExtManager.launchersAbility
         function onLauncherInRemoving(launcherUrl) { tasksExtManager.addToBeRemovedLauncher(launcherUrl); }
         function onLauncherInAdding(launcherUrl) { tasksExtManager.addToBeAddedLauncher(launcherUrl); }
         function onLauncherInMoving(launcherUrl, pos) { tasksExtManager.addLauncherToBeMoved(launcherUrl, pos); }
@@ -352,7 +222,7 @@ Item {
         property string launcherUrl: ""
 
         onTriggered: {
-            tasksModel.move(from, to);
+            tasksExtManager.tasksModel.move(from, to);
             delayedLaynchersSyncTimer.start();
         }
     }
@@ -364,17 +234,17 @@ Item {
         id: delayedLaynchersSyncTimer
         interval: 450
         onTriggered: {
-            tasksModel.syncLaunchers();
-            appletAbilities.launchers.validateSyncedLaunchersOrder();
+            tasksExtManager.tasksModel.syncLaunchers();
+            tasksExtManager.launchersAbility.validateSyncedLaunchersOrder();
             //! In case there are multiple launchers in moving state
-            launchersToBeMovedCount = 0;
+            tasksExtManager.launchersToBeMovedCount = 0;
         }
     }
 
 
-    //! Timer to clean up all arrays used from TasksExtendedManager after a specified interval
-    //! The arrays may have ghost records that were not used from animations or other plasmoid parts.
-    //! Each record of the arrays is usually only a matter of secs to be used, cleaning them after
+    //! Timer to clean up all registries used from TasksExtendedManager after a specified interval
+    //! The registries may have ghost records that were not used from animations or other plasmoid parts.
+    //! Each record is usually only a matter of secs to be used, cleaning them after
     //! a big interval from the last addition it is safe
     Timer {
         id: arraysGarbageCollectorTimer
@@ -388,17 +258,7 @@ Item {
             tasksExtManager.printWaitingLaunchers();
             tasksExtManager.printFrozenTasks();
 
-            immediateLaunchers.splice(0, immediateLaunchers.length);
-            launchersToBeAdded.splice(0, launchersToBeAdded.length);
-            launchersToBeMoved.splice(0, launchersToBeMoved.length);
-            launchersToBeRemoved.splice(0, launchersToBeRemoved.length);
-            waitingLaunchers.splice(0, waitingLaunchers.length);
-            frozenTasks.splice(0, frozenTasks.length);
-
-            //! clear up launchers counters
-            tasksExtManager.launchersToBeMovedCount = 0;
-            tasksExtManager.launchersToBeAddedCount = 0;
-            tasksExtManager.launchersToBeRemovedCount = 0;
+            tasksExtManager.clearRegistries();
         }
     }
 }

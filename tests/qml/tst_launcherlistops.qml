@@ -20,10 +20,11 @@
 //! and the settle/stop branches are observable contract. The adjacent-swap
 //! single-move case IS pinned - both implementations do it in one move.
 //!
-//! Context plumbing (the tst_tooltiptext pattern): every context-chain name
-//! the shipped files resolve is provided as a property of this root -
-//! appletAbilities/tasksModel for TasksExtendedManager, _launchers for the
-//! Validator.
+//! Context plumbing (the tst_tooltiptext pattern): every name the shipped
+//! files resolve is provided - TasksExtendedManager takes its
+//! launchersAbility/tasksModel as injected properties (the EX-11 seam),
+//! the Validator resolves _launchers through the context chain via a
+//! property of this root.
 
 import QtQuick 2.7
 import QtTest 1.2
@@ -47,8 +48,6 @@ Item {
         function validateSyncedLaunchersOrder() { validateCallCount++; }
     }
 
-    property var appletAbilities: ({ launchers: root.launchersAbility })
-
     property QtObject tasksModel: QtObject {
         property var moveLog: []
         property int syncCount: 0
@@ -58,6 +57,8 @@ Item {
 
     TasksUi.TasksExtendedManager {
         id: extManager
+        launchersAbility: root.launchersAbility
+        tasksModel: root.tasksModel
     }
 
     // ---- context for launchers/Validator.qml ----
