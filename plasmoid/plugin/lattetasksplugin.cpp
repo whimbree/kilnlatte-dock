@@ -7,6 +7,7 @@
 
 // local
 #include "backend.h"
+#include "previewswitchbridge.h"
 #include "smartlauncheritem.h"
 #include "types.h"
 
@@ -24,5 +25,6 @@ void LatteTasksPlugin::registerTypes(const char *uri)
 
     qmlRegisterType<SmartLauncher::Item>(uri, 0, 1, "SmartLauncherItem");
     qmlRegisterType<Backend>(uri, 0, 1, "Backend");
+    qmlRegisterType<Latte::Tasks::PreviewSwitchBridge>(uri, 0, 1, "PreviewSwitchBridge");
 }
 

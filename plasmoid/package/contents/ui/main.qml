@@ -350,6 +350,16 @@ PlasmoidItem {
 
     ////BEGIN interfaces
 
+    //! previews decision core (EX-01, plasmoid/plugin/units/
+    //! previewswitchengine.h): switch-vs-defer-vs-settle, hide-countdown
+    //! decisions and the delegate-cache LRU accounting live there, tested
+    //! with an injected clock. The dialog below OWNS the timers and the
+    //! delegate objects and applies the engine's verdicts; the measured
+    //! WHY of each mechanism stays documented at the apply sites.
+    LatteTasks.PreviewSwitchBridge {
+        id: previewSwitch
+    }
+
     LatteCore.Dialog{
         id: windowsPreviewDlg
         type: Plasmoid.configuration.previewWindowAsPopup ? PlasmaCore.Dialog.PopupMenu : PlasmaCore.Dialog.Tooltip
@@ -429,46 +439,66 @@ PlasmoidItem {
         //! dropCachedDelegateFor() from its Component.onDestruction -
         //! Item-typed auto-nulling cannot be relied on inside a var array.
         property Item activeDelegate: null
+        //! the task whose content activeDelegate holds. DELIBERATELY not
+        //! activeItem: forcePreviewsHiding() nulls activeItem, and keying
+        //! the cache off it made every hide/re-hover of the same task pay
+        //! a full rebuild and park the old delegate under a null key,
+        //! unreachable for revive and for the destruction-contract drop.
+        //! var on purpose (identity comparisons only, never dereferenced).
+        property var activeCacheTask: null
         property var parkedEntries: []   //! [{task, delegate}], oldest first
-        readonly property int parkedDepth: 4
 
-        //! resolves the delegate that will show taskItem's previews: the
-        //! active one (same task), a revived parked one (the cache hit
-        //! this exists for), or a freshly created instance. Returns true
-        //! when the instance is fresh and still needs its model bindings
-        //! from preparePreviewWindow().
+        //! resolves the delegate that will show taskItem's previews per
+        //! the engine's verdict: the active one kept (same task), a
+        //! revived parked one (the cache hit this exists for), or a
+        //! freshly created instance. Returns true when the instance is
+        //! fresh and still needs its model bindings from
+        //! preparePreviewWindow(). The engine mirrors this list by id in
+        //! the same order, which is why eviction is positional (index 0
+        //! is the oldest in both).
         function materializeDelegateFor(taskItem) {
-            if (activeDelegate && activeItem === taskItem) {
+            var verdict = previewSwitch.materialize(taskItem);
+
+            if (!verdict.changed) {
                 return false;
             }
 
             var incoming = null;
-            var fresh = false;
+            var fresh = verdict.fresh;
 
-            for (var i = 0; i < parkedEntries.length; ++i) {
-                if (parkedEntries[i].task === taskItem) {
-                    incoming = parkedEntries[i].delegate;
-                    parkedEntries.splice(i, 1);
-                    break;
+            if (verdict.revive) {
+                for (var i = 0; i < parkedEntries.length; ++i) {
+                    if (parkedEntries[i].task === taskItem) {
+                        incoming = parkedEntries[i].delegate;
+                        parkedEntries.splice(i, 1);
+                        break;
+                    }
+                }
+
+                if (!incoming) {
+                    //! the two parked lists disagreeing is corruption, not
+                    //! a state to paper over - rebuild loudly
+                    console.warn("previews cache drift: revive verdict without a parked delegate, rebuilding");
+                    fresh = true;
                 }
             }
 
             if (!incoming) {
                 incoming = previewDelegateComponent.createObject(previewsHost);
                 incoming.anchors.fill = previewsHost;
-                fresh = true;
             }
 
-            //! park the current active; evict the oldest beyond the depth
+            //! park the current active; the engine already accounted for it
             if (activeDelegate && activeDelegate !== incoming) {
                 activeDelegate.visible = false;
-                parkedEntries.push({ task: activeItem, delegate: activeDelegate });
-
-                while (parkedEntries.length > parkedDepth) {
-                    parkedEntries.shift().delegate.destroy();
-                }
+                parkedEntries.push({ task: activeCacheTask, delegate: activeDelegate });
             }
 
+            if (verdict.evict) {
+                parkedEntries.shift().delegate.destroy();
+            }
+
+            activeCacheTask = taskItem;
             activeDelegate = incoming;
             incoming.visible = true;
 
@@ -478,8 +508,10 @@ PlasmoidItem {
         //! eviction contract for dying tasks, called from TaskItem's
         //! Component.onDestruction: a destroyed task's parked delegate is
         //! unreachable (nothing can ever revive it) and its bindings are
-        //! about to go stale
+        //! about to go stale. The engine drops its id in the same call.
         function dropCachedDelegateFor(taskItem) {
+            previewSwitch.dropTask(taskItem);
+
             for (var i = 0; i < parkedEntries.length; ++i) {
                 if (parkedEntries[i].task === taskItem) {
                     parkedEntries[i].delegate.destroy();
@@ -489,15 +521,6 @@ PlasmoidItem {
             }
         }
 
-        //! burst-debounce state for task switches, see shouldDeferSwitch()
-        property Item pendingSwitchTask: null
-        property double lastSwitchRequestTime: 0
-        //! a switch request this soon after the previous one is a sweep in
-        //! flight; the settle timer's interval must stay BELOW this, or a
-        //! steady sweep whose crossings are slower than the timer would
-        //! degenerate back to one adoption (and one stall) per icon
-        readonly property int switchBurstThreshold: 350
-
         //! Burst debounce, a DELIBERATE deviation from Qt5's
         //! adopt-immediately (which was free on X11): adopting a task
         //! rebuilds the whole delegate tree synchronously on the GUI
@@ -506,46 +529,34 @@ PlasmoidItem {
         //! with the gdb wrapper: SvgItem::componentComplete ->
         //! ImageSet::filePath -> QStandardPaths::locate). A fast sweep
         //! paid that per icon crossed - the whole plasmoid chugged,
-        //! parabolic included. This is a TRAILING debounce keyed on
-        //! request cadence: while switch requests keep arriving inside the
-        //! burst threshold nothing is adopted at all, and the settle timer
-        //! adopts the LAST hovered task once the requests stop, so a sweep
-        //! pays for exactly one rebuild where it rests. Deliberate
-        //! stepping (gaps above the threshold) adopts immediately, same
-        //! as always. TaskItem's showPreviewWindow() consults this BEFORE
-        //! preparePreviewWindow(): the delegate re-bind is what schedules
-        //! the expensive rebuild.
+        //! parabolic included. The cadence decision lives in
+        //! PreviewSwitchEngine (a TRAILING debounce: sweeps coalesce to
+        //! one adoption where they rest, deliberate stepping adopts
+        //! immediately); this shell applies its verdict. TaskItem's
+        //! showPreviewWindow() consults this BEFORE preparePreviewWindow():
+        //! the delegate re-bind is what schedules the expensive rebuild.
         function shouldDeferSwitch(taskItem) {
-            if (!visible || !activeItem || activeItem === taskItem) {
-                lastSwitchRequestTime = Date.now();
+            if (!previewSwitch.shouldDeferSwitch(taskItem, visible)) {
                 return false;
             }
 
-            var now = Date.now();
-            var inBurst = (now - lastSwitchRequestTime) < switchBurstThreshold;
-            lastSwitchRequestTime = now;
+            //! applying Defer: a deferred switch never reaches show(),
+            //! whose first act is cancelling the hide countdown that EVERY
+            //! task exit arms - without this stop, a scrub across several
+            //! tasks deferred every adoption while the last exit's
+            //! countdown kept running, and the dialog hid mid-scrub
+            //! (previews "stopped appearing", reproduced at the desk
+            //! scrubbing dolphin<->konsole). The engine's Defer verdict
+            //! carries this cancel as contract (54ed1974).
+            hidePreviewWinTimer.stop();
+            previewSwitchSettleTimer.restart();
 
-            if (inBurst) {
-                //! a deferred switch never reaches show(), whose first act
-                //! is cancelling the hide countdown that EVERY task exit
-                //! arms - without this stop, a scrub across several tasks
-                //! deferred every adoption while the last exit's countdown
-                //! kept running, and the dialog hid mid-scrub (previews
-                //! "stopped appearing", reproduced at the desk scrubbing
-                //! dolphin<->konsole). The pointer is on a task right now,
-                //! exactly the situation the countdown must not survive.
-                hidePreviewWinTimer.stop();
-
-                pendingSwitchTask = taskItem;
-                previewSwitchSettleTimer.restart();
-            }
-
-            return inBurst;
+            return true;
         }
 
         onVisibleChanged: {
             if (!visible) {
-                pendingSwitchTask = null;
+                previewSwitch.dialogHidden();
                 previewSwitchSettleTimer.stop();
             }
         }
@@ -565,7 +576,7 @@ PlasmoidItem {
 
         function hide(debug){
             //console.log("   Tasks: hide previews event called: "+debug);
-            if (containsMouse || !visible) {
+            if (!previewSwitch.shouldArmHideCountdown(visible, containsMouse)) {
                 return;
             }
 
@@ -600,7 +611,7 @@ PlasmoidItem {
 
                 //! a directly adopted task supersedes any deferred switch
                 //! still waiting on the settle timer
-                pendingSwitchTask = null;
+                previewSwitch.shown(taskItem);
                 previewSwitchSettleTimer.stop();
 
                 //! A task switch re-anchors the MAPPED window in place. This
@@ -635,17 +646,17 @@ PlasmoidItem {
     //! windowsPreviewDlg.shouldDeferSwitch() for why bursts defer. Adopts
     //! DIRECTLY (prepare + show), never through showPreviewWindow(): the
     //! settle path re-entering the burst check would count itself as a
-    //! fresh request and re-defer forever. The interval must stay below
-    //! switchBurstThreshold, see its comment.
+    //! fresh request and re-defer forever (the engine's settle() equally
+    //! never stamps the request clock). The interval comes from the
+    //! engine so it cannot drift above the tested burst threshold.
     Timer {
         id: previewSwitchSettleTimer
-        interval: 250
+        interval: previewSwitch.settleInterval
         onTriggered: {
-            if (windowsPreviewDlg.pendingSwitchTask
-                    && windowsPreviewDlg.pendingSwitchTask.containsMouse
-                    && windowsPreviewDlg.visible) {
-                var task = windowsPreviewDlg.pendingSwitchTask;
-                windowsPreviewDlg.pendingSwitchTask = null;
+            var pending = previewSwitch.pendingTask();
+            var task = previewSwitch.settlePending(pending ? pending.containsMouse : false,
+                                                   windowsPreviewDlg.visible);
+            if (task) {
                 task.preparePreviewWindow(false);
                 windowsPreviewDlg.show(task);
             }
@@ -655,18 +666,20 @@ PlasmoidItem {
     //! Delay windows previews hiding
     Timer {
         id: hidePreviewWinTimer
-        interval: 300
+        interval: previewSwitch.hideCountdown
         onTriggered: {
             //! Orchestrate restore zoom and previews window hiding. Both should be
-            //! triggered together.
-            var contains = (windowsPreviewDlg.containsMouse
-                            || (windowsPreviewDlg.activeItem && windowsPreviewDlg.activeItem.containsMouse) /*main task*/
-                            || (windowsPreviewDlg.activeItem /*dragging file(s) from outside*/
+            //! triggered together. The composite truth table lives in the
+            //! engine; this feeds it the three raw signals: dialog
+            //! contains-mouse, active task contains-mouse, and an external
+            //! drag hovering the active task.
+            var taskContains = (windowsPreviewDlg.activeItem && windowsPreviewDlg.activeItem.containsMouse) === true;
+            var dragOnActive = (windowsPreviewDlg.activeItem /*dragging file(s) from outside*/
                                 && mouseHandler.hoveredItem
                                 && !root.dragSource
-                                && mouseHandler.hoveredItem === windowsPreviewDlg.activeItem));
+                                && mouseHandler.hoveredItem === windowsPreviewDlg.activeItem) === true;
 
-            if (!contains) {
+            if (previewSwitch.shouldHideNow(windowsPreviewDlg.containsMouse, taskContains, dragOnActive)) {
                 root.forcePreviewsHiding(9.9);
             }
         }

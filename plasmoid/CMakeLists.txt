@@ -5,6 +5,7 @@ plasma_install_package(package org.kde.latte.plasmoid)
 set(tasks_SRCS
     plugin/types.cpp
     plugin/lattetasksplugin.cpp
+    plugin/previewswitchbridge.cpp
     plugin/smartlauncherbackend.cpp
     plugin/smartlauncheritem.cpp
     plugin/backend.cpp
