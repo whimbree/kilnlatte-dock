@@ -5,6 +5,7 @@
 # the same commit that lands it.
 app/layouts/activitysetalgebra.h
 app/layouts/storageidremapper.h
+app/plasma/extended/panelbackgroundscan.h
 app/screengeometrycalculator.h
 app/view/positionergeometry.h
 app/wm/windowtrackingpredicates.h

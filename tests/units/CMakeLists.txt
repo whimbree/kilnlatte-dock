@@ -86,3 +86,9 @@ target_include_directories(extraviewhintstest PRIVATE
 target_link_libraries(extraviewhintstest
     Qt6::Gui
     Plasma::Plasma)
+
+# EX-25 PanelBackgroundScan: header-only pure pixel-scan math; QImage and
+# QColor need Qt Gui, nothing from KSvg/Plasma reaches the core.
+latte_add_unit_test(panelbackgroundscantest)
+target_link_libraries(panelbackgroundscantest
+    Qt6::Gui)
