@@ -27,7 +27,6 @@
 #include <QDir>
 #include <QFile>
 #include <QLockFile>
-#include <QSessionManager>
 #include <QSharedMemory>
 #include <QTextStream>
 
@@ -72,6 +71,16 @@ int main(int argc, char **argv)
     }
 
     QQuickWindow::setDefaultAlphaBuffer(true);
+
+    //! Latte manages its own autostart (KDBusService single-instance plus
+    //! the autostart desktop entry); XSMP session restore would launch a
+    //! second copy racing that, and on wayland Qt has no XSMP client at
+    //! all. plasmashell disables the session manager the same way
+    //! (plasma-workspace 6.6.5 shell/main.cpp). This also means
+    //! commitDataRequest/saveStateRequest can never fire, so no handler
+    //! for them exists here - session-end teardown arrives as SIGTERM
+    //! from systemd instead (see the signal wiring below).
+    QCoreApplication::setAttribute(Qt::AA_DisableSessionManager);
 
     //! Default to the THREADED scenegraph render loop, like plasmashell on
     //! the same systems. The port ran on the basic loop while the effect
@@ -285,19 +294,6 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    //! disable restore from session management
-    //! Qt6 removed fallback session management entirely, so only the
-    //! QSessionManager hints below remain relevant.
-    //! based on spectacle solution at:
-    //!   - https://bugs.kde.org/show_bug.cgi?id=430411
-    //!   - https://invent.kde.org/graphics/spectacle/-/commit/8db27170d63f8a4aaff09615e51e3cc0fb115c4d
-
-    auto disableSessionManagement = [](QSessionManager &sm) {
-        sm.setRestartHint(QSessionManager::RestartNever);
-    };
-    QObject::connect(&app, &QGuiApplication::commitDataRequest, disableSessionManagement);
-    QObject::connect(&app, &QGuiApplication::saveStateRequest, disableSessionManagement);
-
     //! choose layout for startup
     bool defaultLayoutOnStartup = false;
     int memoryUsage = -1;
@@ -458,6 +454,13 @@ int main(int argc, char **argv)
         qInstallMessageHandler(noMessageOutput);
     }
 
+    //! KJob holds a QEventLoopLocker; with the quit lock enabled, the LAST
+    //! locker being destroyed quits the application, so any transient KJob
+    //! (KIO from an applet, a KNS download) finishing could take the dock
+    //! down with it. plasmashell disables it for the same reason
+    //! ("don't let the first KJob terminate us", plasma-workspace 6.6.5).
+    QCoreApplication::setQuitLockEnabled(false);
+
     //! Every quit path must name itself in the log. The dock exited cleanly
     //! ~20s after screen lock/unlock cycles twice (2026-07-10..12) with no
     //! logged trigger, and a raw std::signal handler calling qGuiApp->exit()
@@ -466,14 +469,24 @@ int main(int argc, char **argv)
     //! /MainApplication by KDBusService). KSignalHandler self-pipes, so the
     //! log call runs on the event loop, not inside the signal handler.
     //! SIGINT is also the --replace handshake (see the kill() above).
-    //! SIGTERM stays unhandled on purpose: today it means immediate death
-    //! (restart-staged.sh relies on that); routing it through clean teardown
-    //! is the session-shutdown plan item's call to make, not a side effect.
+    //! SIGTERM is handled since the session-shutdown work: at logout,
+    //! systemd tears the user session down with SIGTERM (systemd.kill(5)),
+    //! and unhandled that meant immediate death mid-anything - no config
+    //! sync, no containment save (the iconSize=78 corruption in my real
+    //! layout was written by exactly such a kill during edit mode).
+    //! plasmashell quits on SIGTERM the same way. restart-staged.sh still
+    //! works: it allows 10s before escalating to SIGKILL and the clean
+    //! quit path is well under that.
     //! std::signal(SIGKILL, ...) was dead code - SIGKILL cannot be caught.
     KSignalHandler::self()->watchSignal(SIGINT);
+    KSignalHandler::self()->watchSignal(SIGTERM);
     QObject::connect(KSignalHandler::self(), &KSignalHandler::signalReceived, &app, [](int signal) {
-        qWarning() << "main: quitting on signal" << signal << "(SIGINT: terminal, --replace handshake, or external kill)";
-        qGuiApp->exit();
+        if (signal == SIGTERM) {
+            qWarning() << "main: quitting on SIGTERM (session teardown, service stop, or restart-staged)";
+        } else {
+            qWarning() << "main: quitting on signal" << signal << "(SIGINT: terminal, --replace handshake, or external kill)";
+        }
+        qGuiApp->quit();
     });
 
     KCrash::setDrKonqiEnabled(true);
