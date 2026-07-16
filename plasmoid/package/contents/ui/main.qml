@@ -823,7 +823,21 @@ PlasmoidItem {
 
         Drag.dragType: Drag.Automatic
         Drag.supportedActions: Qt.CopyAction | Qt.MoveAction | Qt.LinkAction
-        Drag.onDragFinished: root.dragSource = null;
+        Drag.onDragFinished: {
+            if (root.dragSource) {
+                //! the reorder path raises the dragged delegate (MouseHandler
+                //! sets z=100 so it rides above its siblings during the model
+                //! moves) and nothing ever lowered it back - after repeated
+                //! reorders several delegates kept z=100 forever, stacking
+                //! over anything drawn at lower z (the icons-stuck-behind
+                //! family; same leak exists in upstream and both forks, and
+                //! the applet-reorder path DOES reset its z). Restore the
+                //! delegate default before releasing it.
+                root.dragSource.z = 0;
+            }
+
+            root.dragSource = null;
+        }
     }
 
     TaskManager.VirtualDesktopInfo {

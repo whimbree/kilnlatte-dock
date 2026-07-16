@@ -127,9 +127,15 @@ Item {
 
             dArea.containsDrag = true;
 
-            if (dArea.target.animating) {
-                return;
-            }
+            //! upstream carried `if (target.animating) return;` here, inherited
+            //! from plasma-desktop's TaskList which defines that property;
+            //! Latte's target is a plain ListView that never did, so the guard
+            //! read undefined and was dead in upstream and both forks alike
+            //! (verified 2026-07-16 across all three trees). The real
+            //! anti-jitter mechanism in this path is the ignoredItem timer.
+            //! If a decision freeze during moveDisplaced ever proves needed,
+            //! expose a displaced-animation count on icList and gate on that,
+            //! not on a name that does not exist.
 
             var eventToTarget = mapToItem(dArea.target, event.x, event.y);
 
