@@ -37,6 +37,9 @@ latte_add_unit_test(activitysetalgebratest)
 target_include_directories(activitysetalgebratest PRIVATE
     ${CMAKE_SOURCE_DIR}/app)
 
+# EX-07 StorageIdRemapper: header-only pure id-assignment math.
+latte_add_unit_test(storageidremappertest)
+
 # EX-01 PreviewSwitchEngine: header-only pure core, injected clock.
 latte_add_unit_test(previewswitchenginetest)
 
