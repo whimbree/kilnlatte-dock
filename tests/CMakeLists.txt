@@ -92,6 +92,16 @@ set_tests_properties(qmlinteraction PROPERTIES
     ENVIRONMENT "BUILD=${CMAKE_BINARY_DIR}"
     DEPENDS qmlcompilegate)
 
+# qmllint ratchet (docs/QML_EXTRACTION_PLAN.md step 2.5 point 6): per-file
+# curated warning counts (unqualified, missing-type, unresolved-type,
+# deprecated, signal-handler-parameters) must match tests/qmllint-baseline
+# exactly; the baseline only ever shrinks. Cutover-touched files leave at
+# zero (strict-on-touch).
+add_test(NAME qmllintgate
+    COMMAND ${CMAKE_SOURCE_DIR}/scripts/qmllint-gate.sh)
+set_tests_properties(qmllintgate PROPERTIES
+    ENVIRONMENT "BUILD=${CMAKE_BINARY_DIR}")
+
 # Effect-rule source scan (family 7 in latte-plasma6-defect-families): no
 # autoPaddingEnabled in shipped QML except the literal false. Pure grep, no
 # staging or engine needed - fails on the rule regression e3376405 fixed.

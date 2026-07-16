@@ -24,6 +24,15 @@ source to paste.
 Kept current as sections land. A PENDING spec names its scope in one
 line; DONE means the full spec is written to the section-C template.
 
+- [x] STEP-2.5 sanitizer + type-discipline pass - LANDED 2026-07-15:
+  ASan+UBSan on all tests/units targets (latte_add_unit_test,
+  negative-tested, four landed cores green sanitized), C++20 verified
+  against the KF6 pin (build-check both WITH_X11 variants), qmllint
+  ratchet gate (qmllintgate ctest entry, tests/qmllint-baseline: 170
+  files / 6923 curated warnings initial, negative-tested x2), Method
+  + section D amendments binding all not-yet-landed units, TESTING.md
+  rule, CLAUDE.md pointer. Wave 2-4 units are UNGATED from here.
+
 Inventory (section A):
 - [x] containment/ - 62 QML files classified
 - [x] plasmoid/ - 36 QML files classified
@@ -97,6 +106,49 @@ PORTING_PLAN cross-reference item: [x] done (Phase 10, QML extraction initiative
   assessed silent guards is in docs/session-handoff.md (the 2026-07-15
   loops/degenerate-indexes sweep); specs reference it rather than
   re-litigating each guard.
+- STEP-2.5 AMENDMENT (2026-07-15, binds every unit not yet landed;
+  the 22 individual specs are governed by this without being
+  rewritten). Done-criteria per unit are now:
+  (a) logic extracted to a pure core in the project's C++ standard
+      (C++20, set at the top-level CMakeLists and verified against
+      the KF6 pin with build-check on both WITH_X11 variants; cores
+      are headers consumed by app targets - never fork the standard
+      per-target);
+  (b) invalid states made unrepresentable via the type system -
+      std::optional, enum class, strong typedefs, bounds-checked
+      access, no lifetime-escaping lambdas (std::expected arrives
+      with C++23; until then optional+enum errors) - and the
+      eliminated invalid states NAMED in the unit's ledger entry at
+      landing time;
+  (c) a behavioral test pinning the class invariant, green under
+      ASan+UBSan (tests/units targets all build with
+      -fsanitize=address,undefined -fno-sanitize-recover=all via
+      latte_add_unit_test; a .cpp core is added to the test target's
+      SOURCES, never linked from an unsanitized object library - an
+      uninstrumented core makes the pass theater). A sanitizer trip
+      is a REAL BUG: root-cause and fix at origin as its own commit,
+      then sweep the class;
+  (d) qmllint strict-on-touch: every QML file a cutover commit
+      touches leaves at ZERO curated warnings (scripts/
+      qmllint-gate.sh: unqualified, missing-type, unresolved-type,
+      deprecated, signal-handler-parameters) - typed function
+      signatures on the thin shells, qualified access, required
+      properties where a shell takes injected objects, no new var
+      except the documented winId class (var winIds are correct BY
+      DESIGN, 8e8cdf31) - and the committed tests/qmllint-baseline
+      shrinks in the same commit. Files that can never reach zero
+      for a structural reason get the reason recorded next to their
+      baseline entry. Full-strict QML project-wide is rejected for
+      recorded structural reasons (winId vars, dynamic task-model
+      roles, the untyped indicator context property that is public
+      API for third-party indicator packages, the AppletAlternatives
+      minimal-diff mirror); it is the asymptotic state the extraction
+      converges to, not a mandate on inherited files.
+  The fences hold: sanitizers and type discipline apply to the NEW
+  pure cores and their tests only - no repo-wide modernization of
+  inherited Latte code, no sanitizing the live dock or the packaged
+  runtime, and live verification stays mandatory for feel-bearing
+  logic exactly as the specs say.
 
 ## A. QML logic inventory
 
@@ -1821,6 +1873,33 @@ Coverage ratchet (design; adopt in Wave 0):
 - The preview contract gate and effect/qml gates stay in force; EX-01
   is the only unit allowed to EDIT preview-contract-rules.sh, under
   the migration rule its spec states.
+
+Step-2.5 additions (landed 2026-07-15; see the Method amendment for
+the per-unit law):
+
+- Sanitized unit tests: tests/units/CMakeLists.txt wraps every entry
+  in latte_add_unit_test, which applies
+  -fsanitize=address,undefined -fno-sanitize-recover=all to compile
+  AND link. Cores compile INTO the test binary (header-only today);
+  future .cpp cores are added to the test's SOURCES so the code
+  under test is instrumented. Negative-tested: a deliberate heap
+  overflow through core-consuming code aborts with exit 1. All four
+  landed cores (EX-22, EX-01, EX-03, EX-02) pass green sanitized.
+- C++20: the top-level CMakeLists pins CMAKE_CXX_STANDARD 20
+  (KDECompilerSettings at level 6.0.0 would pick 17 on its own; it
+  only defaults to 20 from level 6.13). Verified with full
+  build-check on both WITH_X11 variants.
+- qmllint ratchet: scripts/qmllint-gate.sh (ctest entry qmllintgate)
+  runs the PINNED Qt's qmllint over the compile-gate enumeration
+  plus the staged org.kde.latte declarativeimports tree, counts the
+  five curated categories per file, and requires an exact match with
+  tests/qmllint-baseline - increases are un-mergeable, improvements
+  land with the baseline shrink in the same commit
+  (--write-baseline). Initial baseline: 170 files, 6923 curated
+  warnings - the honest inherited state. Strict-on-touch (Method
+  amendment, criterion d) starts with the first cutover AFTER this
+  landed; the EX-02 cutovers predate the rule and their files carry
+  baseline entries like the rest of the inherited tree.
 
 ## E. Sequencing into waves
 

@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 project(lattedock)
 
-set(CMAKE_CXX_STANDARD 17)
+# C++20, verified not assumed (step 2.5 in the extraction plan): the KF6
+# pin builds this tree at 20 (checked with full build-check on both
+# WITH_X11 variants); KDECompilerSettings at level 6.0.0 would only pick
+# 17 on its own (it defaults to 20 from level 6.13), so the standard is
+# pinned here explicitly. Pure cores are consumed by app targets and use
+# this same standard - never fork it per-target.
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(VERSION 0.10.77)
 set(AUTHOR "Michail Vourlakos, Smith Ar")

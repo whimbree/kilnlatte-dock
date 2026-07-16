@@ -152,6 +152,13 @@ stale checkboxes."
   dock), not just "it builds". A green build says nothing about whether the
   menu came back.
 
+### Pure-core discipline
+
+New pure cores (the QML extraction initiative) follow the step-2.5
+law in docs/TESTING.md: project C++ standard, invalid states designed
+out via types, tests green under ASan+UBSan, qmllint ratchet with
+strict-on-touch for cutover-touched QML.
+
 ### Stub tracking
 
 Anything stubbed to keep a phase moving - a function returning a

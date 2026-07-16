@@ -36,6 +36,27 @@ is full of units that dereference a live containment, `Plasmoid`
 attached objects, or a real compositor - latte-dock-qt6's registry shows
 how large this class is; expect the same here.
 
+## Pure cores (the extraction initiative's step-2.5 law)
+
+Pure cores (`units/` headers and their capt placements) are written to
+the project C++ standard (C++20, pinned at the top-level CMakeLists)
+with invalid states designed out via the type system - std::optional,
+enum class, strong typedefs, bounds-checked access, no
+lifetime-escaping lambdas - and the eliminated invalid states named in
+the unit's ledger entry at landing. Their tests run under ASan+UBSan
+(`latte_add_unit_test` in tests/units/CMakeLists.txt; a `.cpp` core is
+compiled into the sanitized test binary, never linked from an
+unsanitized object library). A sanitizer trip is a real bug to fix at
+origin, never suppress. QML-side, `scripts/qmllint-gate.sh` ratchets
+five curated warning categories against `tests/qmllint-baseline`
+(exact match; the baseline only shrinks), and every QML file a cutover
+commit touches leaves at zero curated warnings. Full-strict QML is the
+asymptotic state the extraction converges to, not a mandate on
+inherited files; structural exceptions are named in the baseline. The
+fences: this law binds the new cores and their tests only - the live
+dock and packaged runtime are never sanitized, and no repo-wide
+modernization of inherited code rides on it.
+
 ## Infrastructure decision (Phase 0)
 
 Adopt latte-dock-qt6's three-piece shape, adapted rather than copied:
