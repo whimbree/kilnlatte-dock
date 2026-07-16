@@ -76,7 +76,64 @@ they are the session's failure modes:
 - EX-02 is design-first on the bridge handoff; write the design into
   the spec before coding it.
 
-STEP 3 - CONTINUE INTO THE DELEGATE-SAFE WAVES. The waves 2-4 backlog
+STEP 2.5 - SANITIZER + TYPE-DISCIPLINE PASS (one-time infrastructure;
+gates EVERY remaining wave - no wave 2-4 unit starts until this is
+recorded done in the ledger; if the ledger already records it, skip):
+
+1. Stand up an ASan+UBSan build path for the pure-core unit tests
+   ONLY (-fsanitize=address,undefined on the tests/units targets and
+   their ctest runs; NOT the live dock, NOT the packaged runtime).
+   LINKING TRAP, do not fall in it: the sanitized test binaries must
+   COMPILE the core sources into themselves (header-only cores get
+   this for free; .cpp cores are added as sources to the sanitized
+   test target) - linking an unsanitized core object library would
+   leave the code under test uninstrumented and make the pass
+   theater. Wire it so every existing and future tests/units entry
+   runs sanitized by default (they are offscreen and small; no
+   unsanitized twin entries, so the ratchet count is unaffected).
+   Confirm every core landed so far (whatever the ledger shows -
+   expected: EX-22, EX-01, EX-03, EX-02) passes green under the
+   sanitizers. A trip is a REAL BUG: root-cause it, never suppress
+   it; fix it at origin as its own commit, then generalize to the
+   class and sweep sibling sites per CLAUDE.md. Flag any such find
+   prominently in the session report and handoff; actually pause and
+   surface (rather than fix-and-continue) only if the root cause
+   implicates already-shipped cutover BEHAVIOR, not just the core.
+2. Language standard, verified not assumed: check what the tree's
+   CMake/KDECompilerSettings actually sets (KF6 normally mandates
+   C++20). Cores are headers consumed by app plugin targets, so
+   their standard is the consuming targets' standard - never fork it
+   per-target. If the tree is already C++20, nothing to do; if not,
+   raising it is a build-system change with blast radius: verify
+   with a full build-check on both WITH_X11 variants before
+   anything else rides on it. Note: std::expected is C++23 - the
+   invalid-states rule below is stated in terms of what the standard
+   in force provides (optional, enum class, strong typedefs,
+   bounds-checked access), not a wishlist.
+3. Amend docs/QML_EXTRACTION_PLAN.md ONCE (Method section + section
+   D), binding all not-yet-landed units: every unit's done-criteria
+   become (a) logic extracted to a pure core in the project's C++
+   standard, (b) invalid states made unrepresentable via the type
+   system - optional/expected-where-available, enum class, strong
+   typedefs, bounds-checked access, no lifetime-escaping lambdas -
+   with the eliminated invalid states NAMED in the unit's ledger
+   entry at landing time, and (c) a behavioral test pinning the
+   class invariant, green under ASan+UBSan. Do not rewrite the 22
+   individual specs; the Method amendment governs them.
+4. Hold the fences: the sanitizers and type discipline apply to the
+   NEW pure cores and their tests only - no repo-wide modernization
+   of inherited Latte code, no sanitizing the live dock, and live
+   verification stays mandatory for feel-bearing logic exactly as
+   the specs say.
+5. Record it as standing law: docs/TESTING.md gets the rule ("pure
+   cores are written to the project C++ standard with invalid states
+   designed out; their tests run under ASan+UBSan"), CLAUDE.md gets
+   one pointer line, and the ledger gets a STEP-2.5 entry so every
+   later session knows this landed. Commit and push at this boundary
+   before starting any wave unit.
+
+STEP 3 - CONTINUE INTO THE DELEGATE-SAFE WAVES (only after STEP 2.5
+is recorded done). The waves 2-4 backlog
 was written for a weaker model, which makes it trivially executable by
 you - keep going, in the plan's wave order (2: C++-only capt ports,
 3: QML math cores starting with EX-17 as the calibration unit, 4: the
