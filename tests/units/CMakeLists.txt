@@ -100,8 +100,11 @@ target_link_libraries(extraviewhintstest
     Plasma::Plasma)
 
 # EX-15 WheelAccumulator: header-only pure wheel-delta math (QPoint is
-# QtCore; nothing else reaches the core).
-latte_add_unit_test(wheelaccumulatortest)
+# QtCore; nothing else reaches the core) plus its WheelStepper QML
+# boundary compiled IN per the sanitized-core rule (the configuration
+# refusals run instrumented).
+latte_add_unit_test(wheelaccumulatortest
+    ${CMAKE_SOURCE_DIR}/declarativeimports/core/wheelstepper.cpp)
 
 # EX-25 PanelBackgroundScan: header-only pure pixel-scan math; QImage and
 # QColor need Qt Gui, nothing from KSvg/Plasma reaches the core.

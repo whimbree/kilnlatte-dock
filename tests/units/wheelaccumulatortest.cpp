@@ -20,6 +20,7 @@
 #include <QtTest>
 
 #include "../../declarativeimports/core/units/wheelaccumulator.h"
+#include "../../declarativeimports/core/wheelstepper.h"
 
 using namespace Latte;
 
@@ -93,6 +94,15 @@ private Q_SLOTS:
 
     // the one authority for TaskMouseArea's parallel-scroll read
     void verticalIsDominant_isTheStrictComparison();
+
+    // the WheelStepper QML boundary (wheelstepper.cpp, compiled into
+    // this sanitized binary): configuration refusals and delegation
+    void stepper_refusesAnUnconfiguredMode();
+    void stepper_refusesADoublyConfiguredMode();
+    void stepper_refusesResetOnReversalInThresholdMode();
+    void stepper_rejectsAnOutOfRangeAxisPick();
+    void stepper_delegatesToTheCore();
+    void stepper_reconfigurationDropsTheResidue();
 };
 
 void WheelAccumulatorTest::audioBadge_wholeNotchFiresImmediately()
@@ -273,6 +283,84 @@ void WheelAccumulatorTest::verticalIsDominant_isTheStrictComparison()
     QVERIFY(!WheelAccumulator::verticalIsDominant(angleDelta(5, 5)));
     QVERIFY(!WheelAccumulator::verticalIsDominant(angleDelta(5, 4)));
     QVERIFY(!WheelAccumulator::verticalIsDominant(angleDelta(-6, 5)));
+}
+
+void WheelAccumulatorTest::stepper_refusesAnUnconfiguredMode()
+{
+    WheelStepper stepper;
+    stepper.setAxisPick(WheelStepper::VerticalOnly);
+
+    QTest::ignoreMessage(QtCriticalMsg,
+                         QRegularExpression("exactly one of stepSize / fireThreshold"));
+    QCOMPARE(stepper.add(QPointF(0, 120), false), 0);
+}
+
+void WheelAccumulatorTest::stepper_refusesADoublyConfiguredMode()
+{
+    WheelStepper stepper;
+    stepper.setAxisPick(WheelStepper::VerticalOnly);
+    stepper.setStepSize(120);
+    stepper.setFireThreshold(96);
+
+    QTest::ignoreMessage(QtCriticalMsg,
+                         QRegularExpression("exactly one of stepSize / fireThreshold"));
+    QCOMPARE(stepper.add(QPointF(0, 120), false), 0);
+}
+
+void WheelAccumulatorTest::stepper_refusesResetOnReversalInThresholdMode()
+{
+    WheelStepper stepper;
+    stepper.setAxisPick(WheelStepper::VerticalOnly);
+    stepper.setFireThreshold(96);
+    stepper.setResetOnReversal(true);
+
+    QTest::ignoreMessage(QtCriticalMsg,
+                         QRegularExpression("resetOnReversal is an accumulate-mode knob"));
+    QCOMPARE(stepper.add(QPointF(0, 120), false), 0);
+}
+
+void WheelAccumulatorTest::stepper_rejectsAnOutOfRangeAxisPick()
+{
+    WheelStepper stepper;
+    stepper.setAxisPick(WheelStepper::SignedExtreme);
+
+    QTest::ignoreMessage(QtCriticalMsg, QRegularExpression("out-of-range axisPick"));
+    stepper.setAxisPick(static_cast<WheelStepper::AxisPick>(42));
+    QCOMPARE(stepper.axisPick(), WheelStepper::SignedExtreme);
+}
+
+void WheelAccumulatorTest::stepper_delegatesToTheCore()
+{
+    // the audio badge configuration through the boundary: same results
+    // as audioBadge_* prove for the bare core
+    WheelStepper stepper;
+    stepper.setAxisPick(WheelStepper::VerticalElseNegatedHorizontal);
+    stepper.setStepSize(120);
+    stepper.setResetOnReversal(true);
+
+    QCOMPARE(stepper.add(QPointF(0, 360), false), 3);
+    QCOMPARE(stepper.add(QPointF(0, 90), false), 0);
+    QCOMPARE(stepper.add(QPointF(0, -30), false), 0); // reversal reset
+    QCOMPARE(stepper.add(QPointF(0, -90), false), -1);
+    QCOMPARE(stepper.add(QPointF(0, 120), true), -1); // inverted
+
+    QVERIFY(stepper.verticalIsDominant(QPointF(4, 5)));
+    QVERIFY(!stepper.verticalIsDominant(QPointF(5, 5)));
+}
+
+void WheelAccumulatorTest::stepper_reconfigurationDropsTheResidue()
+{
+    WheelStepper stepper;
+    stepper.setAxisPick(WheelStepper::VerticalOnly);
+    stepper.setStepSize(120);
+
+    QCOMPARE(stepper.add(QPointF(0, 90), false), 0); // residue 90
+
+    stepper.setStepSize(240);
+    // a surviving residue would make 90 + 150 = 240 fire; a fresh
+    // accumulator needs the full 240 again
+    QCOMPARE(stepper.add(QPointF(0, 150), false), 0);
+    QCOMPARE(stepper.add(QPointF(0, 90), false), 1);
 }
 
 QTEST_GUILESS_MAIN(WheelAccumulatorTest)

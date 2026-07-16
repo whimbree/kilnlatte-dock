@@ -425,6 +425,33 @@ Module {
             Parameter { name: "countedChildren"; type: "QVariantList" }
             Parameter { name: "selfPosition"; type: "int" }
             Parameter { name: "beginIndex"; type: "int" }
+        name: "Latte::WheelStepper"
+        prototype: "QObject"
+        exports: ["org.kde.latte.core/WheelStepper 0.2"]
+        exportMetaObjectRevisions: [0]
+        Enum {
+            name: "AxisPick"
+            values: {
+                "VerticalElseNegatedHorizontal": 0,
+                "DominantAxis": 1,
+                "SignedExtreme": 2,
+                "VerticalOnly": 3
+            }
+        }
+        Property { name: "axisPick"; type: "Latte::WheelStepper::AxisPick" }
+        Property { name: "stepSize"; type: "int" }
+        Property { name: "resetOnReversal"; type: "bool" }
+        Property { name: "fireThreshold"; type: "int" }
+        Method {
+            name: "add"
+            type: "int"
+            Parameter { name: "angleDelta"; type: "QPointF" }
+            Parameter { name: "inverted"; type: "bool" }
+        }
+        Method {
+            name: "verticalIsDominant"
+            type: "bool"
+            Parameter { name: "angleDelta"; type: "QPointF" }
         }
     }
     Component {
