@@ -37,10 +37,11 @@ Ranking (section B): [x] done.
 Per-unit specs (section C), in rank order:
 - [x] EX-01 PreviewSwitchEngine - preview adoption/debounce/LRU decision core - LANDED 03cf0289+2f23f9bd
 - [x] EX-02 ParabolicRouter - neighbor scale-stack propagation chains -
-  IN PROGRESS: design (0613c2ae) + core/tests/harness (ee66b07c)
-  landed; REMAINING (strong-model-only, do-not-delegate): the two
-  cutover commits (containment twin, then plasmoid twin) with the
-  live glide matrix from the spec's recipe
+  LANDED 0613c2ae+ee66b07c+1c94a7ef+504e95e5+faa89fd1 (design, core+
+  equality harness, emission-plan revision with recorded dead
+  positions, containment cutover, plasmoid cutover; live glide matrix
+  run before each cutover merged - preview-anchor geometry
+  byte-identical across pre/post runs)
 - [x] EX-03 ParabolicMathCore - the zoom curve math - LANDED c3c04e49
 - [x] EX-04 AutoSizeEngine - iconSize shrink/grow feedback loop
 - [x] EX-05 FillLengthDistributor - Justify/fill two-pass space distribution
@@ -628,20 +629,23 @@ Conventions used by all specs:
 
 ### EX-02 ParabolicRouter [strong-model-only]
 
-- Commits so far: 0613c2ae (design written into this spec), ee66b07c
-  (core + 13-slot equality tests + the recording harness at
-  tests/generators/parabolicchain, 14 recorded cases), plus the
-  pre-cutover design revision commit (dead positions recorded x3,
-  RouteResult reshaped to the emission plan, 17 equality slots - see
-  the DESIGN REVISION bullet). REMAINING,
-  strong-model-only, DO NOT DELEGATE: the containment-twin cutover
-  (per-area sltUpdateItemScale deciders replaced by routeStack
-  application through the host ability; signals demoted to targeted
-  single-scale applications), then the plasmoid-twin cutover
-  (ParabolicEventsArea decider + sltTrack export replaced by
-  routeStack overflow/clearTailExported export through the existing
-  bridge functions), each with the spec's live glide matrix run
-  before it merges.
+- Commits: 0613c2ae (design written into this spec), ee66b07c (core +
+  13-slot equality tests + the recording harness at
+  tests/generators/parabolicchain, 14 recorded cases), 1c94a7ef
+  (emission-plan result shape + DeadStop, 3 dead_* cases recorded,
+  17 equality slots - see the DESIGN REVISION bullet), 504e95e5
+  (containment-twin cutover: deciders deleted, routing in
+  ParabolicEffectPrivate through LatteCore.ParabolicRouter, spacers
+  on direct absorb calls, bridge re-entry via routeFromIndex),
+  faa89fd1 (plasmoid-twin cutover: ParabolicEventsArea decider and
+  sltTrack watchers deleted, exports from the route result; the
+  definition ability's applyParabolicEffect body deleted - both
+  row-owning shells implement it). COMPLETE. Live glide matrix ran
+  before each cutover merged: the preview-dialog anchor (dumpwins)
+  at a fixed parked pointer read 2366,1529 274x204 pre-cutover,
+  identical after the containment twin, 2367,1529 after the plasmoid
+  twin (1px, desk in active use between runs); mid-glide and rest
+  screenshots match; log signatures identical in counts.
 - Header: `declarativeimports/core/units/parabolicrouter.h` (serves
   both containment and plasmoid sides through org.kde.latte.core).
 - Responsibility: replace the recursive neighbor-to-neighbor
