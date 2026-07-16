@@ -280,11 +280,9 @@ void DropClassifierTest::tasksDropLadder_truthTable()
     //! an internal task move released over the area: accepted at enter,
     //! deliberately does nothing at drop ("Reject internal drops")
     QCOMPARE(DropClassifier::tasksDropAction({.movingTask = true}), Action::LeaveUnchanged);
-    //! movingTask + files (task drag carrying urls): the enter chain
-    //! computed both, drop still refuses the internal move's urls...
-    //! EXCEPT files wins in the ladder order? No: separator/launchers/
-    //! files are checked before LeaveUnchanged, so files route fires -
-    //! exactly what the Qt5 else-if chain did
+    //! movingTask + files (a task drag carrying urls): the files route
+    //! fires, because the Qt5 else-if chain checked separator/launchers/
+    //! files before falling through to the internal-move no-op
     QCOMPARE(DropClassifier::tasksDropAction({.movingTask = true, .droppingFiles = true}), Action::DropUrls);
 
     QVERIFY(!DropClassifier::tasksDragAccepts({}));

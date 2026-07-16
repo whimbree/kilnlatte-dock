@@ -1752,6 +1752,24 @@ Conventions used by all specs:
 
 ### EX-14 DropEventClassifier [delegate-safe]
 
+- Commits: dc296e9f (design log), 7ff96532 (core + LatteCore.
+  DropClassifier wrapper + 16-slot truth-table suite, both consumers
+  over shared vectors), c391520e (containment DragDropArea cutover,
+  qmllint 51 -> 6 with the latteView residue recorded in section D),
+  391357fb (plasmoid MouseHandler cutover + tools.js insertIndexAt
+  deletion, MouseHandler 38 -> 0, plasmoid main.qml 84 -> 77).
+  Two RECORDED DEVIATIONS from this spec's interface sketch, reasons
+  in docs/agent-logs/EX-14.md: (1) MimeSnapshot drops taskData/
+  sourceId - no decision in either file reads the taskbuttonitem
+  payload bytes or a source id, only format presence; (2)
+  insertIndexAt takes no RowEntries - the shipped/Qt5 algorithm never
+  consults the row (hovered delegate's index or uniform-step stripe
+  math over metrics.totals.length); fabricating a row snapshot the
+  function ignores would be dishonest, and no parallel type was
+  invented. The Qt6 String(QByteArray) suspicion in the plasmoid
+  separator check was probed against the pinned Qt and disproven
+  (converts to the payload text; no defect). Live checks pending at
+  merge (docs/agent-logs/EX-14.md lists the recipes).
 - Header: `declarativeimports/core/units/dropclassifier.h` (both
   containment and plasmoid consume it).
 - Responsibility: drag/drop mime classification (task vs separator
