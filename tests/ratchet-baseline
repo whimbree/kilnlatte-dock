@@ -6,8 +6,8 @@
 activitysetalgebratest
 appletwindowparentingtest
 appstreamtest
-autosizeenginetest
 askdestroysignalorderingtest
+autosizeenginetest
 destroyedtypedemotiontest
 extraviewhintstest
 iconsourceclassifiertest
