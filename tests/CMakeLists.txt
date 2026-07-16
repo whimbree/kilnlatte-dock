@@ -112,9 +112,12 @@ add_test(NAME qmllintgate
 set_tests_properties(qmllintgate PROPERTIES
     ENVIRONMENT "BUILD=${CMAKE_BINARY_DIR}")
 
-# Effect-rule source scan (family 7 in latte-plasma6-defect-families): no
-# autoPaddingEnabled in shipped QML except the literal false. Pure grep, no
-# staging or engine needed - fails on the rule regression e3376405 fixed.
+# Effect-rule source scans (latte-plasma6-defect-families): rule 1, no
+# autoPaddingEnabled in shipped QML except the literal false (fails on the
+# rule regression e3376405 fixed); rule 2, every when-gated Binding element
+# declares an explicit restoreMode (the Qt6 default resets frozen values -
+# semantics pinned by contracts/tst_bindingrestorecontracts.qml). Pure source
+# scan, no staging or engine needed.
 add_test(NAME qmleffectrules
     COMMAND ${CMAKE_SOURCE_DIR}/scripts/qml-effect-rules.sh)
 
