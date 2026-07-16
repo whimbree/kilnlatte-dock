@@ -132,7 +132,7 @@ struct InputMaskInputs {
     bool floatingGapInputDisabled{false}; //!< root.hasFloatingGapInputEventsDisabled
     qreal hiddenThickness{0};             //!< metrics.mask.thickness.hidden
     qreal zoomedForItemsThickness{0};     //!< metrics.mask.thickness.zoomedForItems
-    qreal itemsScreenEdgeMargin{0};       //!< metrics.margins.screenEdge
+    qreal itemsScreenEdgeMargin{0};       //!< metrics.margin.screenEdge
     qreal totalsThickness{0};             //!< metrics.totals.thickness
     qreal maskScreenEdgeMargin{0};        //!< metrics.mask.screenEdge
     QRect localGeometry;                  //!< latteView.localGeometry, the length-axis source
