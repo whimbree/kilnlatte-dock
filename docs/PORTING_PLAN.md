@@ -43,6 +43,56 @@ that in the commit line (e.g. `Commits: a1b2c3d (stub - see
 STUB comment in tasksbackend.cpp)`) so it's clear from this doc alone,
 without cross-referencing git log, that follow-up work is owed.
 
+## Where we are (2026-07-16)
+
+The port is a daily driver on my real config. Phases 0-7 are
+substantially done, Phase 11 (Nix packaging) shipped early, and the
+Phase 10 QML extraction initiative is COMPLETE (all 25 units, see the
+ledger in docs/QML_EXTRACTION_PLAN.md). Phase 8 is the OPEN phase.
+Phase 12 (upstream prep) stays parked under the maintained-continuation
+framing.
+
+High-priority remaining work below Phase 11, in rough order of
+user-facing pain (each is a checklist item in its phase section with
+the full context; this list is the map, not the territory):
+
+1. Phase 8: session shutdown/logout handling as one deliberate
+   sequence, including unloading the Corona's dependents in explicit
+   dependency order (today's exit path is ad hoc; this is the
+   crash-on-logout class).
+2. Phase 8: startup latency (caught live: the dock takes noticeably
+   long to appear at login) and the startup retry-exhaustion deadlock.
+3. Phase 8: dock visibility across screen lock/unlock (observed live:
+   docks can fail to come back).
+4. Phase 8: multi-screen cloned-view applet-order sync (explicit sync
+   instead of racing writes; prerequisite for the Replicate Dock
+   continuation feature).
+5. Phase 7: edit-mode entry/exit detection research (the subsystem
+   that took a reference fork 8+ attempts; ours works but the
+   detection contract was never nailed down) plus the drag-reorder
+   jitter, double-click widget add, and position-aware drop insertion
+   polish items.
+6. Phase 7: icons stuck behind the close-button overlay (investigate
+   root cause; visible in daily use occasionally).
+7. Phase 4: struts/exclusive-zone reservation via layer-shell and
+   kde_output_order_v1 primary-output detection (today's struts work
+   but ride an older mechanism; the output-order protocol is what
+   Plasma itself uses).
+8. Phase 8: full settings-window control audit against Qt5 semantics
+   (the Tasks-config lesson says half-wired controls hide silently).
+9. Phase 10: the e2e GUI harness (microvm CI with compositor-level
+   pointer driving) - the local gates are CI-portable by design, the
+   hosted pipeline is not stood up.
+10. Phase 10: the extraction ledger's live-verification tail (each
+    executed note names its still-owed recipes), the known-bug-list
+    sweep, WindowId newtype hardening, and the two stuck-overlay /
+    uninvoked-config-view findings.
+11. Phase 9: the color-group audit (Header color set reads) - small
+    but visible on exotic themes.
+12. Phases 2/3: the mechanical tail (QStringLiteral wrapping, C-cast
+    conversion, QDBusInterface modernization, one KWindowEffects
+    signature) - low priority, no user-facing behavior.
+
 ## Known bugs in the reference forks (don't reintroduce these)
 
 - **latte-dock-ng**: widget removal from the dock doesn't work (menu
@@ -2669,12 +2719,19 @@ multi-view, multi-monitor setup.
       under gdb) rather than headless guessing; the double-draw is
       invisible on video content.
       Commits:
-- [ ] QML extraction initiative: execute docs/QML_EXTRACTION_PLAN.md
+- [x] QML extraction initiative: execute docs/QML_EXTRACTION_PLAN.md
       (25 units EX-01..EX-25, each with a full spec, delegation tag,
       Qt5 anchor, and wave assignment; the completeness ledger at the
       top of that file is the live per-unit tracker - tick units
       THERE, tick this item when the backlog is complete or formally
-      closed). Strong-model-window shortlist, in order: Wave 0
+      closed). COMPLETE 2026-07-16: all 25 units executed and merged,
+      45 ctest entries with 27 sanitized unit-header pairs, qmllint
+      baseline only shrinking; the live-verification tail is recorded
+      per unit in the ledger's executed notes, with the still-owed
+      recipes named there. Three defects found and fixed at origin
+      along the way: the wayland tooltip flash loop (19946c08), the
+      dead D-Bus badge path (0faf8e45), and the desktop-name/typo/dead-
+      path family the unit agents fixed inside their own commits. Strong-model-window shortlist, in order: Wave 0
       (tests/units scaffolding + coverage ratchet + EX-22 proving
       unit), EX-01 PreviewSwitchEngine, EX-03 ParabolicMathCore,
       EX-02 ParabolicRouter; anything not landed when the window

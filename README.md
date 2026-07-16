@@ -54,6 +54,16 @@ and the full settings UI. Beyond upstream parity, the port has grown
 continuation features of its own, the first being resizable applet popups
 with per-applet size persistence.
 
+As of 2026-07-16 the stabilization initiative is complete: all 25 units
+of the QML logic extraction moved the feel-critical QML math (parabolic
+zoom, previews, launcher ordering, drag classification, visibility
+masks, badges, scrolling, colorization decisions and more) into pure
+C++ cores with sanitized unit tests, and the process itself shook out
+real inherited bugs - among them a wayland tooltip flash loop, a
+desktop-name lookup broken since Qt5, a wheel path dead since Qt5, and
+a D-Bus badge path dead since the port began. Each fix landed with the
+failing evidence in its commit body.
+
 Roadmap
 =======
 
@@ -66,14 +76,14 @@ phases, one commit-traceable checklist item per task. The coarse picture:
 - [x] Widget management, drag-and-drop, edit mode
 - [x] Nix packaging (flake with package, overlay and NixOS module)
 - [x] Resizable persistent applet popups (continuation feature)
-- [ ] Layout/config persistence, session shutdown, multi-screen edge cases
-      (the open phase; live-driven fixes land here continuously)
-- [ ] Theming and colorization polish audit
 - [x] Stabilization: the QML logic extraction initiative
       ([docs/QML_EXTRACTION_PLAN.md](docs/QML_EXTRACTION_PLAN.md)) moved
       feel-critical QML logic into tested, sanitized C++ cores - all 25
       units executed; a tail of live verification recipes is tracked in
       the plan's executed notes
+- [ ] Layout/config persistence, session shutdown, multi-screen edge cases
+      (the open phase; live-driven fixes land here continuously)
+- [ ] Theming and colorization polish audit
 - [ ] CI/CD: the local gates (build-check, QML compile gate, qmllint
       ratchet, coverage ratchet) are pure shell over cmake/ctest and
       CI-portable by design; the hosted pipeline itself is not stood up yet
@@ -87,19 +97,35 @@ phases, one commit-traceable checklist item per task. The coarse picture:
       Latte separator applet, then a full Qt 6 port of
       [applet-window-appmenu](https://github.com/psifidotos/applet-window-appmenu)
 - [ ] Further continuation features: dock replication, background color
-      picker
+      picker, scrollable group previews
+
+The high-priority slice of what remains, from the plan's own ordering
+(each item carries its full context in its phase section there):
+
+1. Session shutdown/logout as one deliberate teardown sequence (the
+   crash-on-logout class)
+2. Startup latency and the startup retry-exhaustion deadlock
+3. Dock visibility across screen lock/unlock
+4. Multi-screen cloned-view applet-order sync (also the prerequisite
+   for dock replication)
+5. Edit-mode polish: entry/exit detection contract, drag-reorder
+   jitter, double-click widget add, drop insertion position
+6. Layer-shell struts/exclusive-zone reservation and
+   kde_output_order_v1 primary-output detection
+7. Settings-window control audit against Qt5 semantics
+8. The hosted CI pipeline and the microvm GUI e2e harness
 
 How it is built
 ===============
 
 Every fix names its root cause and the evidence in its commit body, and
-the tree defends itself: 21 ctest entries including pure-core unit tests
-that run under ASan+UBSan, a QML compile gate that loads every shipped
-QML file in a real engine, contract tests that pin the exact libplasma/
-KSvg/Qt behaviors the dock relies on (so a dependency bump fails in ctest
-instead of misbehaving on screen), a qmllint ratchet with a
-committed baseline that only shrinks, and a coverage ratchet that makes
-untested cores un-mergeable. Feel-critical changes (the parabolic engine,
+the tree defends itself: 45 ctest entries including 27 pure-core unit
+test suites that run under ASan+UBSan with forced asserts, a QML compile
+gate that loads every shipped QML file in a real engine, contract tests
+that pin the exact libplasma/KSvg/Qt behaviors the dock relies on (so a
+dependency bump fails in ctest instead of misbehaving on screen), a
+qmllint ratchet with a committed baseline that only shrinks, and a
+coverage ratchet that makes untested cores un-mergeable. Feel-critical changes (the parabolic engine,
 the preview pipeline) additionally get live verification on a running
 Wayland session with injected pointer glides and screenshot comparison
 before they merge. [docs/TESTING.md](docs/TESTING.md) carries the
