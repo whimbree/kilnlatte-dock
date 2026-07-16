@@ -162,7 +162,13 @@ Per-unit specs (section C), in rank order:
 - [x] EX-11 LauncherListOps - launcher order algebra, registries, stored-list parsing
   - [ ] executed
 - [x] EX-12 ColorizerDecisionCore - applyTheme/scheme selection tree
-  - [ ] executed
+  - [x] executed: LANDED 8ff0862d lineage (rebased; see the spec Commits
+    line). Merge evidence: 36/36 ctest green post-rebase incl. the 10
+    boundary pins through the staged install; the resting real config
+    renders identically after the master restart (PlasmaThemeColors +
+    NoneWindowColors, mustBeShown false). The Dark/Light palette-flip
+    recipe and the SmartThemeColors edit-mode check stay on the live
+    desk list for the next throwaway-profile session.
 - [x] EX-13 ViewTypeAndBackgroundPredicates - Panel-vs-Dock chain + background states
   - [ ] executed
 - [x] EX-14 DropEventClassifier - drag mime classification + insert index
