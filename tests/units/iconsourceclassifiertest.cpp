@@ -10,9 +10,12 @@
 // adoption - all three agree, so their case analysis transfers. capt's
 // instrument-first qDebug probes of Qt6 QVariant::canConvert behavior are
 // upgraded to assertions here: the premises they printed are pinned, not
-// just logged. Two slots added beyond capt's set: the nameless-QIcon Icon
+// just logged. Slots added beyond capt's set: the nameless-QIcon Icon
 // branch (absent from their slots despite the commit claiming full branch
-// coverage) and the named-QIcon precedence path sourceName exists for.
+// coverage), the named-QIcon precedence path sourceName exists for, and
+// the edge/degenerate sweep - null QIcon/QImage, pathless file://, bare
+// absolute path, remote url, numeric variant, filter exactness - proving
+// classification is total and that degenerate inputs route like Qt5 did.
 
 #include "../../declarativeimports/core/units/iconsourceclassifier.h"
 
@@ -33,15 +36,22 @@ private Q_SLOTS:
     void sourceName_imageVariant_returnsEmpty();
     void sourceName_namedThemeIcon_prefersIconName();
     void classify_localFileUrl_isLocalFile();
+    void classify_fileUrlWithEmptyPath_isLocalFile();
     void classify_plainName_isSvgOrIconName();
     void classify_relativeToken_isSvgOrIconName();
+    void classify_absolutePathWithoutScheme_isSvgOrIconName();
+    void classify_remoteUrl_isSvgOrIconName();
+    void classify_numericVariant_isSvgOrIconName();
     void classify_namelessIcon_isIcon();
+    void classify_nullIcon_isIcon();
     void classify_qimage_isImage();
+    void classify_nullImage_isImage();
     void classify_emptyVariant_isClear();
     void classify_emptyString_isClear();
     void filter_empty_isFiltered();
     void filter_executablePlaceholder_isFiltered();
     void filter_realName_isNotFiltered();
+    void filter_matchesExactly_notCaseOrPrefixInsensitive();
     void isValid_truthTable();
     void isValid_truthTable_data();
 };
@@ -106,6 +116,15 @@ void IconSourceClassifierTest::classify_localFileUrl_isLocalFile()
     QCOMPARE(classify(QVariant(QStringLiteral("file:///tmp/x.png"))), SourceKind::LocalFile);
 }
 
+void IconSourceClassifierTest::classify_fileUrlWithEmptyPath_isLocalFile()
+{
+    // degenerate boundary: "file://" alone is still scheme-file, so it
+    // classifies LocalFile with an empty path - the adapter then loads a
+    // null QImage and the item reads invalid, which is the correct honest
+    // outcome for a pathless url (nothing to render, nothing misrouted)
+    QCOMPARE(classify(QVariant(QStringLiteral("file://"))), SourceKind::LocalFile);
+}
+
 void IconSourceClassifierTest::classify_plainName_isSvgOrIconName()
 {
     QCOMPARE(classify(QVariant(QStringLiteral("firefox"))), SourceKind::SvgOrIconName);
@@ -114,6 +133,29 @@ void IconSourceClassifierTest::classify_plainName_isSvgOrIconName()
 void IconSourceClassifierTest::classify_relativeToken_isSvgOrIconName()
 {
     QCOMPARE(classify(QVariant(QStringLiteral("plain-icon-name"))), SourceKind::SvgOrIconName);
+}
+
+void IconSourceClassifierTest::classify_absolutePathWithoutScheme_isSvgOrIconName()
+{
+    // Qt5-faithful: only file:// urls take the load-from-disk shortcut; a
+    // bare absolute path has no scheme (QUrl::isLocalFile()==false) and
+    // goes through theme/iconloader resolution like any other name
+    QCOMPARE(classify(QVariant(QStringLiteral("/usr/share/pixmaps/firefox.png"))), SourceKind::SvgOrIconName);
+}
+
+void IconSourceClassifierTest::classify_remoteUrl_isSvgOrIconName()
+{
+    // a remote url is NOT a local file; nothing in the ladder ever fetches
+    // it, it just fails theme resolution downstream - classification must
+    // not send it to the disk-load branch
+    QCOMPARE(classify(QVariant(QStringLiteral("http://example.org/x.png"))), SourceKind::SvgOrIconName);
+}
+
+void IconSourceClassifierTest::classify_numericVariant_isSvgOrIconName()
+{
+    // totality over QVariant: any stringifiable payload is a name; there
+    // is no input for which classify() has no answer
+    QCOMPARE(classify(QVariant(42)), SourceKind::SvgOrIconName);
 }
 
 void IconSourceClassifierTest::classify_namelessIcon_isIcon()
@@ -126,6 +168,17 @@ void IconSourceClassifierTest::classify_namelessIcon_isIcon()
     QVERIFY(nameless.name().isEmpty()); // premise
 
     QCOMPARE(classify(QVariant::fromValue(nameless)), SourceKind::Icon);
+}
+
+void IconSourceClassifierTest::classify_nullIcon_isIcon()
+{
+    // degenerate: a null QIcon still routes to the Icon branch (name is
+    // empty, the variant converts) - matching the Qt5 ladder, which
+    // assigned the null icon and let isValid() report the item invalid
+    // rather than silently reinterpreting the input as Clear
+    const QIcon null;
+    QVERIFY(null.isNull()); // premise
+    QCOMPARE(classify(QVariant::fromValue(null)), SourceKind::Icon);
 }
 
 void IconSourceClassifierTest::classify_qimage_isImage()
@@ -141,6 +194,16 @@ void IconSourceClassifierTest::classify_qimage_isImage()
     QVERIFY(v.canConvert<QImage>());
 
     QCOMPARE(classify(v), SourceKind::Image);
+}
+
+void IconSourceClassifierTest::classify_nullImage_isImage()
+{
+    // degenerate: a null QImage variant is still an Image classification;
+    // like the null QIcon, validity is the resolved members' business
+    // (ResolvedIcon), never the classifier's
+    const QImage null;
+    QVERIFY(null.isNull()); // premise
+    QCOMPARE(classify(QVariant(null)), SourceKind::Image);
 }
 
 void IconSourceClassifierTest::classify_emptyVariant_isClear()
@@ -172,6 +235,15 @@ void IconSourceClassifierTest::filter_executablePlaceholder_isFiltered()
 void IconSourceClassifierTest::filter_realName_isNotFiltered()
 {
     QVERIFY(!isFilteredSourceName(QStringLiteral("firefox")));
+}
+
+void IconSourceClassifierTest::filter_matchesExactly_notCaseOrPrefixInsensitive()
+{
+    // the filter is an exact string match on the placeholder name, same as
+    // the Qt5 guard - near-misses are real names and must be remembered
+    QVERIFY(!isFilteredSourceName(QStringLiteral("Application-X-Executable")));
+    QVERIFY(!isFilteredSourceName(QStringLiteral("application-x-executable-symbolic")));
+    QVERIFY(!isFilteredSourceName(QStringLiteral(" application-x-executable")));
 }
 
 void IconSourceClassifierTest::isValid_truthTable_data()
