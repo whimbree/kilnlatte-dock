@@ -240,3 +240,15 @@ set_tests_properties(indicatormetadatatest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 target_compile_definitions(indicatormetadatatest PRIVATE
     REPO_ROOT="${CMAKE_SOURCE_DIR}")
+
+# Contract: KF6 KNSCore reads only KPackageStructure from a .knsrc (the KF5
+# KPackageType key is dead); without it the Get New Indicators dialog opens
+# empty with ConfigFileError.
+ecm_add_test(contracts/indicatorsknsrctest.cpp
+    TEST_NAME indicatorsknsrctest
+    LINK_LIBRARIES Qt6::Test KF6::ConfigCore
+)
+set_tests_properties(indicatorsknsrctest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_compile_definitions(indicatorsknsrctest PRIVATE
+    INDICATORS_KNSRC_PATH="${CMAKE_SOURCE_DIR}/app/latte-indicators.knsrc")
