@@ -38,6 +38,8 @@ case "$lint" in
     *) echo "qmllint-gate: FAIL qmllint resolves outside the pinned closure: $lint"; exit 2;;
 esac
 
+command -v jq >/dev/null || { echo "qmllint-gate: FAIL jq not found (devShell provides it)"; exit 2; }
+
 mapfile -t all < <(find \
     "$stage/share/plasma/shells/org.kde.latte.shell" \
     "$stage/share/plasma/plasmoids/org.kde.latte.containment" \
@@ -67,20 +69,25 @@ for ((i=1; i<${#imports[@]}; i+=2)); do
     iflags+=(-I "${imports[$i]}")
 done
 
-out="$stage/_qmllint_gate.out"
-# qmllint exits nonzero when any warning fires; the ratchet judges counts
-"$lint" "${iflags[@]}" "${files[@]}" > "$out" 2>&1 || true
+out="$stage/_qmllint_gate.json"
+# qmllint exits nonzero when any warning fires; the ratchet judges counts.
+# --json is the machine interface: warnings carry a stable category id,
+# so counting cannot silently drift with the human-readable text format.
+"$lint" "${iflags[@]}" --json "$out" "${files[@]}" >/dev/null 2>&1 || true
 
 current="$stage/_qmllint_gate.current"
-{
-    for f in "${files[@]}"; do
-        rel="${f#"$stage"/}"
-        n="$(grep -cE "^Warning: ${f}:[0-9]+:[0-9]+: .*\[(unqualified|missing-type|unresolved-type|deprecated|signal-handler-parameters)\]$" "$out" || true)"
-        if [[ "$n" -gt 0 ]]; then
-            printf '%s\t%s\n' "$n" "$rel"
-        fi
-    done
-} | sort -k2 > "$current"
+jq -r --arg stage "$stage/" '
+    .files[]
+    | {rel: (.filename | ltrimstr($stage)),
+       n: ([.warnings[]
+            | select(.id == "unqualified"
+                  or .id == "missing-type"
+                  or .id == "unresolved-type"
+                  or .id == "deprecated"
+                  or .id == "signal-handler-parameters")]
+           | length)}
+    | select(.n > 0)
+    | "\(.n)\t\(.rel)"' "$out" | sort -k2 > "$current"
 
 if [[ "${1:-}" == "--write-baseline" ]]; then
     {

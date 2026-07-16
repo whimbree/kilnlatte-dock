@@ -29,7 +29,7 @@ line; DONE means the full spec is written to the section-C template.
   negative-tested, four landed cores green sanitized), C++20 verified
   against the KF6 pin (build-check both WITH_X11 variants), qmllint
   ratchet gate (qmllintgate ctest entry, tests/qmllint-baseline: 170
-  files / 6923 curated warnings initial, negative-tested x2), Method
+  files / 7098 curated warnings initial, negative-tested x3), Method
   + section D amendments binding all not-yet-landed units, TESTING.md
   rule, CLAUDE.md pointer. Wave 2-4 units are UNGATED from here.
 
@@ -1895,11 +1895,16 @@ the per-unit law):
   five curated categories per file, and requires an exact match with
   tests/qmllint-baseline - increases are un-mergeable, improvements
   land with the baseline shrink in the same commit
-  (--write-baseline). Initial baseline: 170 files, 6923 curated
-  warnings - the honest inherited state. Strict-on-touch (Method
-  amendment, criterion d) starts with the first cutover AFTER this
-  landed; the EX-02 cutovers predate the rule and their files carry
-  baseline entries like the rest of the inherited tree.
+  (--write-baseline). Initial baseline: 170 files, 7098 curated
+  warnings - the honest inherited state. (The first-landed text-grep
+  counter read 6923: qmllint's fix-suggestion lines carry no trailing
+  newline, so the next Warning: lands mid-line and a ^-anchored grep
+  silently undercounts; the gate now counts category ids from
+  --json via jq - the machine interface, immune to text-format
+  quirks.) Strict-on-touch (Method amendment, criterion d) starts
+  with the first cutover AFTER this landed; the EX-02 cutovers
+  predate the rule and their files carry baseline entries like the
+  rest of the inherited tree.
 
 ## E. Sequencing into waves
 

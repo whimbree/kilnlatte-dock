@@ -64,6 +64,7 @@
             ninja
             pkg-config
             kdePackages.extra-cmake-modules
+            jq # scripts/qmllint-gate.sh parses qmllint --json with it
           ];
 
           # The QML module search path for the headless QML checks and the
