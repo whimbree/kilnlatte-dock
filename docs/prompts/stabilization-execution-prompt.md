@@ -33,7 +33,8 @@ not repeated here).
 - Parallel work: spawn worktree subagents per unit of work where tasks
   are disjoint; the orchestrator merges serially (rebase onto master,
   ff-merge, full gates, live checks, ledger/plan tick, push, prune).
-  LIMITS (my direction 2026-07-16): at most 2 subagents at a time, and
+  LIMITS (my direction 2026-07-16, cap raised the same day): at most
+  4 subagents at a time (not counting the orchestrating session), and
   every subagent keeps a running log of what it did and found in
   docs/agent-logs/ (one file per dispatch, named
   YYYY-MM-DD-<short-task-slug>.md) - the ledger strategy that keeps
