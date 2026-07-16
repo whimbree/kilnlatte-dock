@@ -876,6 +876,8 @@ PlasmoidItem {
         launchers.group: Plasmoid.configuration.launchersGroup
         launchers.isStealingDroppedLaunchers: Plasmoid.configuration.isPreferredForDroppedLaunchers
         launchers.syncer.isBlocked: inDraggingPhase
+        launchers.activityInfo: activityInfo
+        launchers.inDraggingPhase: root.inDraggingPhase
 
         metrics.local.iconSize: inPlasmaDesktop ? maxIconSizeInPlasma : (inPlasmaPanel ? Math.max(16, panelThickness - metrics.margin.tailThickness - metrics.margin.headThickness) : maxIconSizeInPlasma)
         metrics.local.backgroundThickness: metrics.totals.thickness

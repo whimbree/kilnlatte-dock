@@ -8,6 +8,7 @@ import QtQuick 2.0
 import org.kde.plasma.plasmoid 2.0
 
 import org.kde.latte.core 0.2 as LatteCore
+import org.kde.latte.private.tasks 0.1 as LatteTasks
 
 import "launchers" as LaunchersPart
 
@@ -39,6 +40,11 @@ Item {
     property Item view: null
     property QtObject tasksModel: null
 
+    //! live session state injected at the instantiation site (main.qml),
+    //! so the reads below stay off the context chain
+    property QtObject activityInfo: null
+    property bool inDraggingPhase: false
+
     readonly property LaunchersPart.Syncer syncer: LaunchersPart.Syncer{}
     readonly property LaunchersPart.Validator validator: LaunchersPart.Validator{}
 
@@ -56,34 +62,20 @@ Item {
         return group === LatteCore.Types.GlobalLaunchers;
     }
 
-    function isSeparator(launcher){
-        return (launcher.indexOf("latte-separator")!==-1 && launcher.indexOf(".desktop")!==1);
+    function isSeparator(launcher) {
+        return LatteTasks.LauncherListOps.isSeparatorName(launcher);
     }
 
-    function separatorExists(separator){
+    function separatorExists(separator: string) : bool {
         return (_launchers.tasksModel.launcherPosition(separator)>=0);
     }
 
-    function freeAvailableSeparatorName() {
-        var available = false;
-        var no = 1;
-
-        var separatorName = "";
-
-        while(!available && no<20) {
-            separatorName = "file:///latte-separator"+no+".desktop";
-            if (separatorExists(separatorName)) {
-                no = no + 1;
-            } else {
-                available = true;
-            }
-        }
-
-        if (available) {
-            return separatorName;
-        } else {
-            return "";
-        }
+    //! first free internal separator name, "" when all 19 are taken; the
+    //! model query stays here (launcherPosition is live state), the
+    //! candidate space and the allocation decision live in the core
+    function freeAvailableSeparatorName() : string {
+        var taken = LatteTasks.LauncherListOps.separatorCandidates().filter(separatorExists);
+        return LatteTasks.LauncherListOps.freeSeparatorName(taken);
     }
 
     function hasLauncher(url) {
@@ -93,8 +85,8 @@ Item {
     function addLauncher(launcherUrl) {
         if (bridge) {
             bridge.launchers.host.addSyncedLauncher(syncer.clientId,
-                                                    launchers.group,
-                                                    launchers.groupId,
+                                                    _launchers.group,
+                                                    _launchers.groupId,
                                                     launcherUrl);
         } else {
             _launchers.tasksModel.requestAddLauncher(launcherUrl);
@@ -115,7 +107,7 @@ Item {
         _launchers.launcherInAdding(filename);
 
         tasksModel.requestAddLauncher(launcherUrl);
-        launchers.launcherChanged(launcherUrl);
+        _launchers.launcherChanged(launcherUrl);
         tasksModel.syncLaunchers();
     }
 
@@ -123,8 +115,8 @@ Item {
         //! inform synced docks for new dropped launchers
         if (bridge) {
             bridge.launchers.host.addDroppedLaunchers(syncer.clientId,
-                                                      launchers.group,
-                                                      launchers.groupId,
+                                                      _launchers.group,
+                                                      _launchers.groupId,
                                                       urls);
         } else {
             urls.forEach(function (item) {
@@ -153,8 +145,8 @@ Item {
     function removeLauncher(launcherUrl) {
         if (bridge) {
             bridge.launchers.host.removeSyncedLauncher(syncer.clientId,
-                                                       launchers.group,
-                                                       launchers.groupId,
+                                                       _launchers.group,
+                                                       _launchers.groupId,
                                                        launcherUrl);
         } else {
             _launchers.launcherInRemoving(launcherUrl);
@@ -166,8 +158,8 @@ Item {
     function addLauncherToActivity(launcherUrl, activityId) {
         if (bridge) {
             bridge.launchers.host.addSyncedLauncherToActivity(syncer.clientId,
-                                                              launchers.group,
-                                                              launchers.groupId,
+                                                              _launchers.group,
+                                                              _launchers.groupId,
                                                               launcherUrl,
                                                               activityId);
         } else {
@@ -183,8 +175,8 @@ Item {
     function removeLauncherFromActivity(launcherUrl, activityId) {
         if (bridge) {
             bridge.launchers.host.removeSyncedLauncherFromActivity(syncer.clientId,
-                                                                   launchers.group,
-                                                                   launchers.groupId,
+                                                                   _launchers.group,
+                                                                   _launchers.groupId,
                                                                    launcherUrl,
                                                                    activityId);
         } else {
@@ -199,8 +191,8 @@ Item {
     function validateSyncedLaunchersOrder() {
         if (bridge) {
             bridge.launchers.host.validateSyncedLaunchersOrder(syncer.clientId,
-                                                               launchers.group,
-                                                               launchers.groupId,
+                                                               _launchers.group,
+                                                               _launchers.groupId,
                                                                currentShownLauncherList());
         } else {
             /*validator.stop();
@@ -279,8 +271,10 @@ Item {
     }
 
 
+    //! uncalled Qt5-inherited ability API (verified against f0ad7b23: no
+    //! caller there either); kept for the ability surface, the stored
+    //! record grammar itself lives in the core (EX-11)
     function currentStoredLauncherList() {
-        var launch = [];
         var launchersList = [];
 
         if (bridge && bridge.launchers.host.isReady) {
@@ -295,24 +289,8 @@ Item {
             launchersList = Plasmoid.configuration.launchers59;
         }
 
-
-        for(var i=0; i<launchersList.length; ++i){
-            var launcherRecord = launchersList[i];
-
-            if (launcherRecord.indexOf("[") === -1) {
-                //global launcher
-                launch.push(launcherRecord);
-            } else {
-                //launcher assigned to activities
-                var end = launcherRecord.indexOf("\n");
-                var explicitLauncher = launcherRecord.substring(end+1,launcherRecord.length);
-                if (explicitLauncher !== "" && launcherRecord.indexOf(activityInfo.currentActivity) > -1) {
-                    launch.push(explicitLauncher);
-                }
-            }
-        }
-
-        return launch;
+        return LatteTasks.LauncherListOps.launchersForActivity(launchersList,
+                                                               _launchers.activityInfo.currentActivity);
     }
 
     function importLauncherListInModel() {
@@ -351,15 +329,17 @@ Item {
     }
 
     onGroupChanged:{
-        if(appletAbilities.myView.isReady) {
+        // view is the same object appletAbilities.myView exposes (assigned
+        // at the AppletAbilities instantiation), read off the context chain
+        if(_launchers.view.isReady) {
             _launchers.importLauncherListInModel();
         }
     }
 
     Connections {
-        target: appletAbilities.myView
-        onIsReadyChanged: {
-            if(appletAbilities.myView.isReady) {
+        target: _launchers.view
+        function onIsReadyChanged() {
+            if(_launchers.view.isReady) {
                 if (!_launchers.inUniqueGroup()) {
                     _launchers.importLauncherListInModel();
                 }
@@ -368,9 +348,9 @@ Item {
     }
 
     Connections {
-        target: bridge ? bridge.launchers.host : null
-        onIsReadyChanged: {
-            if (bridge && bridge.launchers.host.isReady && !_launchers.__isLoadedDuringViewStartup) {
+        target: _launchers.bridge ? _launchers.bridge.launchers.host : null
+        function onIsReadyChanged() {
+            if (_launchers.bridge && _launchers.bridge.launchers.host.isReady && !_launchers.__isLoadedDuringViewStartup) {
                 _launchers.__isLoadedDuringViewStartup = true;
                 _launchers.importLauncherListInModel();
             }
@@ -379,22 +359,22 @@ Item {
 
     Connections {
         target: _launchers.tasksModel
-        onLauncherListChanged: {
-            if (bridge && bridge.launchers.host.isReady) {
+        function onLauncherListChanged() {
+            if (_launchers.bridge && _launchers.bridge.launchers.host.isReady) {
                 if (!_launchers.inUniqueGroup()) {
                     if (_launchers.inLayoutGroup()) {
-                        bridge.launchers.host.setLayoutLaunchers(_launchers.tasksModel.launcherList);
+                        _launchers.bridge.launchers.host.setLayoutLaunchers(_launchers.tasksModel.launcherList);
                     } else if (_launchers.inGlobalGroup()) {
-                        bridge.launchers.host.setUniversalLaunchers(_launchers.tasksModel.launcherList);
+                        _launchers.bridge.launchers.host.setUniversalLaunchers(_launchers.tasksModel.launcherList);
                     }
                 } else {
                     Plasmoid.configuration.launchers59 = _launchers.tasksModel.launcherList;
                 }
 
-                if (inDraggingPhase) {
+                if (_launchers.inDraggingPhase) {
                     _launchers.validateSyncedLaunchersOrder();
                 }
-            } else if (!appletAbilities.myView.isReady) {
+            } else if (!_launchers.view.isReady) {
                 // This way we make sure that a delayed view.layout initialization does not store irrelevant launchers from different
                 // group to UNIQUE launchers group
                 Plasmoid.configuration.launchers59 = _launchers.tasksModel.launcherList;
