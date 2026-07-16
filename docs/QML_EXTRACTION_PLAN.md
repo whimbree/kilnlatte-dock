@@ -2085,10 +2085,18 @@ wholesale, so the durable record is here; the retroactive pass
 assessed every file the landed cutovers touched):
 
 - Context-chain name resolution: ParabolicArea.qml (85),
-  ParabolicEventsArea.qml (79), AppletItem.qml (164), plasmoid
-  main.qml (94), ParabolicEdgeSpacer.qml (7), and the last 3+3 in the
+  ParabolicEventsArea.qml (79), AppletItem.qml (161), plasmoid
+  main.qml (94), ParabolicEdgeSpacer.qml (7), the last 3+3 in the
   containment parabolic ability/private (root/metrics reads inside
-  BINDINGS). These files resolve enclosing-scope ids (appletItem,
+  BINDINGS), and the containment LayouterPrivate.qml (10 after the
+  EX-05 cutover: root/background reads inside its maxLength/
+  contentsMaxLength BINDINGS, the layouter debounce-entry calls in its
+  counter-change handlers, and root/inNormalFillCalculationsState
+  reads in the dispatcher - the last is a base-file read of a
+  property DECLARED on the derived Layouter.qml, which a base
+  redeclaration would break, so it cannot be qualified or injected
+  without the endgame subtree refactor). These files resolve
+  enclosing-scope ids (appletItem,
   root, metrics, animations, wrapper, parabolicItem, ...) through the
   QML context chain BY ARCHITECTURE - the ability/item pattern the
   whole tree is built on. Zeroing them means explicit property

@@ -113,3 +113,6 @@ target_link_libraries(tooltiptexttest
 # latte catalogs must not translate them out from under the test
 set_property(TEST tooltiptexttest APPEND PROPERTY
     ENVIRONMENT "LANGUAGE=C;LC_ALL=C")
+
+# EX-05 FillLengthDistributor: header-only pure two-pass space distribution.
+latte_add_unit_test(filldistributortest)

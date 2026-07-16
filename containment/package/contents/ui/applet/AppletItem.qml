@@ -59,7 +59,6 @@ Item {
     readonly property color highlightColor: Kirigami.Theme.focusColor
 
     //! Fill Applet(s)
-    property bool inFillCalculations: false //temp record, is used in calculations for fillWidth,fillHeight applets
     property bool isAutoFillApplet:  isRequestingFill
     property bool isParabolicEdgeSpacer: false
 
