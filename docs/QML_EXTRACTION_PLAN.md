@@ -1884,7 +1884,9 @@ Conventions used by all specs:
   (QIcon::name precedence), `classify -> {LocalFile, SvgOrIconName,
   Icon, Image, Clear}`, `isFilteredSourceName` (empty or
   application-x-executable), `ResolvedIcon::isValid`.
-- capt cross-reference: capt ad74a34a + ed0afd054 routing;
+- capt cross-reference: capt ad74a34a + ed5905ed routing (ed0afd054
+  was a transcription slip - that hash is latte-dock-ng's Tasks-config
+  fix named in CLAUDE.md, not a capt commit);
   iconsourceclassifiertest (13 slots incl. the QImage-variant
   empty-name case and the isValid truth table).
 - Test plan: port the 13 slots; verify against OUR iconitem.cpp

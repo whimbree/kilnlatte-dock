@@ -9,6 +9,7 @@ appstreamtest
 askdestroysignalorderingtest
 destroyedtypedemotiontest
 extraviewhintstest
+iconsourceclassifiertest
 importerregressiontest
 indicatorfactoryremovaltest
 layershellmappingtest

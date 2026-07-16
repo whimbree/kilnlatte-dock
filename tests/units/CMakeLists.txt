@@ -92,3 +92,9 @@ target_link_libraries(extraviewhintstest
 latte_add_unit_test(panelbackgroundscantest)
 target_link_libraries(panelbackgroundscantest
     Qt6::Gui)
+
+# EX-24 IconSourceClassifier: header-only pure classification; needs the
+# QIcon/QImage variant handlers from Qt Gui.
+latte_add_unit_test(iconsourceclassifiertest)
+target_link_libraries(iconsourceclassifiertest
+    Qt6::Gui)
