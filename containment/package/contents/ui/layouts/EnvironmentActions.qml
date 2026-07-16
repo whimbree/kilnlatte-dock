@@ -104,6 +104,15 @@ Loader {
             selectedWindowsTracker.lastActiveWindow.requestToggleMaximized();
         }
 
+        //! Qt5 fired past angle = delta/8 > 10 on the signed extreme of
+        //! angleDelta (EX-15: the wheel math lives in LatteCore.WheelStepper,
+        //! including the Qt5 mixed-sign quirk the SignedExtreme pick pins)
+        LatteCore.WheelStepper {
+            id: scrollWheelStepper
+            axisPick: LatteCore.WheelStepper.SignedExtreme
+            fireThreshold: 80
+        }
+
         onWheel: (wheel) => {
             if (wheelIsBlocked) {
                 return;
@@ -117,19 +126,11 @@ Loader {
             wheelIsBlocked = true;
             scrollDelayer.start();
 
-            var delta = 0;
-
-            if (wheel.angleDelta.y>=0 && wheel.angleDelta.x>=0) {
-                delta = Math.max(wheel.angleDelta.y, wheel.angleDelta.x);
-            } else {
-                delta = Math.min(wheel.angleDelta.y, wheel.angleDelta.x);
-            }
-
-            var angle = delta / 8;
+            var direction = scrollWheelStepper.add(wheel.angleDelta, false);
 
             var ctrlPressed = (wheel.modifiers & Qt.ControlModifier);
 
-            if (angle>10) {
+            if (direction > 0) {
                 //! upwards
                 if (root.scrollAction === LatteContainment.Types.ScrollDesktops) {
                     latteView.windowsTracker.switchToPreviousVirtualDesktop();
@@ -144,7 +145,7 @@ Loader {
                 } else if (tasksLoader.active) {
                     tasksLoader.item.activateNextPrevTask(true);
                 }
-            } else if (angle<-10) {
+            } else if (direction < 0) {
                 //! downwards
                 if (root.scrollAction === LatteContainment.Types.ScrollDesktops) {
                     latteView.windowsTracker.switchToNextVirtualDesktop();

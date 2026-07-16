@@ -2358,7 +2358,11 @@ assessed every file the landed cutovers touched):
   context-chain reads in a cursorShape BINDING and an
   onVisibleChanged handler, both the binding-risk class; the
   updateMaxLength body is EX-18's extraction target and zeroes with
-  that unit).
+  that unit); EnvironmentActions.qml (74, unchanged - the rewritten
+  wheel handler itself carries zero warnings; the residue is root/
+  latteView/selectedWindowsTracker context-chain reads across the
+  whole file plus 7 unresolved-type, all in untouched action
+  dispatch and bindings).
 - What the retroactive pass DID fix in the touched files: implicit
   Connections handlers to function syntax, own-property qualification
   through the component id (safe: ids outrank scope properties, same
