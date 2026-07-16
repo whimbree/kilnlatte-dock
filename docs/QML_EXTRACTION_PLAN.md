@@ -37,7 +37,7 @@ Ranking (section B): [x] done.
 Per-unit specs (section C), in rank order:
 - [x] EX-01 PreviewSwitchEngine - preview adoption/debounce/LRU decision core - LANDED 03cf0289+2f23f9bd
 - [x] EX-02 ParabolicRouter - neighbor scale-stack propagation chains
-- [x] EX-03 ParabolicMathCore - the zoom curve math
+- [x] EX-03 ParabolicMathCore - the zoom curve math - LANDED c3c04e49
 - [x] EX-04 AutoSizeEngine - iconSize shrink/grow feedback loop
 - [x] EX-05 FillLengthDistributor - Justify/fill two-pass space distribution
 - [x] EX-06 VisibleIndexEngine - visible-index math + separator neighbor walks
@@ -693,6 +693,10 @@ Conventions used by all specs:
 
 ### EX-03 ParabolicMathCore [delegate-safe]
 
+- Commits: c3c04e49 (landed 2026-07-15; 10 test slots incl. the
+  39-row 12-decimal equivalence table baked from the shipped QML via
+  qmltestrunner; live glide pass post-cutover, preview geometry
+  identical to the pre-cutover capture at the same pointer position).
 - Header: `declarativeimports/core/units/parabolicmath.h`
 - Responsibility: the zoom curve itself - per-item scale from pointer
   position - as pure functions.
