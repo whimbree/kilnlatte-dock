@@ -50,16 +50,9 @@ Work top to bottom. Each item names its home in docs/PORTING_PLAN.md;
 read the full checklist item there before starting - this list is the
 map, not the territory.
 
-0. **Land the round-3 icon set** (branding, quick): candidate 9
-   ("parabolic latte wave", ~/Projects/latte-dock/logo-candidates-round3/
-   candidate-9.svg) becomes the app icon: derive the six size variants
-   in icons/ (16/22/24/32/48/sc), simplifying per size the way the
-   round-1 landing did (drop detail that smears at 16px; the
-   candidate's own -16.png render is the fidelity reference), and
-   candidate 12 ("the wave, poured") becomes the README logo.png at
-   128px. Keep SPDX lines (Bree Spektor + Latte Dock contributors).
-   Verify legibility with rsvg-convert renders at every size before
-   committing.
+(Icon note: Varlesh's original icon set and logo are the PERMANENT
+choice, through and beyond the Lattecotta package rename - see that
+plan item for the recorded decision. Never land replacement icons.)
 
 1. **Session shutdown/logout teardown** (Phase 8): one deliberate
    sequence; unload the Corona's dependents in explicit dependency

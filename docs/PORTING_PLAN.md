@@ -3099,6 +3099,15 @@ prerequisites in the phases above are done.
       real config verified live, the staging/verification
       scripts updated in the same series, and a recorded
       decision per surface on shim-vs-clean-break.
+      Icon decision (2026-07-16, FINAL): Varlesh's original icon
+      set and logo stay permanently, through and beyond this
+      rename. Three commissioned replacement rounds did not beat
+      it, it is GPL and credited, and Lattecotta still starts
+      with that L. This rename item covers names only, never the
+      artwork. Three rounds of replacement candidates were
+      commissioned and none beat it (they live in the
+      logo-candidates*/ working dirs and the design agents'
+      worktree branches, kept as archive, not as seed material).
       Commits:
 
 ### Phase 12: Upstream contribution prep
