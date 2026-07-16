@@ -1478,6 +1478,28 @@ Conventions used by all specs:
 
 ### EX-12 ColorizerDecisionCore [delegate-safe]
 
+- Commits: 8ff0862d (core + ColorizerDecider declarative wrapper +
+  Manager.qml cut to thin bindings + colorizerdecisiontest sanitized
+  + tst_colorizerdecider.qml driving the registered wrapper through
+  the staged install; eliminated invalid states named in
+  docs/agent-logs/EX-12.md). Executed notes: the spec's single
+  ColorizerChoice struct became four core functions (source, identity
+  algebra, mustBeShown, scheme file) because the QML consumed the
+  decisions at four independent binding sites and a struct would have
+  re-fused them; brightText maps to the useLayoutTextColor edit-mode
+  override (Manager.qml 141-151, folded in as part of the named
+  "text-color class" responsibility). The applyTheme===plasmaTheme
+  identity comparisons are now explicit algebra proven from the
+  providers (Theme::darkTheme() aliases defaultTheme iff the theme is
+  dark; tracker/layout schemes never alias - provider proof in the
+  core's header comment). The touching-branch JS operator precedence
+  is preserved bit-for-bit and pinned by a named test; regrouping it
+  is a recorded future decision, not a cleanup. qmllint baseline
+  unchanged: Manager.qml imports org.kde.latte.private.app and sits
+  in the gate's app-module-dependent skip class (same enumeration as
+  qml-compile-gate), so strict-on-touch cannot bind it mechanically;
+  the new decider block is written strict-style regardless. Live
+  check pending at merge (docs/agent-logs/EX-12.md).
 - Header: `containment/plugin/units/colorizerdecision.h`
 - Responsibility: the colorizer's theme/scheme selection decision
   tree (which scheme file and text-color class apply for a given
