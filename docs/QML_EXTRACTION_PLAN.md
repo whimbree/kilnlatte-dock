@@ -178,9 +178,33 @@ Per-unit specs (section C), in rank order:
     follows hash iteration) - assertion made order-independent,
     6/6 green.
 - [x] EX-24 IconSourceClassifier - icon source classification (capt blueprint)
-  - [ ] executed
+  - [x] executed: LANDED (agent worktree, merged 2026-07-16). 21 unit
+    slots/28 cases (capt's 13 + 2 branch-gap + 7 edge/degenerate) plus
+    tst_iconitem.qml driving the REAL shipped IconItem through the
+    staged import (the automated e2e layer). Type discipline:
+    ResolvedIcon::isValid constexpr member, switch exhaustiveness
+    compiler-checked, totality over QVariant pinned. Also re-landed
+    the storageidremap flake fix that 4365be4b described but never
+    staged (agent reproduced it failing-first). Live check run at
+    merge: all icon classes render on the real dock post-cutover
+    (task, applet, local-file) - screenshot.
 - [x] EX-25 PanelBackgroundScan - panel background scanline math (capt blueprint)
-  - [ ] executed
+  - [x] executed: LANDED (agent worktree, merged 2026-07-16). 27 unit
+    slots (capt's 17 re-derived + 3 empty-image refusal + 6 edge/
+    degenerate + strengthened zig-zag), sanitized; the ASan negative
+    probe (inclusive Qt5 bound restored -> heap-buffer-overflow abort)
+    proves the instrumentation. FIXED AT ORIGIN: a Qt5-inherited OOB
+    read - three bottomright corner loops ran r <= corner.height()
+    and read scanLine(height()), reachable live via a shadow corner
+    with transparent column 0 (capt fixed the same in 15a317ff).
+    Type discipline: ShadowBand::color std::optional<QColor> (invalid-
+    QColor sentinel gone), enum class Corner/BandOrientation over bool
+    params, empty images refused loudly. updateRoundnessFallback
+    stays in the adapter (out of the spec's responsibility line,
+    verdict recorded). Live check run at merge: background pill
+    roundness/shadows render correctly on the real config
+    post-cutover (screenshot); full theme-switch pass folded into the
+    standing desk list.
 
 Section D (coverage + ratchet): [x] done.
 Section E (waves): [x] done.
