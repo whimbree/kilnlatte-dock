@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2019 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -46,8 +47,6 @@ public:
 
     //! metadata record
     static bool metadataAreValid(KPluginMetaData &metadata);
-    //! metadata file
-    static bool metadataAreValid(QString &file);
 
     //! imports an indicator compressed file
     static Latte::ImportExport::State importIndicatorFile(QString compressedFile);

@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2019 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -247,16 +248,6 @@ bool Factory::metadataAreValid(KPluginMetaData &metadata)
     return metadata.isValid()
             && metadata.category() == QLatin1String("Latte Indicator")
             && !metadata.value("X-Latte-MainScript").isEmpty();
-}
-
-bool Factory::metadataAreValid(QString &file)
-{
-    if (QFileInfo(file).exists()) {
-        KPluginMetaData metadata(file);
-        return metadata.isValid();
-    }
-
-    return false;
 }
 
 QString Factory::uiPath(QString pluginName) const
