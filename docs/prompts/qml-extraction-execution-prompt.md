@@ -233,6 +233,19 @@ executing session reads its orders, because they bind every wave):
   original author's line, refactors ADD a line next to the existing
   ones. Genuinely new files carry Bree's line AND "2026 Latte Dock
   contributors" for good measure. When in doubt, over-attribute.
+- Test quality is a primary deliverable, not a checkbox: drastically
+  improving testability is one of the initiative's goals. Per unit:
+  the spec's slots are the FLOOR, then add regression cases for edge
+  and degenerate inputs (each invalid state the type discipline
+  eliminates gets a case proving it handled or unrepresentable);
+  every defect found during extraction gets a failing-first
+  regression test in its fix commit; QML-observable behavior gets an
+  offscreen qmltest in tests/qml driving the REAL shipped component
+  through the wrapper (our automated e2e layer) - what genuinely
+  needs a compositor is recorded per docs/testing/live-only.md, not
+  faked. Honest-coverage (docs/TESTING.md) is the floor everywhere;
+  never assert on KConfig groupList()/QHash iteration order (varies
+  per process seed - this class already produced one flake).
 - These rules extend, never replace, the existing working agreements:
   match surrounding idiom in inherited files, Qt5-faithful behavior,
   no silent guards, stub discipline.
