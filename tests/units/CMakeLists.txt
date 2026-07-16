@@ -50,6 +50,9 @@ target_link_libraries(screengeometrycalculatortest
     Qt6::Gui
     Plasma::Plasma)
 
+# EX-04 AutoSizeEngine: header-only pure search step, value-type history.
+latte_add_unit_test(autosizeenginetest)
+
 # EX-01 PreviewSwitchEngine: header-only pure core, injected clock.
 latte_add_unit_test(previewswitchenginetest)
 
