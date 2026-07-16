@@ -123,7 +123,7 @@ AbilityHost.ParabolicEffect {
     //! route a scale stack entering at entryIndex (also the bridge re-entry
     //! point: clientRequestUpdate* calls this at appletIndex-/+1)
     function routeScalesFromIndex(entryIndex, newScales, islower) {
-        var info = _rowSnapshotContaining(entryIndex);
+        var info = _classifyRowContaining(entryIndex);
 
         if (!info) {
             //! a gap index between layouts: the chain emitted here too -
@@ -173,7 +173,7 @@ AbilityHost.ParabolicEffect {
     //! router, the items themselves for spacer absorb calls. Index holes
     //! (mid-churn) stay DeadStop, which is what the chain did at a missing
     //! index: the live walk dies there
-    function _rowSnapshotContaining(entryIndex) {
+    function _classifyRowContaining(entryIndex) {
         var grids = [layouts.startLayout, layouts.mainLayout, layouts.endLayout];
 
         for (var g = 0; g < grids.length; ++g) {
@@ -213,7 +213,7 @@ AbilityHost.ParabolicEffect {
                 }
                 var pos = child.index - lo;
                 items[pos] = child;
-                kinds[pos] = _routerKindOf(child);
+                kinds[pos] = _classifyForRouting(child);
             }
 
             return {rowBase: lo, kinds: kinds, items: items};
@@ -222,7 +222,7 @@ AbilityHost.ParabolicEffect {
         return null;
     }
 
-    function _routerKindOf(item) {
+    function _classifyForRouting(item) {
         if (item.isParabolicEdgeSpacer === true) {
             return LatteCore.ParabolicRouter.EdgeSpacer;
         }

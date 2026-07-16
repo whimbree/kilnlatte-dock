@@ -145,7 +145,7 @@ AbilityDefinition.ParabolicEffect {
     function routeScalesFromIndex(entryIndex, newScales, islower) {
         //! task rows carry no edge spacers and no nested bridge clients;
         //! spacersAbsorbing is inert here
-        var plan = LatteCore.ParabolicRouter.route(_routerRowOfTasks(),
+        var plan = LatteCore.ParabolicRouter.route(_classifyTasksForRouting(),
                                                    entryIndex,
                                                    islower ? -1 : 1,
                                                    newScales,
@@ -185,7 +185,7 @@ AbilityDefinition.ParabolicEffect {
     //! positions 0..itemsCount-1 keyed by itemIndex; holes (mid-churn
     //! index inconsistencies) stay DeadStop, matching the chain where a
     //! missing index matched no slot and the live walk died
-    function _routerRowOfTasks() {
+    function _classifyTasksForRouting() {
         var count = indexer.itemsCount;
         var kinds = new Array(count);
         for (var i = 0; i < count; ++i) {

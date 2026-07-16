@@ -172,10 +172,15 @@ executing session reads its orders, because they bind every wave):
   breed: clarity is a correctness tool. Every name that must be
   decoded, every function that must be opened to learn its job, is
   cognitive budget stolen from the actual problem.
-- Names say what the thing DOES, so call sites read like English.
-  _rowKinds() is this repo's own counterexample (it built the
-  router's row model from the task items; the name said neither).
-  A thing that is hard to name is usually two things - split it.
+- Names say what the thing DOES, so call sites read like English;
+  the test is "what does that do?" asked of the bare name. This
+  repo's two-stage lesson: _rowKinds() said nothing, and the first
+  fix _routerRowOfTasks() still failed - a noun phrase naming the
+  artifact in subsystem jargon never answers a "does" question. The
+  real fix is the verb phrase _classifyTasksForRouting(). Verb-first
+  for anything that does work; noun names only for cheap pure
+  lookups. A thing that is hard to name is usually two things -
+  split it.
 - Small single-purpose functions. A block that needs a WHAT comment
   is a function that wants extracting; comments are for WHY.
 - New C++ is idiomatic C++20: RAII, managed memory (unique_ptr/
@@ -195,7 +200,12 @@ executing session reads its orders, because they bind every wave):
   unrepresentable via types (the step-2.5 law), static_assert at
   compile time, Q_ASSERT preconditions inside cores, and
   qCritical-and-refuse at boundaries where bad input arrives from
-  outside. An assert is documentation that cannot go stale.
+  outside. An assert is documentation that cannot go stale. Q_ASSERT
+  is DELETED outside debug builds (this tree's RelWithDebInfo
+  defines QT_NO_DEBUG): unit-test targets define QT_FORCE_ASSERTS so
+  core asserts are genuinely live under test; never put side effects
+  in an assert expression; and an assert never substitutes for real
+  refusal handling at a boundary that outside input can reach.
 - These rules extend, never replace, the existing working agreements:
   match surrounding idiom in inherited files, Qt5-faithful behavior,
   no silent guards, stub discipline.

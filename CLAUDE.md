@@ -161,11 +161,16 @@ where bugs breed, so clarity is a correctness tool, not a style
 preference. Concretely:
 
 - Name things for what they DO, so call sites read like English and
-  the reader never has to open a function to learn its job.
-  `_rowKinds()` is the canonical counterexample from this repo's own
-  history: it built the router's row model from the task items and
-  nothing in the name said so; `_routerRowOfTasks()` reads at the
-  call site. If something is hard to name, that is usually the
+  the reader never has to open a function to learn its job. The test
+  is literally "what does that do?" asked of the bare name. This
+  repo's own two-stage lesson: `_rowKinds()` said nothing;
+  the first fix `_routerRowOfTasks()` STILL failed the test - it
+  names the returned artifact in subsystem jargon, and a noun phrase
+  never answers a "does" question. The real fix is the verb phrase:
+  `_classifyTasksForRouting()` - classify the tasks for routing;
+  the reader knows the job without opening it. Prefer verb-first
+  names for anything that does work; reserve noun names for cheap
+  pure lookups. If something is hard to name, that is usually the
   design saying it does more than one job - split it.
 - Small single-purpose functions: a function does the whole thing its
   name promises and nothing else. When a block inside a function
@@ -194,10 +199,20 @@ preference. Concretely:
   make the invalid state unrepresentable (types - the step-2.5 law),
   static_assert what is knowable at compile time (the engine's
   settle-vs-burst ordering is the model), Q_ASSERT runtime
-  preconditions in cores (free in release, active in every test run),
-  and qCritical-and-refuse at API boundaries where bad input can
-  arrive from outside (the router wrapper's malformed-row refusal is
-  the model). An assert is documentation that cannot go stale.
+  preconditions in cores, and qCritical-and-refuse at API boundaries
+  where bad input can arrive from outside (the router wrapper's
+  malformed-row refusal is the model). An assert is documentation
+  that cannot go stale. Q_ASSERT truths, verified in this tree
+  (RelWithDebInfo defines QT_NO_DEBUG and NDEBUG): the preprocessor
+  DELETES the whole assert expression outside debug builds, so (a)
+  the unit-test targets define QT_FORCE_ASSERTS
+  (latte_add_unit_test) or the asserts would be dead code exactly
+  where they matter - proven with a step=0 probe that sailed through
+  stripped and aborted forced; (b) an assert expression must NEVER
+  carry side effects, the release build silently removes them; (c)
+  an assert is a test/debug-time tripwire, not input handling - a
+  boundary that can receive bad input from outside still refuses it
+  loudly at runtime.
 
 ### Pure-core discipline
 
