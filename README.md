@@ -1,12 +1,12 @@
-# <img src="logo.png" width="48"/> KilnLatte Dock
+# <img src="logo.png" width="48"/> Lattecotta Dock
 
 **"Art in Coffee, kiln-fired for Plasma6/QT6"**
 
 The name in plain words: the latte half is upstream Latte Dock's "Art
-in Coffee". The kiln half is what happened to it here: the Qt5 code
-went into the kiln and came out hardened and modernized - a
-from-scratch Plasma 6/Qt6 continuation with sanitized, unit-tested
-pure cores, type-disciplined and asserted at entry.
+in Coffee". The cotta half is terracotta: the Qt5 code went into the
+kiln and came out fired clay - a from-scratch Plasma 6/Qt6
+continuation with sanitized, unit-tested pure cores, type-disciplined
+and asserted at entry.
 
 > **Continuation notice**: this is a from-scratch **Plasma 6 / Qt 6 /
 > Wayland** port of KDE's [latte-dock](https://invent.kde.org/plasma/latte-dock),
@@ -135,7 +135,7 @@ Add the flake as an input and enable the module:
 
 ```nix
 # flake.nix
-inputs.latte-dock.url = "github:whimbree/kilnlatte-dock";
+inputs.latte-dock.url = "github:whimbree/lattecotta-dock";
 
 # in your nixosSystem call
 nixpkgs.lib.nixosSystem {
@@ -162,15 +162,15 @@ you prefer wiring `pkgs.latte-dock` yourself, and one-off builds work
 without any wiring:
 
 ```bash
-nix build github:whimbree/kilnlatte-dock
-nix run github:whimbree/kilnlatte-dock
+nix build github:whimbree/lattecotta-dock
+nix run github:whimbree/lattecotta-dock
 ```
 
 ### From source (any distro)
 
 ```bash
-git clone https://github.com/whimbree/kilnlatte-dock.git
-cd kilnlatte-dock
+git clone https://github.com/whimbree/lattecotta-dock.git
+cd lattecotta-dock
 cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
 cmake --build build --parallel
 sudo cmake --install build
