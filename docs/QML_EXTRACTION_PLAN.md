@@ -2365,7 +2365,13 @@ assessed every file the landed cutovers touched):
   dispatch and bindings); TaskMouseArea.qml (181, unchanged - the
   rewritten wheel handler carries zero warnings of its own; the
   residue is taskItem/root/subWindows/tasksModel/scrollableList
-  context-chain and task-model-role reads across the whole file).
+  context-chain and task-model-role reads across the whole file);
+  AudioStream.qml (17, unchanged - taskItem/root context-chain reads
+  plus one untyped signal-connected function, all outside the wheel
+  handler's own lines). Net: the four hand-rolled wheel bodies never
+  carried curated warnings themselves, so this unit's cutovers leave
+  every touched count where it was; the shrink obligation resolves
+  to residue-with-reasons, recorded here.
 - What the retroactive pass DID fix in the touched files: implicit
   Connections handlers to function syntax, own-property qualification
   through the component id (safe: ids outrank scope properties, same

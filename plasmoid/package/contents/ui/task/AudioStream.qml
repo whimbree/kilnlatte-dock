@@ -93,8 +93,6 @@ Item {
                     anchors.fill: parent
                     enabled: root.audioBadgeActionsEnabled
 
-                    property int wheelDelta: 0
-
                     onClicked: {
                         taskItem.toggleMuted();
                     }
@@ -102,39 +100,35 @@ Item {
                     //! Same wheel semantics as the plasma volume applet
                     //! (plasma-pa applet/main.qml): accumulate angleDelta and
                     //! apply one step per full 120 units, immediately, however
-                    //! many fit in the event - no lockout timer. The old
-                    //! handler stepped on ANY event past 16 units but then
-                    //! blocked for 80ms, so held scrolling lagged plasma's,
-                    //! and reversals inside the block window were swallowed
-                    //! (caught live: different thresholds up vs down,
-                    //! slower response than plasma's own applet).
+                    //! many fit in the event - no lockout timer; a direction
+                    //! reversal drops the residue so the first step of the new
+                    //! direction needs the same travel as every other step.
+                    //! The old handler stepped on ANY event past 16 units but
+                    //! then blocked for 80ms, so held scrolling lagged
+                    //! plasma's, and reversals inside the block window were
+                    //! swallowed (caught live: different thresholds up vs
+                    //! down, slower response than plasma's own applet).
+                    //! EX-15: the accumulation lives in LatteCore.WheelStepper
+                    //! and is pinned per event in wheelaccumulatortest.
+                    LatteCore.WheelStepper {
+                        id: volumeWheelStepper
+                        axisPick: LatteCore.WheelStepper.VerticalElseNegatedHorizontal
+                        stepSize: 120
+                        resetOnReversal: true
+                    }
+
                     onWheel: (wheel) => {
-                        const delta = (wheel.inverted ? -1 : 1) * (wheel.angleDelta.y ? wheel.angleDelta.y : -wheel.angleDelta.x);
+                        const steps = volumeWheelStepper.add(wheel.angleDelta, wheel.inverted);
 
-                        if ((wheelDelta > 0 && delta < 0) || (wheelDelta < 0 && delta > 0)) {
-                            //! direction change: drop the residue so the first
-                            //! step of the new direction needs the same travel
-                            //! as every other step
-                            wheelDelta = 0;
+                        for (let i = 0; i < Math.abs(steps); ++i) {
+                            if (steps > 0) {
+                                taskItem.increaseVolume(wheel.modifiers & Qt.ShiftModifier);
+                            } else {
+                                taskItem.decreaseVolume(wheel.modifiers & Qt.ShiftModifier);
+                            }
                         }
 
-                        wheelDelta += delta;
-
-                        var steps = 0;
-
-                        while (wheelDelta >= 120) {
-                            wheelDelta -= 120;
-                            taskItem.increaseVolume(wheel.modifiers & Qt.ShiftModifier);
-                            steps++;
-                        }
-
-                        while (wheelDelta <= -120) {
-                            wheelDelta += 120;
-                            taskItem.decreaseVolume(wheel.modifiers & Qt.ShiftModifier);
-                            steps++;
-                        }
-
-                        if (steps > 0) {
+                        if (steps !== 0) {
                             //! Deferred so the (optimistic) volume change has settled
                             //! before we read taskItem.volume for the OSD percentage.
                             Qt.callLater(background.showVolumeOsd);
