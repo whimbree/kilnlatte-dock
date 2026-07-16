@@ -7,6 +7,7 @@ set(containment_SRCS
     plugin/types.cpp
     plugin/autosizestepper.cpp
     plugin/filldistributortools.cpp
+    plugin/colorizerdecider.cpp
     plugin/iconcolorfulness.cpp
     plugin/layoutmanager.cpp
     plugin/lattecontainmentplugin.cpp

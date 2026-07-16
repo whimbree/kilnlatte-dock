@@ -102,6 +102,12 @@ latte_add_unit_test(iconsourceclassifiertest)
 target_link_libraries(iconsourceclassifiertest
     Qt6::Gui)
 
+# EX-12 ColorizerDecisionCore: header-only pure decision tree; includes the
+# containment plugin's Types Q_ENUMs (header-only use, Qt Core suffices).
+latte_add_unit_test(colorizerdecisiontest)
+target_include_directories(colorizerdecisiontest PRIVATE
+    ${CMAKE_SOURCE_DIR}/containment/plugin)
+
 # EX-17 TooltipTextComposer: header-only pure core plus its QML-facing
 # wrapper compiled IN per the sanitized-core rule (the wrapper's boundary
 # refusals and i18nc plan-mapping run instrumented); KF6::I18n for i18nc.
