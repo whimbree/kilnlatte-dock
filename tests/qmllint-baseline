@@ -34,7 +34,6 @@
 22	lib/qml/org/kde/latte/abilities/items/basicitem/ShortcutBadge.qml
 10	lib/qml/org/kde/latte/abilities/items/basicitem/TitleTooltipParent.qml
 1	lib/qml/org/kde/latte/components/AddingArea.qml
-22	lib/qml/org/kde/latte/components/BadgeText.qml
 28	lib/qml/org/kde/latte/components/ComboBoxButton.qml
 38	lib/qml/org/kde/latte/components/ComboBox.qml
 11	lib/qml/org/kde/latte/components/ExternalShadow.qml
@@ -130,7 +129,7 @@
 38	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/task/animations/RemoveWindowFromGroupAnimation.qml
 93	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/task/animations/ShowWindowAnimation.qml
 17	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/task/AudioStream.qml
-34	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/task/ProgressOverlay.qml
+30	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/task/ProgressOverlay.qml
 17	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/TasksExtendedManager.qml
 38	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/taskslayout/MouseHandler.qml
 49	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/taskslayout/ScrollableList.qml
