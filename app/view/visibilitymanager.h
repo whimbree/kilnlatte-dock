@@ -229,7 +229,8 @@ private:
 private:
     WindowSystem::AbstractWindowInterface *m_wm;
     Types::Visibility m_mode{Types::None};
-    std::array<QMetaObject::Connection, 6> m_connections;
+    //! 8 slots: the AlwaysVisible arm uses base(2) + 6 connections
+    std::array<QMetaObject::Connection, 8> m_connections;
 
     QTimer m_timerShow;
     QTimer m_timerHide;

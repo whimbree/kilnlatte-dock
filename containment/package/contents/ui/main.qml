@@ -1155,6 +1155,10 @@ ContainmentItem {
     Connections {
         target:fastLayoutManager
         onHasRestoredAppletsChanged: {
+            //! startup-chain breadcrumb (pairs with startupStrandedWatchdog):
+            //! one stranded startup died between this signal and the delayer
+            //! firing, mechanism still unproven - keep the hops named
+            console.log("startup: hasRestoredApplets ->", fastLayoutManager.hasRestoredApplets);
             if (fastLayoutManager.hasRestoredApplets) {
                 startupDelayer.start();
             }
@@ -1170,7 +1174,37 @@ ContainmentItem {
         id: startupDelayer
         interval: 1000
         onTriggered: {
+            //! second startup-chain breadcrumb (see the watchdog below)
+            console.log("startup: delayer fired, starting slide-out");
             visibilityManager.slotMustBeHide();
+            startupStrandedWatchdog.start();
+        }
+    }
+
+    Timer {
+        //! Startup-stranding watchdog (found live 2026-07-16, Phase 4 struts
+        //! item): four cold/loaded startups left root.inStartup TRUE forever
+        //! on every view - the slide-out chain below startupDelayer never
+        //! finished, so startupFinished() never reached the positioner, the
+        //! views kept their off-screen startup coordinates and every strut
+        //! publication landed in the remove branch (AlwaysVisible docks
+        //! reserved nothing; windows maximized under them). The docks LOOK
+        //! fine in that state because layer-shell placement rides anchors,
+        //! not the window position, which is what let it hide. Warm runs
+        //! never strand; the mechanism is timing-dependent and still
+        //! unproven - this watchdog names the state loudly at the next
+        //! natural occurrence instead of leaving it silent.
+        id: startupStrandedWatchdog
+        interval: 15000
+        onTriggered: {
+            if (root.inStartup) {
+                console.warn("STARTUP STRANDED: inStartup still true 15s after the startup delayer fired",
+                             "- slidingOut:", visibilityManager.inSlidingOut,
+                             "slidingIn:", visibilityManager.inSlidingIn,
+                             "latteView:", latteView ? "set" : "null",
+                             "pendingStartupFinished:", pendingStartupFinished,
+                             "screen:", latteView && latteView.positioner ? latteView.positioner.currentScreenName : "?");
+            }
         }
     }
 

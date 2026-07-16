@@ -289,6 +289,17 @@ void VisibilityManager::setMode(Latte::Types::Visibility mode)
             updateStrutsBasedOnLayoutsAndActivities(true);
         });
 
+        //! canSetStrut() reads Positioner::isOffScreen(), so every strut
+        //! update attempted while the view is still parked off-screen at
+        //! startup lands in the remove branch - and this was the ONLY
+        //! strut input with no re-trigger (thickness, geometry, screens
+        //! and activities all have one above). Without it the struts only
+        //! came back if absoluteGeometry happened to change after startup
+        //! finished; caught live 2026-07-16 as AlwaysVisible docks
+        //! reserving nothing (set_exclusive_zone published then reset to
+        //! 0 on the wire).
+        m_connections[base+5] = connect(m_latteView->positioner(), &ViewPart::Positioner::isOffScreenChanged, this, &VisibilityManager::updateStrutsAfterTimer);
+
         raiseView(true);
         break;
     }
@@ -425,6 +436,13 @@ void VisibilityManager::updateStrutsBasedOnLayoutsAndActivities(bool forceUpdate
             m_wm->setViewStruts(*m_latteView, m_publishedStruts, m_latteView->location());
         }
     } else {
+        //! name the reason when reservations get pulled: a wrongly-removed
+        //! strut is invisible in the UI (windows simply maximize under the
+        //! dock) and this line is what diagnosed the startup off-screen
+        //! stranding (2026-07-16, Phase 4 struts item)
+        qDebug() << "struts removed: thickness=" << m_strutsThickness
+                 << "offScreen=" << m_latteView->positioner()->isOffScreen()
+                 << "layoutCurrent=" << (m_latteView->layout() ? m_latteView->layout()->isCurrent() : false);
         m_publishedStruts = QRect();
         m_wm->removeViewStruts(*m_latteView);
     }
