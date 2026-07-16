@@ -61,10 +61,12 @@ void ClonedView::initSync()
 
 
     //! Update Applets from Clone -> OriginalView
+    //! every point where the ids hash can gain entries goes through
+    //! onSyncProgress so deferred original->clone syncs get their retry
     connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletConfigPropertyChanged, this, &ClonedView::updateOriginalAppletConfigProperty);
-    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::initializationCompleted, this, &ClonedView::updateAppletIdsHash);
-    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletsOrderChanged, this, &ClonedView::updateAppletIdsHash);
-    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletDataCreated, this, &ClonedView::updateAppletIdsHash);
+    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::initializationCompleted, this, &ClonedView::onSyncProgress);
+    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletsOrderChanged, this, &ClonedView::onSyncProgress);
+    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletDataCreated, this, &ClonedView::onSyncProgress);
     connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletCreated, this, [&](const QString &pluginId) {
         m_originalView->addApplet(pluginId, containment()->id());
     });
@@ -81,7 +83,7 @@ void ClonedView::initSync()
     connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletsOrderChanged, this, &ClonedView::onOriginalAppletsOrderChanged);
     connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletsInLockedZoomChanged, this, &ClonedView::onOriginalAppletsInLockedZoomChanged);
     connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletsDisabledColoringChanged, this, &ClonedView::onOriginalAppletsDisabledColoringChanged);
-    connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletDataCreated, this, &ClonedView::updateAppletIdsHash);
+    connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletDataCreated, this, &ClonedView::onSyncProgress);
     connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletCreated, this->extendedInterface(), [&](const QString &pluginId) {
         extendedInterface()->addApplet(pluginId);
     });
@@ -294,63 +296,145 @@ void ClonedView::updateOriginalAppletConfigProperty(const int &clonedid, const Q
     m_originalView->extendedInterface()->updateAppletConfigProperty(originalAppletId(clonedid), key, value);
 }
 
-void ClonedView::onOriginalAppletsOrderChanged()
+//! the deferred-sync gap fix (Phase 8): an original->clone sync arriving
+//! while the clone still initializes finds ids that cannot be translated
+//! yet. The old handlers dropped such syncs silently, and nothing replayed
+//! them once the clone finished - a clone whose containment initialization
+//! outpaced the guard stayed permanently out of order. Every handler now
+//! applies-or-defers, and onSyncProgress retries whatever is pending each
+//! time the ids hash gains entries.
+void ClonedView::onSyncProgress()
 {
     updateAppletIdsHash();
+    retryPendingOriginalSyncs();
+}
+
+void ClonedView::retryPendingOriginalSyncs()
+{
+    //! clear each flag BEFORE applying: a successful apply emits the clone's
+    //! own change signals, which re-enter onSyncProgress synchronously - the
+    //! cleared flag makes the nested retry a no-op instead of a re-apply
+    if (m_pendingOrderSync) {
+        m_pendingOrderSync = false;
+
+        if (applyOriginalAppletsOrder()) {
+            qDebug() << "org.kde.sync ::: deferred applets order sync applied to clone" << (containment() ? containment()->id() : -1);
+        } else {
+            m_pendingOrderSync = true;
+        }
+    }
+
+    if (m_pendingLockedZoom) {
+        const QList<int> payload = *m_pendingLockedZoom;
+        m_pendingLockedZoom.reset();
+
+        if (applyOriginalAppletsInLockedZoom(payload)) {
+            qDebug() << "org.kde.sync ::: deferred locked-zoom sync applied to clone" << (containment() ? containment()->id() : -1);
+        } else {
+            m_pendingLockedZoom = payload;
+        }
+    }
+
+    if (m_pendingDisabledColoring) {
+        const QList<int> payload = *m_pendingDisabledColoring;
+        m_pendingDisabledColoring.reset();
+
+        if (applyOriginalAppletsDisabledColoring(payload)) {
+            qDebug() << "org.kde.sync ::: deferred disabled-coloring sync applied to clone" << (containment() ? containment()->id() : -1);
+        } else {
+            m_pendingDisabledColoring = payload;
+        }
+    }
+}
+
+bool ClonedView::applyOriginalAppletsOrder()
+{
+    //! order is re-read from the original at apply time, so a deferred order
+    //! sync always applies the CURRENT order, not the one that failed
     QList<int> originalorder = m_originalView->extendedInterface()->appletsOrder();
 
     if (originalorder.count() != extendedInterface()->appletsOrder().count()) {
         //probably an applet was removed or added and clone has not been updated yet
-        return;
+        return false;
     }
 
     if (!isTranslatableToClonesOrder(originalorder)) {
-        qDebug() << "org.kde.sync ::: original applets order changed but unfortunately original order can not be translated to cloned ids...";
-        return;
+        return false;
     }
 
     QList<int> newclonesorder = translateToClonesOrder(originalorder);
 
     if (newclonesorder.contains(ERRORAPPLETID)) {
-        qDebug() << "org.kde.sync ::: original applets order changed but unfortunately original and clones order map can not be generated...";
-        return;
+        return false;
     }
 
     extendedInterface()->setAppletsOrder(newclonesorder);
+    return true;
+}
+
+bool ClonedView::applyOriginalAppletsInLockedZoom(const QList<int> &originalapplets)
+{
+    if (!isTranslatableToClonesOrder(originalapplets)) {
+        return false;
+    }
+
+    QList<int> newclonesorder = translateToClonesOrder(originalapplets);
+
+    if (newclonesorder.contains(ERRORAPPLETID)) {
+        return false;
+    }
+
+    extendedInterface()->setAppletsInLockedZoom(newclonesorder);
+    return true;
+}
+
+bool ClonedView::applyOriginalAppletsDisabledColoring(const QList<int> &originalapplets)
+{
+    if (!isTranslatableToClonesOrder(originalapplets)) {
+        return false;
+    }
+
+    QList<int> newclonesorder = translateToClonesOrder(originalapplets);
+
+    if (newclonesorder.contains(ERRORAPPLETID)) {
+        return false;
+    }
+
+    extendedInterface()->setAppletsDisabledColoring(newclonesorder);
+    return true;
+}
+
+void ClonedView::onOriginalAppletsOrderChanged()
+{
+    updateAppletIdsHash();
+
+    //! a fresh order change supersedes any pending one (apply reads fresh)
+    m_pendingOrderSync = false;
+
+    if (!applyOriginalAppletsOrder()) {
+        m_pendingOrderSync = true;
+        qDebug() << "org.kde.sync ::: original applets order can not be applied to the clone yet (still initializing), sync deferred";
+    }
 }
 
 void ClonedView::onOriginalAppletsInLockedZoomChanged(const QList<int> &originalapplets)
 {
-    if (!isTranslatableToClonesOrder(originalapplets)) {
-        qDebug() << "org.kde.sync ::: original applets order changed but unfortunately original order can not be translated to cloned ids...";
-        return;
+    m_pendingLockedZoom.reset();
+
+    if (!applyOriginalAppletsInLockedZoom(originalapplets)) {
+        m_pendingLockedZoom = originalapplets;
+        qDebug() << "org.kde.sync ::: original locked-zoom applets can not be applied to the clone yet (still initializing), sync deferred";
     }
-
-    QList<int> newclonesorder = translateToClonesOrder(originalapplets);
-
-    if (newclonesorder.contains(ERRORAPPLETID)) {
-        qDebug() << "org.kde.sync ::: original applets order changed but unfortunately original and clones order map can not be generated...";
-        return;
-    }
-
-    extendedInterface()->setAppletsInLockedZoom(newclonesorder);
 }
 
 void ClonedView::onOriginalAppletsDisabledColoringChanged(const QList<int> &originalapplets)
 {
-    if (!isTranslatableToClonesOrder(originalapplets)) {
-        qDebug() << "org.kde.sync ::: original applets order changed but unfortunately original order can not be translated to cloned ids...";
-        return;
+    m_pendingDisabledColoring.reset();
+
+    if (!applyOriginalAppletsDisabledColoring(originalapplets)) {
+        m_pendingDisabledColoring = originalapplets;
+        qDebug() << "org.kde.sync ::: original disabled-coloring applets can not be applied to the clone yet (still initializing), sync deferred";
     }
-
-    QList<int> newclonesorder = translateToClonesOrder(originalapplets);
-
-    if (newclonesorder.contains(ERRORAPPLETID)) {
-        qDebug() << "org.kde.sync ::: original applets order changed but unfortunately original and clones order map can not be generated...";
-        return;
-    }
-
-    extendedInterface()->setAppletsDisabledColoring(newclonesorder);
 }
 
 

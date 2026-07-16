@@ -12,6 +12,9 @@
 #include "indicator/indicator.h"
 #include "view.h"
 
+// C++
+#include <optional>
+
 namespace Latte {
 
 class ClonedView : public View
@@ -52,6 +55,7 @@ private Q_SLOTS:
     void updateOriginalAppletConfigProperty(const int &clonedid, const QString &key, const QVariant &value);
 
     void updateAppletIdsHash();
+    void onSyncProgress();
 private:
     bool isTranslatableToClonesOrder(const QList<int> &originalOrder);
 
@@ -60,11 +64,27 @@ private:
 
     QList<int> translateToClonesOrder(const QList<int> &originalIds);
 
+    bool applyOriginalAppletsOrder();
+    bool applyOriginalAppletsInLockedZoom(const QList<int> &originalapplets);
+    bool applyOriginalAppletsDisabledColoring(const QList<int> &originalapplets);
+    void retryPendingOriginalSyncs();
+
 private:
     static QStringList CONTAINMENTMANUALSYNCEDPROPERTIES;
 
     QPointer<Latte::OriginalView> m_originalView;
     QHash<int, int> m_currentAppletIds;
+
+    //! deferred original->clone syncs (the structuralSyncReady gap): a sync
+    //! arriving while the clone is still initializing cannot be translated to
+    //! cloned applet ids yet; it is remembered here and retried every time the
+    //! ids hash gains entries. Order re-reads the original at apply time, so a
+    //! bool suffices; the two list syncs replay their LAST payload, and
+    //! optional distinguishes "nothing pending" from a pending EMPTY list
+    //! (empty means unlock/recolor everything - a valid payload).
+    bool m_pendingOrderSync{false};
+    std::optional<QList<int>> m_pendingLockedZoom;
+    std::optional<QList<int>> m_pendingDisabledColoring;
 };
 
 }
