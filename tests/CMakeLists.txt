@@ -252,3 +252,20 @@ set_tests_properties(indicatorsknsrctest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 target_compile_definitions(indicatorsknsrctest PRIVATE
     INDICATORS_KNSRC_PATH="${CMAKE_SOURCE_DIR}/app/latte-indicators.knsrc")
+
+# Contract: Plasma 6 loads no [ActionPlugins] defaults, so the right-click
+# menu only exists because of the chain the test header names (shipped
+# defaults + GenericLayout re-assert + the KF6 filename-derived plugin id).
+# The built plugin's path rides a generator expression so a rename in either
+# CMake or metadata fails the test, not the live right-click.
+ecm_add_test(contracts/contextmenudefaulttest.cpp
+    TEST_NAME contextmenudefaulttest
+    LINK_LIBRARIES Qt6::Test Qt6::Gui Plasma::Plasma
+)
+set_tests_properties(contextmenudefaulttest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_compile_definitions(contextmenudefaulttest PRIVATE
+    LATTE_DEFAULTS_PATH="${CMAKE_SOURCE_DIR}/shell/package/contents/defaults"
+    GENERICLAYOUT_CPP_PATH="${CMAKE_SOURCE_DIR}/app/layout/genericlayout.cpp"
+    CONTEXTMENU_PLUGIN_FILE="$<TARGET_FILE:plasma_containmentactions_lattecontextmenu>"
+    CONTEXTMENU_METADATA_JSON="${CMAKE_SOURCE_DIR}/containmentactions/contextmenu/plasma-containmentactions-lattecontextmenu.json")
