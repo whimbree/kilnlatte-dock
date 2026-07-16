@@ -1670,6 +1670,27 @@ Conventions used by all specs:
 
 ### EX-15 WheelAccumulator [delegate-safe]
 
+- Commits: 8b23ea47 (core + 16 test slots written first from the four
+  shipped bodies and their f0ad7b23 ancestors), 00261860 (WheelStepper
+  boundary: instantiable per-site QML type - the accumulating residue
+  is per-instance, a singleton cannot serve N audio badges - with
+  REQUIRED axisPick, qCritical mode refusals, boundary tests compiled
+  into the sanitized unit test, tst_wheelstepper.qml staged-import
+  e2e, plugins.qmltypes block), then one cutover per site: 01122a69
+  (ruler), fe564bfa8 (empty areas), 1cf1e43d0 (tasks), 717f44c1a
+  (audio badge). Interface deviations, recorded: add() takes an
+  inverted flag (AudioStream honors wheel.inverted per 299a241b; the
+  other sites pass false as Qt5 did), add() is paired with
+  verticalIsDominant so TaskMouseArea's parallel-scroll read shares
+  the axis authority instead of re-deriving it, and the spec's
+  {stepSize, axisPriority, resetOnReversal} constructor bag became
+  axis enum + std::variant firing policy per the step-2.5 type law
+  (resetOnReversal unrepresentable in threshold mode). Four live
+  checks pending at merge in docs/agent-logs/EX-15.md. Sighted but
+  out of spec scope: more wheel-threshold sites exist (ConfigOverlay,
+  AppletItem onWheelScrolled, CanvasConfiguration, ScrollArea,
+  TextField, MouseHandler via TaskTools.js) - future adoption
+  candidates, not claimed by this unit.
 - Header: `declarativeimports/core/units/wheelaccumulator.h`
 - Responsibility: wheel delta accumulation with per-site step,
   threshold, and direction-reversal semantics - one tested
