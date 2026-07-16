@@ -1902,6 +1902,23 @@ Conventions used by all specs:
 
 ### EX-21 ScrollOverflowMath [delegate-safe]
 
+- Commits: (filled at landing; see docs/agent-logs/EX-21.md)
+- Recorded deviations from the sketch below (reasons in the agent log):
+  ScrollEnv drops `bool vertical` - the shell resolves the orientation
+  and hands the core axis-scalar values, so the Qt5 bodies' twin
+  branches collapse instead of being duplicated in C++; ScrollEnv
+  takes ONE viewportLength (Qt5 read scrollableList.width/height for
+  the focus/trigger comparisons and `length` for the clamp bounds, but
+  main.qml binds the scroll-axis extent FROM length, so they are one
+  value); the contentsExceed/contentsExtraSpace property bindings
+  (lines 30-31, outside the spec's named range) are folded into the
+  core because every clamp bound derives from extraSpace - leaving
+  them in QML would keep two authorities for the overflow math; the
+  3.5 wheel-step factor moved with them (it is also the animated
+  autoscroll step multiple, one constant). focusDelta/autoScrollDecision
+  return std::optional<double> signed steps (nullopt = no scroll,
+  positive = toward the row end); the undefined sentinel exists only
+  at the QML boundary.
 - Header: `plasmoid/plugin/units/scrollmath.h`
 - Responsibility: task-row overflow scrolling math: clamped
   positions, scroll-into-view distance, autoscroll trigger zones.
@@ -2231,6 +2248,19 @@ assessed every file the landed cutovers touched):
   so LatteCore singleton/enum uses resolve (this also surfaced a few
   previously-invisible findings in untouched files - deeper analysis,
   recorded in the same regeneration, net -484).
+- The EX-21 cutover's residue, same class: plasmoid taskslayout/
+  ScrollableList.qml (49, down from 51) - every remaining warning is a
+  root or appletAbilities context-chain read, and BOTH names are read
+  in BINDINGS (contentsExceed/contentsExtraSpace/currentPos/scrollStep/
+  autoScrollTriggerLength/centered, the alignment classification block,
+  the Behavior durations), so neither name is the myView function-only
+  case: injecting either would shadow it for the bindings and buy the
+  documented startup evaluation-order risk. The function bodies' reads
+  of the same two names stay context-chain for the same reason (one
+  name, one resolution). What WAS safely reachable: the functions'
+  mapToItem/extent reads moved from the main.qml instance id
+  (scrollableList) to the component's own id (flickableContainer, the
+  same object), and the thinned shells got typed signatures.
 
 ## E. Sequencing into waves
 

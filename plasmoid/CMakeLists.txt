@@ -6,6 +6,7 @@ set(tasks_SRCS
     plugin/types.cpp
     plugin/lattetasksplugin.cpp
     plugin/previewswitchbridge.cpp
+    plugin/scrolloverflowmath.cpp
     plugin/tooltiptextcomposer.cpp
     plugin/smartlauncherbackend.cpp
     plugin/smartlauncheritem.cpp

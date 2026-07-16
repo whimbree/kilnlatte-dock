@@ -164,6 +164,65 @@ Module {
         }
     }
     Component {
+        name: "Latte::Tasks::ScrollOverflowMath"
+        prototype: "QObject"
+        exports: ["org.kde.latte.private.tasks/ScrollOverflowMath 0.1"]
+        isCreatable: false
+        isSingleton: true
+        exportMetaObjectRevisions: [0]
+        Method {
+            name: "contentsExceed"
+            type: "bool"
+            Parameter { name: "scrollingEnabled"; type: "bool" }
+            Parameter { name: "contentLength"; type: "double" }
+            Parameter { name: "viewportLength"; type: "int" }
+        }
+        Method {
+            name: "contentsExtraSpace"
+            type: "int"
+            Parameter { name: "scrollingEnabled"; type: "bool" }
+            Parameter { name: "contentLength"; type: "double" }
+            Parameter { name: "viewportLength"; type: "int" }
+        }
+        Method {
+            name: "wheelScrollStep"
+            type: "double"
+            Parameter { name: "totalsLength"; type: "double" }
+        }
+        Method {
+            name: "steppedPos"
+            type: "double"
+            Parameter { name: "scrollingEnabled"; type: "bool" }
+            Parameter { name: "contentLength"; type: "double" }
+            Parameter { name: "viewportLength"; type: "int" }
+            Parameter { name: "currentPos"; type: "double" }
+            Parameter { name: "signedStep"; type: "double" }
+        }
+        Method {
+            name: "focusScrollDelta"
+            type: "QVariant"
+            Parameter { name: "scrollingEnabled"; type: "bool" }
+            Parameter { name: "contentLength"; type: "double" }
+            Parameter { name: "viewportLength"; type: "int" }
+            Parameter { name: "itemStart"; type: "double" }
+            Parameter { name: "itemLength"; type: "double" }
+            Parameter { name: "margin"; type: "double" }
+        }
+        Method {
+            name: "autoScrollDelta"
+            type: "QVariant"
+            Parameter { name: "facts"; type: "QVariantMap" }
+        }
+        Method {
+            name: "boundsCorrection"
+            type: "QVariant"
+            Parameter { name: "scrollingEnabled"; type: "bool" }
+            Parameter { name: "contentLength"; type: "double" }
+            Parameter { name: "viewportLength"; type: "int" }
+            Parameter { name: "currentPos"; type: "double" }
+        }
+    }
+    Component {
         name: "Latte::Tasks::TooltipTextComposer"
         prototype: "QObject"
         exports: ["org.kde.latte.private.tasks/TooltipTextComposer 0.1"]

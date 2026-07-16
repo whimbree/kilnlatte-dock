@@ -10,7 +10,14 @@ import org.kde.plasma.plasmoid 2.0
 import org.kde.plasma.core 2.0 as PlasmaCore
 
 import org.kde.latte.core 0.2 as LatteCore
+import org.kde.latte.private.tasks 0.1 as LatteTasks
 
+//! The overflow/scroll math lives in the ScrollMath core
+//! (plasmoid/plugin/units/scrollmath.h, EX-21 in
+//! docs/QML_EXTRACTION_PLAN.md), reached through the stateless
+//! LatteTasks.ScrollOverflowMath singleton; this file keeps the fact
+//! assembly (ability reads, mapToItem), the orientation resolution and
+//! the contentX/contentY writes the Behavior animations ride on.
 Flickable{
     id: flickableContainer
     clip: false
@@ -26,13 +33,12 @@ Flickable{
     readonly property bool centered: root.alignment === LatteCore.Types.Center
     readonly property bool reversed: Qt.application.layoutDirection === Qt.RightToLeft
 
-    //! Math.floor is needed in order to make calculations in (int) world
-    readonly property bool contentsExceed: root.scrollingEnabled ? Math.floor(root.tasksLength) > flickableContainer.length : false
-    readonly property int contentsExtraSpace: contentsExceed ? root.tasksLength - flickableContainer.length : 0
+    readonly property bool contentsExceed: LatteTasks.ScrollOverflowMath.contentsExceed(root.scrollingEnabled, root.tasksLength, flickableContainer.length)
+    readonly property int contentsExtraSpace: LatteTasks.ScrollOverflowMath.contentsExtraSpace(root.scrollingEnabled, root.tasksLength, flickableContainer.length)
 
     readonly property real scrollFirstPos: 0
     readonly property real scrollLastPos: contentsExtraSpace
-    readonly property real scrollStep: appletAbilities.metrics.totals.length * 3.5
+    readonly property real scrollStep: LatteTasks.ScrollOverflowMath.wheelScrollStep(appletAbilities.metrics.totals.length)
     readonly property real currentPos: !root.vertical ? contentX : contentY
 
     readonly property real autoScrollTriggerLength: appletAbilities.metrics.iconSize + appletAbilities.metrics.totals.lengthEdge
@@ -89,99 +95,70 @@ Flickable{
         decreasePosWithStep(scrollStep);
     }
 
-    function increasePosWithStep(step) {
-        if (!root.vertical) {
-            contentX = Math.min(scrollLastPos, contentX + step);
-        } else {
-            contentY = Math.min(scrollLastPos, contentY + step);
-        }
-
+    function increasePosWithStep(step: real) {
+        scrollBySignedStep(step);
     }
 
-    function decreasePosWithStep(step) {
-        if (!root.vertical) {
-            contentX = Math.max(scrollFirstPos, contentX - step);
-        } else {
-            contentY = Math.max(scrollFirstPos, contentY - step);
-        }
+    function decreasePosWithStep(step: real) {
+        scrollBySignedStep(-step);
     }
 
-    function focusOn(task) {
-        if (!contentsExceed) {
-            return;
-        }
-
-        var cP = task.mapToItem(scrollableList, 0, 0);
-        var distance = 0;
-
+    //! positive scrolls toward the row end, negative toward the row start;
+    //! the core clamps asymmetrically the Qt5 way (units/scrollmath.h)
+    function scrollBySignedStep(signedStep: real) {
+        var target = LatteTasks.ScrollOverflowMath.steppedPos(root.scrollingEnabled, root.tasksLength, flickableContainer.length,
+                                                              currentPos, signedStep);
         if (!root.vertical) {
-            if (cP.x < 0) {
-                distance = Math.abs(cP.x - appletAbilities.metrics.iconSize);
-                decreasePosWithStep(distance);
-            } else if ((cP.x+task.width) > scrollableList.width) {
-                distance = Math.abs(cP.x - scrollableList.width + task.width + appletAbilities.metrics.iconSize);
-                increasePosWithStep(distance);
-            }
+            contentX = target;
         } else {
-            if (cP.y < 0) {
-                distance = Math.abs(cP.y - appletAbilities.metrics.iconSize);
-                decreasePosWithStep(distance);
-            } else if ((cP.y+task.height) > scrollableList.height) {
-                distance = Math.abs(cP.y - scrollableList.height + task.height + appletAbilities.metrics.iconSize);
-                increasePosWithStep(distance);
-            }
+            contentY = target;
         }
     }
 
-    function autoScrollFor(task, duringDragging) {
-        //! It has TWO IN-QUESTION issues that may have been solved by the
-        //! initial checks
-        //! 1. when the user uses the mouse wheel at the first or the last task
-        //!    the autoscrolling forcefully returns the view to boundaries
-        //! 2. when parabolic effect is activated the experience is not that smooth
-        //!    at the view boundaries, parabolic effect AND autoscroll at the
-        //!    boundaries create animation breakage
-
-        var block = !root.autoScrollTasksEnabled && !duringDragging;
-
-        if (block || !contentsExceed || root.tasksCount < 3
-                || (task.itemIndex === appletAbilities.indexer.lastVisibleItemIndex && appletAbilities.parabolic.factor.zoom>1)) {
-            //last task with parabolic effect breaks the autoscolling behavior
-            return;
+    function focusOn(task: Item) {
+        var viewPosition = task.mapToItem(flickableContainer, 0, 0);
+        var delta = LatteTasks.ScrollOverflowMath.focusScrollDelta(root.scrollingEnabled, root.tasksLength, flickableContainer.length,
+                                                                   !root.vertical ? viewPosition.x : viewPosition.y,
+                                                                   !root.vertical ? task.width : task.height,
+                                                                   appletAbilities.metrics.iconSize);
+        if (delta !== undefined) {
+            scrollBySignedStep(delta);
         }
+    }
 
-        var cP = task.mapToItem(scrollableList, 0, 0);
-
-        var localStep = horizontalAnimation.running || verticalAnimation.running ? 3.5 * appletAbilities.metrics.totals.length : appletAbilities.metrics.totals.length;
-
-        if (!root.vertical) {
-            if (currentPos !== scrollFirstPos && cP.x < autoScrollTriggerLength) {
-                decreasePosWithStep(localStep);
-            } else if (currentPos !== scrollLastPos && (cP.x+task.width > (scrollableList.width-autoScrollTriggerLength))) {
-                increasePosWithStep(localStep);
-            }
-        } else {
-            if (currentPos !== scrollFirstPos && cP.y < autoScrollTriggerLength) {
-                decreasePosWithStep(localStep);
-            } else if (currentPos !== scrollLastPos && (cP.y+task.height > (scrollableList.height-autoScrollTriggerLength))) {
-                increasePosWithStep(localStep);
-            }
+    function autoScrollFor(task: Item, duringDragging: bool) {
+        //! the block conditions and the trigger-zone decision, including the
+        //! Qt5 boundary/parabolic notes, live in the core (units/scrollmath.h)
+        var viewPosition = task.mapToItem(flickableContainer, 0, 0);
+        var delta = LatteTasks.ScrollOverflowMath.autoScrollDelta({
+                        scrollingEnabled: root.scrollingEnabled,
+                        contentLength: root.tasksLength,
+                        viewportLength: flickableContainer.length,
+                        currentPos: currentPos,
+                        itemStart: !root.vertical ? viewPosition.x : viewPosition.y,
+                        itemLength: !root.vertical ? task.width : task.height,
+                        triggerZone: autoScrollTriggerLength,
+                        autoScrollTasksEnabled: root.autoScrollTasksEnabled,
+                        duringDragging: duringDragging,
+                        tasksCount: root.tasksCount,
+                        hoveredIsLastVisibleItem: task.itemIndex === appletAbilities.indexer.lastVisibleItemIndex,
+                        parabolicZoomFactor: appletAbilities.parabolic.factor.zoom,
+                        scrollAnimationRunning: horizontalAnimation.running || verticalAnimation.running,
+                        totalsLength: appletAbilities.metrics.totals.length
+                    });
+        if (delta !== undefined) {
+            scrollBySignedStep(delta);
         }
-
     }
 
     onContentsExtraSpaceChanged: {
-        if (!root.vertical) {
-            if (contentX < scrollFirstPos) {
-                contentX = scrollFirstPos;
-            } else if (contentX > scrollLastPos) {
-                contentX = scrollLastPos;
-            }
-        } else {
-            if (contentY < scrollFirstPos) {
-                contentY = scrollFirstPos;
-            } else if (contentY > scrollLastPos) {
-                contentY = scrollLastPos;
+        var corrected = LatteTasks.ScrollOverflowMath.boundsCorrection(root.scrollingEnabled, root.tasksLength, flickableContainer.length,
+                                                                       currentPos);
+        if (corrected !== undefined) {
+            if (!root.vertical) {
+                contentX = corrected;
+            } else {
+                contentY = corrected;
             }
         }
     }

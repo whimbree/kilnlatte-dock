@@ -8,6 +8,7 @@
 // local
 #include "backend.h"
 #include "previewswitchbridge.h"
+#include "scrolloverflowmath.h"
 #include "smartlauncheritem.h"
 #include "tooltiptextcomposer.h"
 #include "types.h"
@@ -34,6 +35,14 @@ void LatteTasksPlugin::registerTypes(const char *uri)
         uri, 0, 1, "TooltipTextComposer",
         [](QQmlEngine *, QJSEngine *) -> QObject * {
             return new Latte::Tasks::TooltipTextComposer;
+        });
+
+    //! stateless scroll math (EX-21): ScrollableList.qml reaches the
+    //! ScrollMath core through this singleton
+    qmlRegisterSingletonType<Latte::Tasks::ScrollOverflowMath>(
+        uri, 0, 1, "ScrollOverflowMath",
+        [](QQmlEngine *, QJSEngine *) -> QObject * {
+            return new Latte::Tasks::ScrollOverflowMath;
         });
 }
 

@@ -141,3 +141,8 @@ target_include_directories(colortoolstest PRIVATE
 target_link_libraries(colortoolstest
     Qt6::Gui
     Qt6::Qml)
+# EX-21 ScrollOverflowMath: header-only pure scroll math plus its QML-facing
+# wrapper compiled IN per the sanitized-core rule (the wrapper's boundary
+# refusals run instrumented).
+latte_add_unit_test(scrollmathtest
+    ${CMAKE_SOURCE_DIR}/plasmoid/plugin/scrolloverflowmath.cpp)

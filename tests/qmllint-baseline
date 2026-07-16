@@ -133,7 +133,7 @@
 34	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/task/ProgressOverlay.qml
 17	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/TasksExtendedManager.qml
 38	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/taskslayout/MouseHandler.qml
-51	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/taskslayout/ScrollableList.qml
+49	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/taskslayout/ScrollableList.qml
 21	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/taskslayout/ScrollEdgeShadows.qml
 26	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/taskslayout/ScrollOpacityMask.qml
 16	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/taskslayout/ScrollPositioner.qml
