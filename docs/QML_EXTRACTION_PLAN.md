@@ -663,15 +663,75 @@ Conventions used by all specs:
   strong-model tag.
 - capt cross-reference: none. capt did not touch parabolic
   propagation.
+- DESIGN (written 2026-07-15 from the full chain read at d321220b,
+  before any code, per the design-first mandate):
+  - The distributed chain is SYNCHRONOUS today (QML signal emission
+    runs in the caller's stack), so a one-shot computed assignment is
+    timing-identical; only the signal traffic disappears.
+  - Exact semantics the read established, all of which the core must
+    reproduce: every position outward from the hovered item is
+    exactly-targeted once, in order, as the stack travels; separators
+    (and containment margins-area separators) and hidden items are
+    TRANSPARENT (forward without consuming); a normal item consumes
+    stack[0] via updateScale(max(1, s)); when the remaining stack
+    becomes the clear-tail [1], the next position is exactly-targeted
+    with [1] and everything beyond in that direction clears via the
+    broadcast arms - EXCEPT edge spacers, which have no broadcast arm
+    and only ever react when exactly targeted (a spacer adjacent to
+    the exhaustion point clears to factor 0; a spacer further out is
+    NOT cleared by the tail - Qt5-inherited, preserved as-is); an
+    edge spacer targeted while the stack is live absorbs
+    sum(min(spreadSteps, stack.size) entries of (s-1)) and emits [1]
+    beyond; a bridge client targeted at any point receives the stack
+    AS-RECEIVED (never spliced) and the walk at this level STOPS -
+    the client's internal row consumes one slice per non-transparent
+    internal item and whatever remains re-enters the host row at
+    appletIndex-/+1 through clientRequestUpdate*; clients beyond an
+    exhaustion point receive [1] through the broadcast arms.
+  - Core primitive (declarativeimports/core/units/parabolicrouter.h):
+    NOT hovered-centric but entry-centric, because bridge re-entry is
+    the same operation as initial routing:
+    `routeStack(rowItems, entryPos, direction, stack) -> RouteResult`
+    where RowItem = {kind: Normal|Transparent|EdgeSpacer|BridgeClient,
+    absorbing (spacer alignment gate, precomputed by the shell)} and
+    RouteResult = per-position actions ({pos, ApplyScale(s)} |
+    {pos, SpacerAbsorb(factor)} | {pos, ClientHandoff(stack)}) plus
+    the overflow stack if the walk left the row edge. A convenience
+    `assignScales(rowItems, hoveredPos, ScaleStacks)` routes both
+    directions from EX-03's stacks. The clear-tail is not a special
+    output: positions beyond exhaustion appear as ApplyScale(1) for
+    normals and ClientHandoff([1]) for clients, spacers only when
+    exactly next.
+  - Bridge handoff design (the strong-model question): the handoff
+    stays EXACTLY today's bridge surface - the shell applies a
+    ClientHandoff action by calling the existing
+    hostRequestUpdateLower/HigherItemScale on the client, and the
+    client shell routes internally with the SAME core (its row, entry
+    at itemsCount-1 or 0); its RouteResult overflow is exported
+    through the existing clientRequestUpdate* functions, which
+    re-enter the host shell as another routeStack call at
+    appletIndex-/+1. No new cross-context data channel: the
+    containment never needs the client's internal row (internal
+    separators consume nothing, so the client's consumption is only
+    knowable inside the client - this is why a single merged-row
+    assignment was REJECTED).
+  - The signals sglUpdateLower/HigherItemScale survive only as the
+    application mechanism inside each shell (per the original spec
+    intent); the per-item sltUpdateItemScale deciders are deleted at
+    cutover. sglClearZoom, the restore state machine
+    (ParabolicEffectPrivate), directRendering, hoverPixelSensitivity
+    gating and the first/last-item pointer clamp are untouched.
 - Test plan: equality harness first - an offscreen qmltest drives the
-  EXISTING chain over a synthetic row (no live dock; the recipe for
-  constructing ability object graphs offscreen is in
-  tests/contracts, per session-handoff's tooling note) and records
-  the resulting scale vectors for a case table (pointer at first/mid/
-  last item, separators adjacent, hidden runs, spacer edges, bridge
-  client mid-row); the C++ core must reproduce those vectors exactly.
-  Then unit tests own the table and the qmltest shrinks to shell
-  wiring.
+  EXISTING chain over a synthetic row (real ParabolicArea instances
+  resolve their context ids - appletItem, wrapper, communicator,
+  parabolic, root - through the enclosing context chain, so a
+  harness that instantiates per-item mock scopes around the REAL
+  file drives the real chain; a mock bridge client records handoff
+  stacks) and records the resulting scale vectors for a case table
+  (pointer at first/mid/last item, separators adjacent, hidden runs,
+  spacer edges, bridge client mid-row); the C++ core must reproduce
+  those vectors exactly. Then unit tests own the table and the
+  qmltest shrinks to shell wiring.
 - Qt5-fidelity: the chain shape is Qt5-inherited; fidelity = equal
   scale assignments for equal inputs, which the equality harness
   makes mechanical. Read f0ad7b23's ParabolicArea equivalents when
