@@ -215,3 +215,16 @@ latte_add_unit_test(dropclassifiertest
 target_link_libraries(dropclassifiertest
     Qt6::Gui
     Qt6::Qml)
+
+# viewsData D-Bus serializer (docs/dbus-observability-interface.md): the
+# pure ViewRecord -> JSON layer of app/dbusreports.h - enum-name mappings
+# and serialization. The live collectors stay in app/dbusreports.cpp
+# (three-line field reads off View) and are exercised by the running dock;
+# every field name and value type a D-Bus consumer parses is pinned here.
+latte_add_unit_test(dbusreportstest)
+target_include_directories(dbusreportstest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app
+    ${CMAKE_BINARY_DIR}/app) # coretypes.h is generated there
+target_link_libraries(dbusreportstest
+    Qt6::Gui
+    Plasma::Plasma)
