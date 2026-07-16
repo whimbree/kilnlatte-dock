@@ -8,6 +8,7 @@ import QtQuick 2.7
 import org.kde.plasma.plasmoid 2.0
 import org.kde.plasma.core 2.0 as PlasmaCore
 
+import org.kde.latte.core 0.2 as LatteCore
 import org.kde.latte.abilities.definition 0.1 as AbilityDefinition
 
 AbilityDefinition.ParabolicEffect {
@@ -56,18 +57,12 @@ AbilityDefinition.ParabolicEffect {
         if (isActive) {
             bridge.parabolic.client = parabolic;
         }
-
-        parabolic.sglUpdateLowerItemScale.connect(sltTrackLowerItemScale);
-        parabolic.sglUpdateHigherItemScale.connect(sltTrackHigherItemScale);
     }
 
     Component.onDestruction: {
         if (isActive) {
             bridge.parabolic.client = null;
         }
-
-        parabolic.sglUpdateLowerItemScale.disconnect(sltTrackLowerItemScale);
-        parabolic.sglUpdateHigherItemScale.disconnect(sltTrackHigherItemScale);
     }
 
     Connections {
@@ -129,38 +124,98 @@ AbilityDefinition.ParabolicEffect {
         }
     }
 
+    //! EX-02 (docs/QML_EXTRACTION_PLAN.md): the routing computed by
+    //! LatteCore.ParabolicRouter in one call instead of the per-item
+    //! signal-decider recursion. The signals survive as the application
+    //! mechanism only (exact apply + the clear-tail broadcast arm in
+    //! ParabolicEventsArea); the bridge exports that sltTrack* used to
+    //! filter out of raw emissions now come straight from the route
+    //! result: an in-row clear emission exports [1], a stack leaving the
+    //! row edge exports as-is.
+    function applyParabolicEffect(itemIndex, itemMousePosition, itemLength) {
+        var reversed = Qt.application.layoutDirection === Qt.RightToLeft && horizontal;
+        var stacks = LatteCore.ParabolicMath.computeScales(itemMousePosition / itemLength, _spreadSteps, factor.zoom, reversed);
+
+        routeFromIndex(itemIndex+1, stacks.right, false);
+        routeFromIndex(itemIndex-1, stacks.left, true);
+
+        return {leftScale:stacks.left[0], rightScale:stacks.right[0]};
+    }
+
+    function routeFromIndex(entryIndex, newScales, islower) {
+        //! task rows carry no edge spacers and no nested bridge clients;
+        //! spacersAbsorbing is inert here
+        var plan = LatteCore.ParabolicRouter.route(_rowKinds(),
+                                                   entryIndex,
+                                                   islower ? -1 : 1,
+                                                   newScales,
+                                                   _spreadSteps,
+                                                   false);
+
+        for (var i = 0; i < plan.actions.length; ++i) {
+            var action = plan.actions[i];
+            if (islower) {
+                sglUpdateLowerItemScale(action.pos, action.stack);
+            } else {
+                sglUpdateHigherItemScale(action.pos, action.stack);
+            }
+        }
+
+        if (bridge) {
+            if (plan.clearEmissionPos >= 0) {
+                //! the chain's sltTrack* forwarded every in-row clear-tail
+                //! emission out through the bridge
+                if (islower) {
+                    bridge.parabolic.clientRequestUpdateLowerItemScale([1]);
+                } else {
+                    bridge.parabolic.clientRequestUpdateHigherItemScale([1]);
+                }
+            }
+
+            if (plan.overflow.length > 0) {
+                if (islower) {
+                    bridge.parabolic.clientRequestUpdateLowerItemScale(plan.overflow);
+                } else {
+                    bridge.parabolic.clientRequestUpdateHigherItemScale(plan.overflow);
+                }
+            }
+        }
+    }
+
+    //! positions 0..itemsCount-1 keyed by itemIndex; holes (mid-churn
+    //! index inconsistencies) stay DeadStop, matching the chain where a
+    //! missing index matched no slot and the live walk died
+    function _rowKinds() {
+        var count = indexer.itemsCount;
+        var kinds = new Array(count);
+        for (var i = 0; i < count; ++i) {
+            kinds[i] = LatteCore.ParabolicRouter.DeadStop;
+        }
+
+        var children = indexer.layout.children;
+        for (i = 0; i < children.length; ++i) {
+            var item = children[i];
+            if (!item || item.itemIndex === undefined || item.itemIndex < 0 || item.itemIndex >= count) {
+                continue;
+            }
+            kinds[item.itemIndex] = (item.isSeparator || item.isHidden)
+                    ? LatteCore.ParabolicRouter.Transparent
+                    : LatteCore.ParabolicRouter.Normal;
+        }
+
+        return kinds;
+    }
+
     function hostRequestUpdateLowerItemScale(newScales){
-        //! function called from host
-        sglUpdateLowerItemScale(indexer.itemsCount-1, newScales);
+        //! function called from host: the stack enters this row at its
+        //! highest index and travels down
+        routeFromIndex(indexer.itemsCount-1, newScales, true);
     }
 
     function hostRequestUpdateHigherItemScale(newScales){
-        //! function called from host
-        sglUpdateHigherItemScale(0, newScales);
-    }
-
-    function sltTrackLowerItemScale(delegateIndex, newScales){
-        //! send update signal to host
-        if (bridge) {
-            var clearrequestedfromlastacceptedsignal = (newScales.length===1) && (newScales[0]===1);
-            if (delegateIndex === -1) {
-                bridge.parabolic.clientRequestUpdateLowerItemScale(newScales);
-            } else if (clearrequestedfromlastacceptedsignal && delegateIndex>=0) {
-                bridge.parabolic.clientRequestUpdateLowerItemScale(newScales);
-            }
-        }
-    }
-
-    function sltTrackHigherItemScale(delegateIndex, newScales) {
-        //! send update signal to host
-        if (bridge) {
-            var clearrequestedfromlastacceptedsignal = (newScales.length===1) && (newScales[0]===1);
-            if (delegateIndex >= indexer.itemsCount) {
-                bridge.parabolic.clientRequestUpdateHigherItemScale(newScales);
-            } else if (clearrequestedfromlastacceptedsignal && delegateIndex<indexer.itemsCount) {
-                bridge.parabolic.clientRequestUpdateHigherItemScale(newScales);
-            }
-        }
+        //! function called from host: the stack enters at index 0 and
+        //! travels up
+        routeFromIndex(0, newScales, false);
     }
 
     function setCurrentParabolicItemIndex(index) {

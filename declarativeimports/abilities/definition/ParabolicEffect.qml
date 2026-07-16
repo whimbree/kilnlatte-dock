@@ -5,11 +5,6 @@
 
 import QtQuick 2.0
 
-import org.kde.plasma.plasmoid 2.0
-import org.kde.plasma.core 2.0 as PlasmaCore
-
-import org.kde.latte.core 0.2 as LatteCore
-
 import "./paraboliceffect" as ParabolicEffectTypes
 
 Item {
@@ -34,19 +29,10 @@ Item {
     signal sglUpdateLowerItemScale(int delegateIndex, variant newScales);
     signal sglUpdateHigherItemScale(int delegateIndex, variant newScales);
 
+    //! EX-02/EX-03 (docs/QML_EXTRACTION_PLAN.md): the curve math lives in
+    //! LatteCore.ParabolicMath and the routing in LatteCore.ParabolicRouter;
+    //! applyParabolicEffect is implemented by the two shells that own a row
+    //! (the containment host ability and the plasmoid client ability), not
+    //! here - a bare definition instance is a value holder only
     readonly property int _spreadSteps: (spread - 1) / 2
-
-    //! the curve math lives in LatteCore.ParabolicMath (EX-03,
-    //! declarativeimports/core/units/parabolicmath.h, equivalence-tested
-    //! against the QML body this replaced); this keeps ownership of the
-    //! layout-direction read and the signal emissions
-    function applyParabolicEffect(itemIndex, itemMousePosition, itemLength) {
-        var reversed = Qt.application.layoutDirection === Qt.RightToLeft && (Plasmoid.formFactor === PlasmaCore.Types.Horizontal);
-        var stacks = LatteCore.ParabolicMath.computeScales(itemMousePosition / itemLength, _spreadSteps, factor.zoom, reversed);
-
-        sglUpdateHigherItemScale(itemIndex+1, stacks.right);
-        sglUpdateLowerItemScale(itemIndex-1, stacks.left);
-
-        return {leftScale:stacks.left[0], rightScale:stacks.right[0]};
-    }
 }
