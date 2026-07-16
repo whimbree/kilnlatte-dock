@@ -182,3 +182,14 @@ ecm_add_test(contracts/appletwindowparentingtest.cpp
 )
 set_tests_properties(appletwindowparentingtest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# Contract: the Qt shutdown sequence the Corona teardown design relies on
+# (aboutToQuit fires inside exit() while the app is live; execCleanup()
+# flushes deferred deletes once; nothing flushes them after exec() returns).
+# The header comment in the test file names the re-audit obligations.
+ecm_add_test(contracts/quitteardowncontractstest.cpp
+    TEST_NAME quitteardowncontractstest
+    LINK_LIBRARIES Qt6::Test
+)
+set_tests_properties(quitteardowncontractstest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

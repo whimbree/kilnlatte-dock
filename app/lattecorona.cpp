@@ -172,31 +172,39 @@ Corona::Corona(bool defaultLayoutOnStartup, QString layoutNameOnStartUp, QString
 
 Corona::~Corona()
 {
-    /*m_inQuit = true;
+    //! Deliberate teardown order (the session-shutdown plan item). Two Qt
+    //! facts drive the shape, both pinned in quitteardowncontractstest:
+    //! a deleteLater() posted here is NEVER processed (exec() has returned,
+    //! no loop remains to flush it - the previous destructor's pile of
+    //! deleteLater() calls silently did nothing), and without explicit
+    //! deletes ~QObject's child pass deletes in CONSTRUCTION order, which
+    //! puts the screen/theme services ahead of the layouts manager whose
+    //! teardown still consumes them (the crash-on-logout class, e.g. the
+    //! historical ~Theme null-schemes segfault). Delete consumers before
+    //! the services they consume:
 
-    //! BEGIN: Give the time to slide-out views when closing
-    m_layoutsManager->synchronizer()->hideAllViews();
-    m_viewSettingsFactory->deleteLater();
+    //! chrome and shortcuts consume views and layouts
+    delete m_globalShortcuts;
+    delete m_viewSettingsFactory;
 
-    m_viewsScreenSyncTimer.stop();
+    //! layouts own the views/containments (already unloaded in
+    //! onAboutToQuit on a clean quit; any surviving view destructor still
+    //! calls into the wm/theme/indicator services below)
+    delete m_layoutsManager;
+    delete m_templatesManager;
 
-    if (m_layoutsManager->memoryUsage() == MemoryUsage::SingleLayout) {
-        cleanConfig();
-    }
+    //! services the views consumed
+    delete m_plasmaGeometries;
+    delete m_dialogShadows;
+    delete m_indicatorFactory;
+    delete m_themeExtended;
+    delete m_plasmaScreenPool;
+    delete m_universalSettings;
+    delete m_screenPool;
 
-    qDebug() << "Latte Corona - unload: containments ...";
-    m_layoutsManager->unload();*/
-
-    m_plasmaGeometries->deleteLater();
-    m_wm->deleteLater();
-    m_dialogShadows->deleteLater();
-    m_globalShortcuts->deleteLater();
-    m_layoutsManager->deleteLater();
-    m_screenPool->deleteLater();
-    m_universalSettings->deleteLater();
-    m_plasmaScreenPool->deleteLater();
-    m_themeExtended->deleteLater();
-    m_indicatorFactory->deleteLater();
+    //! the window-system interface goes last: strut and tracking
+    //! unregistration from every teardown above lands here
+    delete m_wm;
 
     disconnect(m_activitiesConsumer, &KActivities::Consumer::serviceStatusChanged, this, &Corona::load);
     delete m_activitiesConsumer;
@@ -221,9 +229,14 @@ void Corona::onAboutToQuit()
 
     m_inQuit = true;
 
-    //! BEGIN: Give the time to slide-out views when closing
+    //! Qt 6.11 emits aboutToQuit synchronously inside exit()/quit(), before
+    //! the event loop unwinds (quitteardowncontractstest), so the
+    //! application is still fully live here: this is the last point where
+    //! views can hide, config can sync and containments can save state.
+    //! Everything needing a live app happens HERE; ~Corona only deletes,
+    //! in dependency order. (The slide-out grace period lives in
+    //! quitApplication(), which delays quit() itself by 800ms.)
     m_layoutsManager->synchronizer()->hideAllViews();
-    m_viewSettingsFactory->deleteLater();
 
     m_viewsScreenSyncTimer.stop();
 
