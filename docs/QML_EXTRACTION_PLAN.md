@@ -206,9 +206,12 @@ Per-unit specs (section C), in rank order:
     sanitized slots and the staged-import tst_wheelstepper e2e; the
     rebase-time plugins.qmltypes brace corruption was caught by the
     qmllint gate (159 -> 169 files) and fixed by regenerating with the
-    file's own recipe before merge. The four wheel live recipes (audio
-    badge, desktops, task cycle, ruler detent) stay on the live desk
-    list.
+    file's own recipe before merge. Live on the throwaway (2026-07-16
+    afternoon): the ruler-detent recipe passed riding EX-18's extremes
+    run - one fired step per injected detent, 6 points each (the rails
+    landing exactly on 100/30 from 51 arithmetic-checks the step). The
+    audio-badge, desktops and task-cycle wheel recipes remain on the
+    live desk list.
 - [x] EX-16 GroupWindowCycler - next/previous/minimize target selection
   - [x] executed: LANDED 80525a85 lineage (rebased; see the spec Commits
     line). Merge evidence: the 24-case shipped-QML pinning suite and the
@@ -228,8 +231,14 @@ Per-unit specs (section C), in rank order:
     line). Merge evidence: 43/43 ctest green post-rebase; the rebase
     crossed EX-15's wheel cutover in the same RulerMouseArea.qml and the
     compile gate caught the import my hand-merge dropped - fixed and
-    folded before merge. The ruler/slider extreme recipes stay on the
-    live desk list.
+    folded before merge. Live on the throwaway (2026-07-16 afternoon):
+    12 wheel detents up railed the ruler at exactly 100% (full screen
+    width) and 15 down railed it at exactly 30%, the ruler tooltip
+    tracking each value, with the dock window geometry unchanged and
+    fully on-screen per dumpwins - the rails landing exactly on 100/30
+    from a 51 start also proves the 6-point step. The settings-page
+    slider extreme and the odd-value offset-bounds cross-check remain
+    on the live desk list.
 - [x] EX-19 ColorLuminance - shared brightness/luminance helpers (dedup)
   - [x] executed: LANDED 0c8df527..c92cd5fc lineage (rebased; see the spec
     Commits line). Merge evidence: the reference table is pinned bit-exact
