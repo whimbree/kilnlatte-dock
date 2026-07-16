@@ -152,6 +152,18 @@ stale checkboxes."
   dock), not just "it builds". A green build says nothing about whether the
   menu came back.
 
+### Copyright and attribution
+
+NEVER remove an existing SPDX-FileCopyrightText line. Adopted code
+keeps its authors' lines verbatim (capt's files stay "2026 Latte Dock
+contributors"); an extraction that carries an upstream algorithm keeps
+the original author's line (Michail's math stays his even when it
+moves files); refactoring or extending a file ADDS my line next to
+the existing ones, never in place of them. Genuinely new files -
+glue, wrappers, tests authored from scratch - carry my line alone.
+When in doubt, over-attribute: an extra line costs nothing, an erased
+one is wrong.
+
 ### Code clarity
 
 Reading is the dominant cost of this codebase: every future session

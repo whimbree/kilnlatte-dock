@@ -228,6 +228,11 @@ executing session reads its orders, because they bind every wave):
   core asserts are genuinely live under test; never put side effects
   in an assert expression; and an assert never substitutes for real
   refusal handling at a boundary that outside input can reach.
+- Copyright is never erased: adopted files keep their authors' SPDX
+  lines verbatim, extractions of upstream algorithms keep the
+  original author's line, refactors ADD a line next to the existing
+  ones. Only genuinely new files carry a single new line. When in
+  doubt, over-attribute.
 - These rules extend, never replace, the existing working agreements:
   match surrounding idiom in inherited files, Qt5-faithful behavior,
   no silent guards, stub discipline.
