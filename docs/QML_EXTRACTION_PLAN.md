@@ -1902,7 +1902,11 @@ Conventions used by all specs:
 
 ### EX-21 ScrollOverflowMath [delegate-safe]
 
-- Commits: (filled at landing; see docs/agent-logs/EX-21.md)
+- Commits: 3fb844ef (offscreen qmltest pinning the shipped QML body,
+  28 cases, lands first and stays green across the cutover - the
+  twin-equivalence evidence) + 18d4f046 (core + wrapper + 20-slot
+  sanitized unit test + cutover; qmllint 51 -> 49 on
+  ScrollableList.qml, residue named in section D).
 - Recorded deviations from the sketch below (reasons in the agent log):
   ScrollEnv drops `bool vertical` - the shell resolves the orientation
   and hands the core axis-scalar values, so the Qt5 bodies' twin
