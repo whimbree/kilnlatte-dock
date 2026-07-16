@@ -170,6 +170,12 @@ public:
     QStringList contextMenuData(const uint &containmentId);
     QStringList viewTemplatesData();
 
+    //! D-Bus state readback (observability-first): a view's applet ids in
+    //! layout order, so order assertions (clone sync, drag reorder) are
+    //! pull-queryable instead of screenshot-compared. Empty means no view
+    //! exists for that containment id (warned in the log).
+    QStringList viewAppletsOrder(const uint &containmentId);
+
 public Q_SLOTS:
     void aboutApplication();
     void activateLauncherMenu();

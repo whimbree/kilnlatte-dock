@@ -1222,6 +1222,25 @@ QStringList Corona::contextMenuData(const uint &containmentId)
     return data;
 }
 
+QStringList Corona::viewAppletsOrder(const uint &containmentId)
+{
+    auto view = m_layoutsManager->synchronizer()->viewForContainment(containmentId);
+
+    if (!view || !view->extendedInterface()) {
+        qWarning() << "corona: viewAppletsOrder queried for containment" << containmentId << "which has no view";
+        return QStringList();
+    }
+
+    QStringList order;
+    const QList<int> appletIds = view->extendedInterface()->appletsOrder();
+
+    for (const int id : appletIds) {
+        order << QString::number(id);
+    }
+
+    return order;
+}
+
 QStringList Corona::viewTemplatesData()
 {
     QStringList data;
