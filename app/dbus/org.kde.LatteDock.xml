@@ -5,6 +5,9 @@
     </method>
     <method name="quitApplication">
     </method>
+    <method name="lifecycleState">
+        <arg name="state" type="s" direction="out"/>
+    </method>
     <method name="setAutostart">
         <arg name="enabled" type="b" direction="in"/>
     </method>

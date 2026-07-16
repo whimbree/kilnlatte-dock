@@ -227,7 +227,7 @@ void Corona::onAboutToQuit()
     //! the event loop was quit from outside the process's own quit paths
     qWarning() << "corona: onAboutToQuit - event loop is exiting";
 
-    m_inQuit = true;
+    setLifecyclePhase(LifecyclePhase::QuitRequested);
 
     //! Qt 6.11 emits aboutToQuit synchronously inside exit()/quit(), before
     //! the event loop unwinds (quitteardowncontractstest), so the
@@ -250,6 +250,8 @@ void Corona::onAboutToQuit()
 
     qDebug() << "Latte Corona - unload: containments ...";
     m_layoutsManager->unload();
+
+    setLifecyclePhase(LifecyclePhase::Unloaded);
 }
 
 void Corona::load()
@@ -339,7 +341,7 @@ void Corona::load()
             });
         });
 
-        m_inStartup = false;
+        setLifecyclePhase(LifecyclePhase::Running);
 
         connect(qGuiApp, &QGuiApplication::screenAdded, this, &Corona::onScreenAdded, Qt::UniqueConnection);
         connect(qGuiApp, &QGuiApplication::screenRemoved, this, &Corona::onScreenRemoved, Qt::UniqueConnection);
@@ -480,7 +482,35 @@ bool Corona::appletExists(uint containmentId, uint appletId) const
 
 bool Corona::inQuit() const
 {
-    return m_inQuit;
+    return m_lifecyclePhase >= LifecyclePhase::QuitRequested;
+}
+
+QString Corona::lifecycleState() const
+{
+    switch (m_lifecyclePhase) {
+    case LifecyclePhase::Startup: return QStringLiteral("startup");
+    case LifecyclePhase::Running: return QStringLiteral("running");
+    case LifecyclePhase::QuitRequested: return QStringLiteral("quit-requested");
+    case LifecyclePhase::Unloaded: return QStringLiteral("unloaded");
+    }
+
+    Q_UNREACHABLE();
+}
+
+void Corona::setLifecyclePhase(LifecyclePhase phase)
+{
+    if (m_lifecyclePhase == phase) {
+        return;
+    }
+
+    //! the lifecycle only moves forward; a backwards request is a defect
+    //! at the caller, catch it at the origin
+    Q_ASSERT(phase > m_lifecyclePhase);
+
+    m_lifecyclePhase = phase;
+    //! qWarning so the transition joins the quit-reason trail, which is
+    //! visible without --debug filtering decisions changing
+    qWarning() << "corona: lifecycle phase ->" << lifecycleState();
 }
 
 KActivities::Consumer *Corona::activitiesConsumer() const
@@ -821,7 +851,7 @@ void Corona::quitApplication()
     //! /MainApplication D-Bus object KDBusService registers)
     qWarning() << "corona: quitApplication invoked - beginning deliberate shutdown";
 
-    m_inQuit = true;
+    setLifecyclePhase(LifecyclePhase::QuitRequested);
 
     //! this code must be called asynchronously because it is called
     //! also from qml (Settings window).
@@ -1127,7 +1157,7 @@ void Corona::importLayoutFile(const QString &filepath, const QString &suggestedL
 
 void Corona::showSettingsWindow(int page)
 {
-    if (m_inStartup) {
+    if (m_lifecyclePhase == LifecyclePhase::Startup) {
         return;
     }
 

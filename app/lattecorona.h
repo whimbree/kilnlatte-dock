@@ -92,7 +92,22 @@ public:
                QObject *parent = nullptr);
     virtual ~Corona();
 
+    //! the coarse application lifecycle, forward-only. One enum instead of
+    //! independent inStartup/inQuit bools so contradictory states
+    //! (starting AND quitting) are unrepresentable.
+    enum class LifecyclePhase {
+        Startup,       //!< constructing and loading layouts
+        Running,       //!< layouts loaded, views up
+        QuitRequested, //!< a deliberate quit path has started
+        Unloaded       //!< containments/layouts unloaded, only deletion remains
+    };
+
     bool inQuit() const;
+
+    //! D-Bus state readback (observability-first): the current lifecycle
+    //! phase as a string, pull-queryable by tests and probes instead of
+    //! scraping the quit-reason trail in the logs
+    QString lifecycleState() const;
 
     int numScreens() const override;
     QRect screenGeometry(int id) const override;
@@ -208,6 +223,8 @@ private Q_SLOTS:
     void syncLatteViewsToScreens();
 
 private:
+    void setLifecyclePhase(LifecyclePhase phase);
+
     void cleanConfig();
     void qmlRegisterTypes() const;
     void setupWaylandIntegration();
@@ -227,8 +244,8 @@ private:
 
     bool m_activitiesStarting{true};
     bool m_defaultLayoutOnStartup{false}; //! this is used to enforce loading the default layout on startup
-    bool m_inStartup{true}; //! this is used in order to identify when application is still in startup phase
-    bool m_inQuit{false}; //! this is used in order to identify when application is in quit phase
+
+    LifecyclePhase m_lifecyclePhase{LifecyclePhase::Startup};
 
     //!it can be used on startup to change memory usage from command line
     int m_userSetMemoryUsage{ -1};
