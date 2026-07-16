@@ -2362,7 +2362,10 @@ assessed every file the landed cutovers touched):
   wheel handler itself carries zero warnings; the residue is root/
   latteView/selectedWindowsTracker context-chain reads across the
   whole file plus 7 unresolved-type, all in untouched action
-  dispatch and bindings).
+  dispatch and bindings); TaskMouseArea.qml (181, unchanged - the
+  rewritten wheel handler carries zero warnings of its own; the
+  residue is taskItem/root/subWindows/tasksModel/scrollableList
+  context-chain and task-model-role reads across the whole file).
 - What the retroactive pass DID fix in the touched files: implicit
   Connections handlers to function syntax, own-property qualification
   through the component id (safe: ids outrank scope properties, same

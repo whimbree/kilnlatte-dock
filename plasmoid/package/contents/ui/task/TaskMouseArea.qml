@@ -236,6 +236,17 @@ MouseArea {
         pressed = false;
     }
 
+    //! Qt5 fired past mainAngle = delta/8 > 12 on the dominant axis of
+    //! angleDelta, ties to horizontal (EX-15: the wheel math lives in
+    //! LatteCore.WheelStepper; verticalIsDominant is the same authority
+    //! the DominantAxis pick uses, so the parallel-scroll read below can
+    //! never drift from the fired direction)
+    LatteCore.WheelStepper {
+        id: taskWheelStepper
+        axisPick: LatteCore.WheelStepper.DominantAxis
+        fireThreshold: 96
+    }
+
     onWheel: (wheel) => {
         var wheelActionsEnabled = (root.taskScrollAction !== LatteTasks.Types.ScrollNone || root.manualScrollTasksEnabled);
 
@@ -248,22 +259,16 @@ MouseArea {
             return;
         }
 
-        var angleVertical = wheel.angleDelta.y / 8;
-        var angleHorizontal = wheel.angleDelta.x / 8;
-
         wheelIsBlocked = true;
         scrollDelayer.start();
 
-        var verticalDirection = (Math.abs(angleVertical) > Math.abs(angleHorizontal));
-        var mainAngle = verticalDirection ? angleVertical : angleHorizontal;
-
-        var positiveDirection = (mainAngle > 12);
-        var negativeDirection = (mainAngle < -12);
+        var direction = taskWheelStepper.add(wheel.angleDelta, false);
+        var verticalDirection = taskWheelStepper.verticalIsDominant(wheel.angleDelta);
 
         var parallelScrolling = (verticalDirection && Plasmoid.formFactor === PlasmaCore.Types.Vertical)
                 || (!verticalDirection && Plasmoid.formFactor === PlasmaCore.Types.Horizontal);
 
-        if (positiveDirection) {
+        if (direction > 0) {
             slotPublishGeometries();
 
             var overflowScrollingAccepted = (root.manualScrollTasksEnabled
@@ -291,7 +296,7 @@ MouseArea {
 
                 // hidePreviewWindow();
             }
-        } else if (negativeDirection) {
+        } else if (direction < 0) {
             slotPublishGeometries();
 
             var overflowScrollingAccepted = (root.manualScrollTasksEnabled
