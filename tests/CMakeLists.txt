@@ -269,3 +269,15 @@ target_compile_definitions(contextmenudefaulttest PRIVATE
     GENERICLAYOUT_CPP_PATH="${CMAKE_SOURCE_DIR}/app/layout/genericlayout.cpp"
     CONTEXTMENU_PLUGIN_FILE="$<TARGET_FILE:plasma_containmentactions_lattecontextmenu>"
     CONTEXTMENU_METADATA_JSON="${CMAKE_SOURCE_DIR}/containmentactions/contextmenu/plasma-containmentactions-lattecontextmenu.json")
+
+# Contract: Plasma 6 removed applet.action(); the edit-mode handle must
+# resolve standard actions through applet.plasmoid.internalAction(name) or
+# Configure/Remove silently die with a TypeError.
+ecm_add_test(contracts/editmodehandleactiontest.cpp
+    TEST_NAME editmodehandleactiontest
+    LINK_LIBRARIES Qt6::Test
+)
+set_tests_properties(editmodehandleactiontest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_compile_definitions(editmodehandleactiontest PRIVATE
+    CONFIGOVERLAY_QML_PATH="${CMAKE_SOURCE_DIR}/containment/package/contents/ui/editmode/ConfigOverlay.qml")
