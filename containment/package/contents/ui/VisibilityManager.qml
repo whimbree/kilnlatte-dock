@@ -1,6 +1,7 @@
 /*
     SPDX-FileCopyrightText: 2016 Smith AR <audoban@openmailbox.org>
     SPDX-FileCopyrightText: 2016 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -61,43 +62,74 @@ Item{
 
     property bool updateIsEnabled: autosize.inCalculatedIconSize && !inSlidingIn && !inSlidingOut && !inRelocationHiding
 
+    //! The per-edge rect tables of updateMaskArea/updateInputGeometry live
+    //! in the MaskGeometry core (containment/plugin/units/maskgeometry.h,
+    //! EX-10 in docs/QML_EXTRACTION_PLAN.md; pinned by tests/units/
+    //! maskgeometrytest.cpp and tests/qml/tst_maskgeometry.qml). The bridge
+    //! maps the core's decisions onto the effects protocol's sentinel
+    //! rects; this file keeps the signal plumbing, the update gates and
+    //! the actuating assignments.
+    LatteContainment.MaskGeometryBridge {
+        id: maskGeometry
+    }
+
     Connections{
         target: background.totals
-        onVisualLengthChanged: updateMaskArea();
-        onVisualThicknessChanged: updateMaskArea();
+        function onVisualLengthChanged() {
+            manager.updateMaskArea();
+        }
+        function onVisualThicknessChanged() {
+            manager.updateMaskArea();
+        }
     }
 
     Connections{
         target: background.shadows
-        onHeadThicknessChanged: updateMaskArea();
+        function onHeadThicknessChanged() {
+            manager.updateMaskArea();
+        }
     }
 
     Connections{
         target: latteView ? latteView : null
-        onXChanged: updateMaskArea();
-        onYChanged: updateMaskArea()
-        onWidthChanged: updateMaskArea();
-        onHeightChanged: updateMaskArea();
+        function onXChanged() {
+            manager.updateMaskArea();
+        }
+        function onYChanged() {
+            manager.updateMaskArea();
+        }
+        function onWidthChanged() {
+            manager.updateMaskArea();
+        }
+        function onHeightChanged() {
+            manager.updateMaskArea();
+        }
     }
 
     Connections{
         target: animations.needBothAxis
-        onCountChanged: updateMaskArea();
+        function onCountChanged() {
+            manager.updateMaskArea();
+        }
     }
 
     Connections{
         target: animations.needLength
-        onCountChanged: updateMaskArea();
+        function onCountChanged() {
+            manager.updateMaskArea();
+        }
     }
 
     Connections{
         target: animations.needThickness
-        onCountChanged: updateMaskArea();
+        function onCountChanged() {
+            manager.updateMaskArea();
+        }
     }
 
     Connections{
         target: layoutsManager
-        function onCurrentLayoutIsSwitching(layoutName) {
+        function onCurrentLayoutIsSwitching(layoutName: string) {
             if (LatteCore.WindowSystem.compositingActive && latteView && latteView.layout && latteView.layout.name === layoutName) {
                 parabolic.sglClearZoom();
             }
@@ -106,12 +138,14 @@ Item{
 
     Connections {
         target: metrics.mask.thickness
-        onMaxZoomedChanged: updateMaskArea()
+        function onMaxZoomedChanged() {
+            manager.updateMaskArea();
+        }
     }
 
     Connections {
         target: root.myView
-        onInRelocationAnimationChanged: {
+        function onInRelocationAnimationChanged() {
             if (!root.myView.inRelocationAnimation) {
                 manager.updateMaskArea();
             }
@@ -120,52 +154,56 @@ Item{
 
     Connections {
         target: latteView ? latteView.effects : null
-        onRectChanged: manager.updateMaskArea()
-    }
-
-    Connections{
-        target: themeExtended ? themeExtended : null
-        onThemeChanged: latteView.effects.forceMaskRedraw();
-    }
-
-    Connections {
-        target: LatteCore.WindowSystem
-        onCompositingActiveChanged: {
+        function onRectChanged() {
             manager.updateMaskArea();
         }
     }
 
-    onIsFloatingInClientSideChanged: updateMaskArea();
+    Connections{
+        target: themeExtended ? themeExtended : null
+        function onThemeChanged() {
+            latteView.effects.forceMaskRedraw();
+        }
+    }
+
+    Connections {
+        target: LatteCore.WindowSystem
+        function onCompositingActiveChanged() {
+            manager.updateMaskArea();
+        }
+    }
+
+    onIsFloatingInClientSideChanged: manager.updateMaskArea();
 
     onInNormalStateChanged: {
-        if (inNormalState) {
-            updateMaskArea();
+        if (manager.inNormalState) {
+            manager.updateMaskArea();
         }
     }
 
     onInSlidingInChanged: {
-        if (latteView && !inSlidingIn && latteView.positioner.inRelocationShowing) {
+        if (latteView && !manager.inSlidingIn && latteView.positioner.inRelocationShowing) {
             latteView.positioner.inRelocationShowing = false;
         }
     }
 
     onUpdateIsEnabledChanged: {
-        if (updateIsEnabled) {
-            updateMaskArea();
+        if (manager.updateIsEnabled) {
+            manager.updateMaskArea();
         }
     }
 
-    function slotContainsMouseChanged() {
+    function slotContainsMouseChanged() : void {
         if(latteView.visibility.containsMouse && latteView.visibility.mode !== LatteCore.Types.SidebarOnDemand) {
-            updateMaskArea();
+            manager.updateMaskArea();
 
-            if (slidingAnimationAutoHiddenOut.running && !inRelocationHiding) {
-                slotMustBeShown();
+            if (slidingAnimationAutoHiddenOut.running && !manager.inRelocationHiding) {
+                manager.slotMustBeShown();
             }
         }
     }
 
-    function slotMustBeShown() {
+    function slotMustBeShown() : void {
         if (root.inStartup) {
             slidingAnimationAutoHiddenIn.init();
             return;
@@ -187,19 +225,19 @@ Item{
 
         //! Normal Dodge/AutoHide case
         if (!slidingAnimationAutoHiddenIn.running
-                && !inRelocationHiding
+                && !manager.inRelocationHiding
                 && (latteView.visibility.isHidden || slidingAnimationAutoHiddenOut.running /*it is not already shown or is trying to hide*/)){
             slidingAnimationAutoHiddenIn.init();
         }
     }
 
-    function slotMustBeHide() {
+    function slotMustBeHide() : void {
         if (root.inStartup) {
             slidingAnimationAutoHiddenOut.init();
             return;
         }
 
-        if (inSlidingIn && !inRelocationHiding) {
+        if (manager.inSlidingIn && !manager.inRelocationHiding) {
             /*consider hiding after sliding in has finished*/
             return;
         }
@@ -219,23 +257,23 @@ Item{
     }
 
     //! functions used for sliding out/in during location/screen changes
-    function slotHideDockDuringLocationChange() {
-        inRelocationHiding = true;
+    function slotHideDockDuringLocationChange() : void {
+        manager.inRelocationHiding = true;
 
         if(!slidingAnimationAutoHiddenOut.running) {
             slidingAnimationAutoHiddenOut.init();
         }
     }
 
-    function slotShowDockAfterLocationChange() {
+    function slotShowDockAfterLocationChange() : void {
         slidingAnimationAutoHiddenIn.init();
     }
 
-    function sendHideDockDuringLocationChangeFinished(){
+    function sendHideDockDuringLocationChangeFinished() : void {
         latteView.positioner.hidingForRelocationFinished();
     }
 
-    function sendSlidingOutAnimationEnded() {
+    function sendSlidingOutAnimationEnded() : void {
         latteView.visibility.hide();
         latteView.visibility.isHidden = true;
 
@@ -243,17 +281,14 @@ Item{
             console.log("hiding animation ended...");
         }
 
-        sendHideDockDuringLocationChangeFinished();
+        manager.sendHideDockDuringLocationChangeFinished();
     }
 
     ///test maskArea
-    function updateMaskArea() {
+    function updateMaskArea() : void {
         if (!latteView || !root.viewIsAvailable) {
             return;
         }
-
-        var localX = 0;
-        var localY = 0;
 
         // debug maskArea criteria
         if (debug.maskEnabled) {
@@ -261,146 +296,50 @@ Item{
                         animations.needThickness.count + ", " + latteView.visibility.isHidden);
         }
 
-        //console.log("reached updating geometry ::: "+dock.maskArea);
-
-
-        if (!latteView.visibility.isHidden && updateIsEnabled && inNormalState) {
+        if (!latteView.visibility.isHidden && manager.updateIsEnabled && manager.inNormalState) {
             //! Important: Local Geometry must not be updated when view ISHIDDEN
             //! because it breaks Dodge(s) modes in such case
-
-            var localGeometry = Qt.rect(0, 0, root.width, root.height);
-
-            //the shadows size must be removed from the maskArea
-            //before updating the localDockGeometry
-            if (!latteView.behaveAsPlasmaPanel) {
-                var cleanThickness = metrics.totals.thickness;
-                var edgeMargin = metrics.mask.screenEdge;
-
-                if (Plasmoid.location === PlasmaCore.Types.TopEdge) {
-                    localGeometry.x = latteView.effects.rect.x; // from effects area
-                    localGeometry.width = latteView.effects.rect.width; // from effects area
-
-                    localGeometry.y = edgeMargin;
-                    localGeometry.height = cleanThickness;
-                } else if (Plasmoid.location === PlasmaCore.Types.BottomEdge) {
-                    localGeometry.x = latteView.effects.rect.x; // from effects area
-                    localGeometry.width = latteView.effects.rect.width; // from effects area
-
-                    localGeometry.y = root.height - cleanThickness - edgeMargin;
-                    localGeometry.height = cleanThickness;
-                } else if (Plasmoid.location === PlasmaCore.Types.LeftEdge) {
-                    localGeometry.y = latteView.effects.rect.y; // from effects area
-                    localGeometry.height = latteView.effects.rect.height; // from effects area
-
-                    localGeometry.x = edgeMargin;
-                    localGeometry.width = cleanThickness;
-                } else if (Plasmoid.location === PlasmaCore.Types.RightEdge) {
-                    localGeometry.y = latteView.effects.rect.y; // from effects area
-                    localGeometry.height = latteView.effects.rect.height; // from effects area
-
-                    localGeometry.x = root.width - cleanThickness - edgeMargin;
-                    localGeometry.width = cleanThickness;
-                }
-
-                //set the boundaries for latteView local geometry
-                //qBound = qMax(min, qMin(value, max)).
-
-                localGeometry.x = Math.max(0, Math.min(localGeometry.x, latteView.width));
-                localGeometry.y = Math.max(0, Math.min(localGeometry.y, latteView.height));
-                localGeometry.width = Math.min(localGeometry.width, latteView.width);
-                localGeometry.height = Math.min(localGeometry.height, latteView.height);
-            }
-
-            //console.log("update geometry ::: "+localGeometry);
-            latteView.localGeometry = localGeometry;
+            latteView.localGeometry = maskGeometry.localGeometryFor(Plasmoid.location,
+                                                                    latteView.behaveAsPlasmaPanel,
+                                                                    root.width, root.height,
+                                                                    latteView.width, latteView.height,
+                                                                    latteView.effects.rect,
+                                                                    metrics.totals.thickness,
+                                                                    metrics.mask.screenEdge);
         }
 
         //! Input Mask
-        if (updateIsEnabled) {
-            updateInputGeometry();
+        if (manager.updateIsEnabled) {
+            manager.updateInputGeometry();
         }
     }
 
-    function updateInputGeometry() {
+    function updateInputGeometry() : void {
         //! latteView is still null when this runs during startup, before the
         //! C++ View wrapper is injected
         if (!latteView) {
             return;
         }
 
-        // VisibilityManager.qml tries to workaround faulty onEntered() signals from ParabolicMouseArea
-        // by specifying inputThickness when ParabolicEffect is applied. (inputThickness->animated scenario)
-        var animated = (animations.needBothAxis.count>0);
-
-        if (!LatteCore.WindowSystem.compositingActive || latteView.behaveAsPlasmaPanel) {
-            //! clear input mask
-            latteView.effects.inputMask = Qt.rect(0, 0, -1, -1);
-        } else {
-            var floatingInternalGapAcceptsInput = behaveAsDockWithMask && floatingInternalGapIsForced;
-            var inputThickness;
-
-            if (latteView.visibility.isHidden) {
-                inputThickness = metrics.mask.thickness.hidden;
-            } else if (root.hasFloatingGapInputEventsDisabled) {
-                inputThickness = animated ? metrics.mask.thickness.zoomedForItems - metrics.margin.screenEdge : metrics.totals.thickness;
-            } else {
-                inputThickness = animated ? metrics.mask.thickness.zoomedForItems : metrics.mask.screenEdge + metrics.totals.thickness;
-            }
-
-            var subtractedScreenEdge = root.hasFloatingGapInputEventsDisabled && !latteView.visibility.isHidden ? metrics.mask.screenEdge : 0;
-
-            var inputGeometry = Qt.rect(0, 0, root.width, root.height);
-
-            //!use view.localGeometry for length properties
-            if (Plasmoid.location === PlasmaCore.Types.TopEdge) {
-                if (!animated) {
-                    inputGeometry.x = latteView.localGeometry.x;
-                    inputGeometry.width = latteView.localGeometry.width;
-                }
-
-                inputGeometry.y = subtractedScreenEdge;
-                inputGeometry.height = inputThickness;
-            } else if (Plasmoid.location === PlasmaCore.Types.BottomEdge) {
-                if (!animated) {
-                    inputGeometry.x = latteView.localGeometry.x;
-                    inputGeometry.width = latteView.localGeometry.width;
-                }
-
-                inputGeometry.y = root.height - inputThickness - subtractedScreenEdge;
-                inputGeometry.height = inputThickness;
-            } else if (Plasmoid.location === PlasmaCore.Types.LeftEdge) {
-                if (!animated) {
-                    inputGeometry.y = latteView.localGeometry.y;
-                    inputGeometry.height = latteView.localGeometry.height;
-                }
-
-                inputGeometry.x = subtractedScreenEdge;
-                inputGeometry.width = inputThickness;
-            } else if (Plasmoid.location === PlasmaCore.Types.RightEdge) {
-                if (!animated) {
-                    inputGeometry.y = latteView.localGeometry.y;
-                    inputGeometry.height = latteView.localGeometry.height;
-                }
-
-                inputGeometry.x = root.width - inputThickness - subtractedScreenEdge;
-                inputGeometry.width = inputThickness;
-            }
-
-            //set the boundaries for latteView local geometry
-            //qBound = qMax(min, qMin(value, max)).
-
-            inputGeometry.x = Math.max(0, Math.min(inputGeometry.x, latteView.width));
-            inputGeometry.y = Math.max(0, Math.min(inputGeometry.y, latteView.height));
-            inputGeometry.width = Math.min(inputGeometry.width, latteView.width);
-            inputGeometry.height = Math.min(inputGeometry.height, latteView.height);
-
-            if (latteView.visibility.isSidebar && latteView.visibility.isHidden) {
-                //! this way we make sure than no input is accepted anywhere
-                inputGeometry = Qt.rect(-1, -1, 1, 1);
-            }
-
-            latteView.effects.inputMask = inputGeometry;
-        }
+        //! The parabolicAnimating band (needBothAxis.count > 0) is upstream
+        //! 11f42978's workaround for faulty onEntered() signals from
+        //! ParabolicMouseArea right after sglClearZoom: while zoomed, input
+        //! covers the zoomedForItems thickness over the full length axis.
+        latteView.effects.inputMask = maskGeometry.inputMaskFor(Plasmoid.location,
+                                                                LatteCore.WindowSystem.compositingActive,
+                                                                latteView.behaveAsPlasmaPanel,
+                                                                latteView.visibility.isHidden,
+                                                                latteView.visibility.isSidebar,
+                                                                animations.needBothAxis.count > 0,
+                                                                root.hasFloatingGapInputEventsDisabled,
+                                                                metrics.mask.thickness.hidden,
+                                                                metrics.mask.thickness.zoomedForItems,
+                                                                metrics.margin.screenEdge,
+                                                                metrics.totals.thickness,
+                                                                metrics.mask.screenEdge,
+                                                                latteView.localGeometry,
+                                                                root.width, root.height,
+                                                                latteView.width, latteView.height);
     }
 
     Loader{
@@ -442,16 +381,16 @@ Item{
             property: !root.behaveAsPlasmaPanel ? (root.isVertical ? "x" : "y") : "slideOffset"
             to: {
                 if (root.behaveAsPlasmaPanel) {
-                    return slidingOutToPos;
+                    return manager.slidingOutToPos;
                 }
 
                 if (LatteCore.WindowSystem.compositingActive) {
-                    return slidingOutToPos;
+                    return manager.slidingOutToPos;
                 } else {
                     if ((Plasmoid.location===PlasmaCore.Types.LeftEdge)||(Plasmoid.location===PlasmaCore.Types.TopEdge)) {
-                        return slidingOutToPos + 1;
+                        return manager.slidingOutToPos + 1;
                     } else {
-                        return slidingOutToPos - 1;
+                        return manager.slidingOutToPos - 1;
                     }
                 }
             }
@@ -506,7 +445,7 @@ Item{
             }
         }
 
-        function init() {
+        function init() : void {
             if (manager.inRelocationAnimation || root.inStartup/*used from recreating views*/ || !latteView.visibility.blockHiding) {
                 start();
             }
@@ -545,7 +484,7 @@ Item{
         }
 
         onStopped: {
-            inSlidingIn = false;
+            manager.inSlidingIn = false;
 
             if (manager.inRelocationHiding) {
                 manager.inRelocationHiding = false;
@@ -563,22 +502,22 @@ Item{
 
             //! this is needed in order to update dock absolute geometry correctly in the end AND
             //! when a floating dock is sliding-in through masking techniques
-            updateMaskArea();
+            manager.updateMaskArea();
         }
 
-        function init() {
+        function init() : void {
             if (!root.viewIsAvailable) {
                 return;
             }
 
-            inSlidingIn = true;
+            manager.inSlidingIn = true;
 
             if (slidingAnimationAutoHiddenOut.running) {
                 slidingAnimationAutoHiddenOut.stop();
             }
 
             latteView.visibility.isHidden = false;
-            updateMaskArea();
+            manager.updateMaskArea();
 
             start();
         }
@@ -627,26 +566,26 @@ Item{
 
     Connections {
         target: root
-        onHideThickScreenGapChanged: {
+        function onHideThickScreenGapChanged() {
             if (!latteView || !root.viewIsAvailable) {
                 return;
             }
 
-            if (root.behaveAsPlasmaPanel && !latteView.visibility.isHidden && !inSlidingIn && !inSlidingOut && !inStartup) {
+            if (root.behaveAsPlasmaPanel && !latteView.visibility.isHidden && !manager.inSlidingIn && !manager.inSlidingOut && !root.inStartup) {
                 slideInOutRealFloating();
             }
         }
 
-        onInStartupChanged: {
+        function onInStartupChanged() {
             //! used for positioning properly real floating panels when there is a maximized window
-            if (root.hideThickScreenGap && !inStartup && latteView.positioner.slideOffset===0) {
+            if (root.hideThickScreenGap && !root.inStartup && latteView.positioner.slideOffset===0) {
                 if (root.behaveAsPlasmaPanel && !latteView.visibility.isHidden) {
                     slideInOutRealFloating();
                 }
             }
         }
 
-        function slideInOutRealFloating() {
+        function slideInOutRealFloating() : void {
             if (root.hideThickScreenGap) {
                 slidingInRealFloating.stop();
                 slidingOutRealFloating.start();

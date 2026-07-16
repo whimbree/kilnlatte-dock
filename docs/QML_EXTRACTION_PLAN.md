@@ -1448,7 +1448,18 @@ Conventions used by all specs:
   live matrix is mandatory before the cutover commit merges.
 - Risk + rollback: medium-high consequence, low likelihood given the
   matrix; single cutover commit.
-- Commits:
+- Commits: f0e6e8fa (core + bridge + sanitized tests + qmltest),
+  cutover + docs hashes in docs/agent-logs/EX-10.md.
+- Eliminated invalid states (for the ledger tick at merge): the
+  effects-protocol sentinel rects (0,0,-1,-1) and (-1,-1,1,1) are
+  unrepresentable in the core - InputMaskDecision is a
+  std::variant<AcceptAllInput, AcceptInputWithin, AcceptNoInput>
+  mapped exhaustively (std::visit + static_assert) only at the
+  bridge; location is Plasma::Types::Location (switch) with the
+  non-edge fall-through explicit, never a bare int chain; negative
+  dimensions are asserted never-states in the core and loud refusals
+  at the bridge, while zero-size stays representable BY CONTRACT
+  (the documented effects.cpp warmup protocol, pinned by test).
 - Execution notes (2026-07-16, agent; docs/agent-logs/EX-10.md has
   the full design):
   - Provenance correction: the input-geometry half is NOT port-era.
@@ -2367,6 +2378,20 @@ assessed every file the landed cutovers touched):
   Function-only reads ARE injectable safely (the private's myView
   went that way); each future cutover does what is safely reachable
   and leaves the rest counted here.
+- The EX-10 cutover's residue, same class: containment
+  VisibilityManager.qml (164, down from 233). Every remaining
+  warning is a cross-document context-chain read (latteView 77,
+  root 39, animations 15, metrics 11, debug 6, autosize 3, plus
+  themeExtended/screenEdgeMarginEnabled/parabolic/layoutsContainer/
+  background/myView/layoutsManager/hideThickScreenGap) - most sit in
+  BINDINGS (inNormalState, slidingOutToPos, the animation to:/
+  duration:/target: expressions) or in Connections targets, exactly
+  the injection-risk class the first entry describes. The cutover
+  fixed everything safely reachable: both function bodies now
+  delegate to the MaskGeometryBridge, all implicit Connections
+  handlers moved to function syntax, every function got a typed
+  signature, and own-property/function reads are qualified through
+  the manager id.
 - The EX-04 cutover's residue, same class: containment
   abilities/AutoSize.qml (24, down from 37) - root and latteView in
   the isActive BINDING and in Connections targets, visibilityManager
