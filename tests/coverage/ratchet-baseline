@@ -1,4 +1,4 @@
-78
+79
 abstractlayouttest
 activitiesinfotest
 activitysetalgebratest
@@ -54,6 +54,7 @@ quitteardowncontractstest
 representationswitchtest
 rowentrytest
 sceneprobe_imagecompare
+schemesmodeltest
 screengeometrycalculatortest
 screenpooltest
 scrollmathtest

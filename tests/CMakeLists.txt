@@ -349,6 +349,18 @@ set_tests_properties(sourceguardtest PROPERTIES
 target_compile_definitions(sourceguardtest PRIVATE
     REPO_ROOT="${CMAKE_SOURCE_DIR}")
 
+# The details-dialog color-scheme model over planted .colors fixtures:
+# enumeration, sorting, the synthetic System Colors row and the row lookup.
+ecm_add_test(schemesmodeltest.cpp
+    TEST_NAME schemesmodeltest
+    LINK_LIBRARIES lattedock-core Qt6::Test
+)
+set_tests_properties(schemesmodeltest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_include_directories(schemesmodeltest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app
+    ${CMAKE_BINARY_DIR}/app)
+
 # The two settings table models (export-template applets, screens dialog):
 # population, check-state toggling, defaults and the checkedScreens()
 # active-screen exclusion that gates the Screens dialog removal.
