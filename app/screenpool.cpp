@@ -154,8 +154,12 @@ void ScreenPool::reload(QString path)
 void ScreenPool::removeScreens(const Latte::Data::ScreensTable &obsoleteScreens)
 {
     for (int i=0; i<obsoleteScreens.rowCount(); ++i) {
+        //! an id already absent is fine (removal is idempotent), but it must
+        //! not abort the loop: the remaining obsolete screens still need
+        //! removing. This used to `return` here, silently keeping every
+        //! screen listed after the first absent id.
         if (!m_screensTable.containsId(obsoleteScreens[i].id)) {
-            return;
+            continue;
         }
 
         m_screensTable.remove(obsoleteScreens[i].id);
