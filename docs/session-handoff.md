@@ -10,6 +10,24 @@ archaeology.
 
 Driving docs/prompts/stabilization-execution-prompt.md top to bottom.
 
+MERGES COMPLETE (late session): P2 contract transplants merged (52
+ctest entries; includes a REAL live-bug fix - the alternatives swap
+invoked createApplet with a QPoint that cannot resolve against Plasma
+6's QRectF signature, so picking an alternative destroyed the applet
+and created nothing; fix verified signature-correct against the
+pinned header, ONE live "Show Alternatives" sanity pass still wanted
+at the desk). viewsData + setViewEditMode merged (53 ctest entries)
+and LIVE-VERIFIED over D-Bus on the throwaway: viewsData returns full
+per-view state (geometry, struts, visibility, inStartup/isOffScreen -
+the stranding diagnostics are now pull-queryable), and the
+setViewEditMode enter/exit round-trip asserted editMode true->false
+with zero pixels. Both agent worktrees pruned. Sceneprobe transplant
+agent still running at write time. Two agent findings worth acting
+on later: build-check.sh's devshell re-exec guard trusts any cmake
+in PATH (system cmake 4.1 defeats it), and the unguarded
+LATTE_LAYERSHELL_HAS_SET_SCREEN try_compile re-runs every configure
+and can silently flip the define after one broken-env probe.
+
 LATE-SESSION STATE: priority items 1-7 done or flagged (details in
 the numbered entries below); the settings desk-walk, the DPMS
 lock/unlock arm, one real logout cycle, and the reorder/stuck-icons
