@@ -190,8 +190,19 @@ pass on every distro regardless of tier.
       kpipewire, plasma-pa, plasma5support, kcmutils, sonnet,
       ktextwidgets, qqc2-desktop-style, qt5compat, kidletime) PLUS the
       render-gate deps ng omits (kwin, vulkan loader+lavapipe+validation,
-      fonts). Remaining: fedora/opensuse/neon/debian/gentoo/void layers.
-      Commits: d68ad64c0
+      fonts). DEBIAN DONE (ci/containers/Containerfile.debian): deps-only
+      layer against debian:testing, all names resolved (see the ledger
+      docs/agent-logs/2026-07-17-debian-leg.md). Debian-specific name
+      deltas: KF6 Kirigami is libkirigami-dev (NOT libkf6kirigami-dev);
+      qt5compat -> qt6-5compat-dev; qqc2-desktop-style ->
+      qml6-module-org-kde-desktop; PlasmaQuick/LibTaskManager/
+      LibNotificationManager all ship in plasma-workspace-dev; layer-shell
+      -> liblayershellqtinterface-dev; lavapipe -> mesa-vulkan-drivers.
+      Debian ENV traps: lavapipe ICD is UNSUFFIXED lvp_icd.json; QML tree
+      at the multiarch /usr/lib/x86_64-linux-gnu/qt6/qml; Qt6 host tools
+      (qmltestrunner/qmllint) off-PATH under /usr/lib/qt6/bin (added to
+      the image PATH). Remaining: fedora/opensuse/neon/gentoo/void layers.
+      Commits: d68ad64c0, 3eaa21261
 - [~] A2 Clean cmake build of the port in each container locally (podman
       is on the host - prototype here, no CI yet). Record per-distro
       build quirks. ARCH DONE: builds clean (565/565) against Arch's Qt
@@ -201,10 +212,35 @@ pass on every distro regardless of tier.
       FATAL off-nix - now searches both (00400f16c). The 8 ctest failures
       are all harness-env (7 need the staged QML tree + LATTE_QML_MODULE_
       PATH; schemesmodeltest is non-hermetic re XDG_DATA_DIRS) -> Phase B.
-      Remaining distros TBD. Commits: 00400f16c, d68ad64c0
-- [ ] A3 Pin the exact base image tags that meet the Plasma 6.5 floor;
+      DEBIAN DONE: builds clean (565/565) against Debian testing's Qt
+      6.10.2 / KF6 6.26.0 / Plasma 6.6.5; NO source fix needed for the
+      build (master's four portability fixes carried the multiarch libdir
+      cleanly). Offscreen ctest 80/81 with the image PATH fix (76/81
+      without). QUIRK found + FIXED (own commit, a genuine libplasma
+      VERSION-SKEW, not a nix-ism): askdestroysignalorderingtest pinned
+      the libplasma 6.7 widened-guard behavior for containment-type
+      applets, but Debian ships 6.6.5 where askDestroy still guards the
+      immediate emit/prune with !isContainment() - stricter than the
+      project's 6.5 floor. Fixed by gating the containment-type
+      assertions on #if PLASMA_VERSION >= 6.7.0 so the test pins whichever
+      contract the substrate ships (NixOS 6.7.3 branch unchanged, so the
+      merge gate is untouched). QUIRK 2 (env, fixed in the Containerfile):
+      Qt6 host tools live off-PATH under /usr/lib/qt6/bin, so the QML
+      ctest gates hit "qmltestrunner: command not found" until PATH was
+      extended. The one remaining ctest failure (qmllintgate) is CORRECT:
+      its ratchet baseline is calibrated to the pinned nix qmllint and it
+      refuses a foreign one by design - a NixOS-tier merge gate, excluded
+      from the distro gate stage (note for B2). Remaining distros TBD.
+      Commits: 00400f16c, d68ad64c0, 3fb8f899d, 3eaa21261
+- [~] A3 Pin the exact base image tags that meet the Plasma 6.5 floor;
       document the floor check per distro. Arch is rolling (archlinux:
-      latest for the prototype; archive-snapshot pin TBD). Commits:
+      latest for the prototype; archive-snapshot pin TBD). DEBIAN DONE:
+      debian:testing pinned (Qt 6.10.2 / KF6 6.26.0 / Plasma 6.6.5 - all
+      above floor; sid not needed). Floor check recorded in the
+      Containerfile header comment + the ledger. testing rolls slowly
+      (tracks next stable), so the tag is stable enough; a digest pin can
+      follow once CI caches the base. Remaining distros TBD.
+      Commits: 3eaa21261
 
 ### Phase B - headless gates in-container
 - [~] B1 Get nested kwin_wayland + lavapipe running in each container
@@ -214,7 +250,12 @@ pass on every distro regardless of tier.
       headless in podman. QUIRK: Arch's kwin_wayland carries cap_sys_nice=ep
       and podman's default cap set excludes CAP_SYS_NICE, so execve failed
       EPERM until the image strips the cap (setcap -r); the cap is
-      irrelevant to a throwaway CI compositor. Commits: 79a8008f0
+      irrelevant to a throwaway CI compositor. DEBIAN DONE: nested
+      kwin_wayland comes up headless in podman and drives the full
+      sceneprobe suite (13/13) under the default cap set. QUIRK: Debian's
+      kwin_wayland ships WITHOUT cap_sys_nice (getcap empty), so the
+      setcap -r is a harmless no-op here - kept for parity/robustness in
+      case a future package adds the cap. Commits: 79a8008f0, 3eaa21261
 - [~] B2 Run the behavioral e2e recipes in-container; make them a hard
       pass on each distro. ARCH PROVEN BY HAND (000-smoke PASSES in the
       Arch container: dock reaches lifecycleState running in ~2s,
@@ -265,7 +306,15 @@ pass on every distro regardless of tier.
       (18aac31b0) was the enabler; before it, 3 scenes failed "module
       org.kde.latte.components not installed". Phase C still adds the
       per-distro tier axis for rolling drift, but the render path is
-      proven. Commits: 18aac31b0, 79a8008f0
+      proven. DEBIAN DONE: all 13 scenes render and PASS in the Debian
+      container, self-test valid - and bit-exact against the nix-blessed
+      lavapipe goldens even though Debian's Mesa is 26.1.4/LLVM21, NEWER
+      than Arch's llvmpipe 22.1.8 and the nix pin. So the lavapipe output
+      is bit-stable for these text-free scenes across three distinct Mesa
+      versions; no tolerance tier needed on the current Debian Mesa. The
+      image ENV (LATTE_QML_MODULE_PATH, lavapipe ICD path) is what let the
+      reused gate resolve the distro's framework qml tree and ICD.
+      Commits: 18aac31b0, 79a8008f0, 3eaa21261
 
 ### Phase C - per-distro golden tiers
 - [ ] C1 Extend the sceneprobe device/tier axis to per-distro naming
