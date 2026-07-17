@@ -41,6 +41,7 @@
         {
           options.programs.latte-dock = {
             enable = lib.mkEnableOption "the latte-dock Plasma 6 port";
+            autostart = lib.mkEnableOption "starting latte-dock automatically at session login";
             package = lib.mkOption {
               type = lib.types.package;
               default = pkgs.kdePackages.callPackage ./package.nix { };
@@ -54,6 +55,17 @@
             # KApplicationTrader scans (needed for the window-management gate)
             # and the KPackage plasmoids/shell/indicators are found.
             environment.systemPackages = [ cfg.package ];
+
+            # System-level autostart: the package's own launcher entry,
+            # linked into /etc/xdg/autostart (the same file upstream Latte's
+            # in-app "autostart" toggle copies to ~/.config/autostart - a
+            # user-level file with the same name deliberately OVERRIDES this
+            # one per XDG precedence, so the in-app toggle keeps working and
+            # nothing ever starts twice).
+            environment.etc."xdg/autostart/org.kde.latte-dock.desktop" =
+              lib.mkIf cfg.autostart {
+                source = "${cfg.package}/share/applications/org.kde.latte-dock.desktop";
+              };
           };
         };
 
