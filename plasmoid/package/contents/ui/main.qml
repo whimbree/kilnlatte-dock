@@ -188,6 +188,13 @@ PlasmoidItem {
 
     property alias tasksCount: tasksModel.count
 
+    //! the plasmoid's task model, published for the viewTasksData D-Bus
+    //! read (docs/dbus-observability-interface.md): dbusreports.cpp reads
+    //! this root property and walks the model's roles by name. Ids outrank
+    //! properties in QML scope resolution, so every internal tasksModel
+    //! reference keeps resolving to the id.
+    readonly property alias tasksModel: tasksModel
+
     //END Latte Dock Panel properties
 
     readonly property bool inEditMode: latteInEditMode || Plasmoid.userConfiguring
@@ -1508,7 +1515,11 @@ PlasmoidItem {
     }
 
     function badgeValueFor(launcherUrl: string) : int {
-        // record lookup and value parse live in the BadgeMath core (EX-20)
+        // record lookup and value parse live in the BadgeMath core (EX-20).
+        // Parameter and return stay TYPED by contract, like updateBadge
+        // below: dbusreports.cpp resolves this method by its metaobject
+        // signature "badgeValueFor(QString)" for the viewTasksData D-Bus
+        // read, and an untyped QML function registers with no parameters.
         return LatteCore.BadgeMath.badgeCountForLauncher(root.badgers, launcherUrl);
     }
 
