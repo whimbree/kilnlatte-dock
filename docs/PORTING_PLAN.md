@@ -2621,7 +2621,7 @@ showed how much of the dock can only be driven by a pointer today.
             records, and the four icon helpers sizing from the raw -1
             thickMargin sentinel. Ledger:
             docs/agent-logs/2026-07-17-p3b-transplants.md.
-            Commits: 16c7a0a92..d40f5a17d on p3b-transplants
+            Commits: f8bf1444c..b16a730b2 on p3b-transplants
             (17 commits: 13 test + 4 fix; worktree hashes - re-pin
             at merge time if rebased)
       - [ ] P4: e2e pixel assertions (latte-imgdiff + KWin ScreenShot2

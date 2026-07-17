@@ -8,7 +8,7 @@ checkout sits at 9003f33a).
 
 ## Candidate-by-candidate
 
-### shortcutstest - ADOPTED (16c7a0a92)
+### shortcutstest - ADOPTED (f8bf1444c)
 
 Fork: tests/shortcutstest.cpp at origin/main. Premises verified against
 app/shortcuts/shortcutstracker.cpp and modifiertracker.cpp (both in
@@ -28,7 +28,7 @@ events cannot be injected headless (same wall the fork hit).
 
 ### storagetest - ADOPTED (defect found + fixed first)
 
-DEFECT (fixed in f5a654217, fix(layouts)): Storage::updateView wrote
+DEFECT (fixed in 9178957fd, fix(layouts)): Storage::updateView wrote
 maxLength at the containment-group level while view() reads it from the
 [General] subgroup - a max-length edit routed through view data (Views
 dialog, inactive/storage-backed views via viewscontroller.cpp) landed on
@@ -51,7 +51,7 @@ for a test. Learned mid-run: the warnings scanner counts ANY non-Latte
 containment reachable from no view as orphaned, so the clean-layout
 case needs a fixture without the foreign desktop containment.
 
-### universalsettingstest - ADOPTED (16b5dcd0e)
+### universalsettingstest - ADOPTED (b2292ecc7)
 
 Adapted to our shapes: 2-arg ctor (their tree added a DI corona
 parameter), layoutsMemoryUsage stays private here so not reached.
@@ -63,7 +63,7 @@ kwinrc, load() resolves the autostart dir); load() cases seed
 userConfiguredAutostart so first-run autostart enablement
 (environment-dependent desktop-file copy) never runs.
 
-### layoutmanagertest - ADOPTED (fd997702b)
+### layoutmanagertest - ADOPTED (c81196d31)
 
 Option lists, setOption dispatch, anchor properties, masquerade index
 encoding. Their scheduled-destruction cases NOT carried: our
@@ -80,18 +80,18 @@ Nothing to transplant that is not already covered better.
 
 ### importerlogictest - ADOPTED (defect found + fixed first)
 
-DEFECT (fixed in 4081c5e01, fix(layouts)): nameOfConfigFile stripped
+DEFECT (fixed in 6aac18f32, fix(layouts)): nameOfConfigFile stripped
 ".latterc" via lastIndexOf + remove(index, 8); on Qt 6 a negative pos
 wraps to the END, so extensionless import names lost their last
 character ("Plasma" -> "Plasm", "A" -> ""). Proven with a standalone
 probe against pinned qtbase 6.11.1. Reached from the settings dialog's
 v1-config import. Fork parallel: their endsWith/chop rewrite.
-Test (8e7cd67a9): raised with data-driven archive classification (+2
+Test (73ca496fb): raised with data-driven archive classification (+2
 rows), split XDG_DATA_HOME/XDG_DATA_DIRS so systemShellDataPath's
 last-entry pick is observable, missing-LayoutSettings default row.
 uniqueLayoutName cases not carried (importerregressiontest is deeper).
 
-### wmtoolstest - ADOPTED (8937ccd83)
+### wmtoolstest - ADOPTED (46f88fd9a)
 
 tasktools URL->AppData parsing + SchemeColors .colors parser. Raised:
 data-driven skipTaskbar with the non-boolean row, by-NAME
@@ -102,7 +102,7 @@ resolves against whatever themes the environment ships; would flake in
 a bare CI image. XDG_DATA_HOME temp, XDG_DATA_DIRS host (KService/
 KDesktopFile behavior stays production-shaped).
 
-### coretypesenumtest - ADOPTED AS popupplacementcontracttest (305928d2a)
+### coretypesenumtest - ADOPTED AS popupplacementcontracttest (4d9134e6f)
 
 Premise check reshaped it entirely: their EdgePosition enum does not
 exist in our coretypes (their addition) - SKIPPED. PopupPlacement DOES
@@ -113,18 +113,18 @@ qmltypes (located at configure time, missing = configure error) and
 pins all nine members at their declared indexes. Landed as a contract
 test per tests/contracts rules.
 
-### commontoolstest - ADOPTED (c699bde82; defect fixed first in 31fe30a77)
+### commontoolstest - ADOPTED (e2d75c1ce; defect fixed first in aa2ab9555)
 
 Reshaped: their color cases do not apply (colorBrightness/colorLumina
 moved to the ColorTools EX-19 core here; colortoolstest pins it
 sanitized). What remains: rect<->string round trip + format pin +
-XDG resolvers. DEFECT (31fe30a77, fix(tools)): stringToRect indexed
+XDG resolvers. DEFECT (aa2ab9555, fix(tools)): stringToRect indexed
 parts[1] blind; input arrives from user-editable persisted screen
 records (ScreenPool::load -> Data::Screen::init), so a corrupted entry
 was an out-of-range crash at startup. Loud boundary refusal per the
 failures-and-root-cause law, pinned by seven malformed rows.
 
-### coretoolstest - ADOPTED (c699bde82, same commit)
+### coretoolstest - ADOPTED (e2d75c1ce, same commit)
 
 Environment constants + extras.h helpers, compiling environment.cpp
 directly. Color half skipped (same EX-19 reason). Their
@@ -132,9 +132,9 @@ frameworksVersion==PLASMA_VERSION assertion replaced by OUR contract:
 plasma/version.h is gone in Plasma 6, frameworksVersion() returns
 KCoreAddons::version() (documented in environment.cpp).
 
-### generictoolstest - ADOPTED (b31dd26f2; defect fixed first in 31d40d25b)
+### generictoolstest - ADOPTED (6e03b32cf; defect fixed first in 9838e9cad)
 
-The settings-dialog delegate toolkit. DEFECT (31d40d25b,
+The settings-dialog delegate toolkit. DEFECT (9838e9cad,
 fix(settings)): all four icon helpers (remainedFromIcon, drawIcon,
 remainedFromLayoutIcon, drawLayoutIcon) resolved the -1 thickMargin
 sentinel into a local and then sized the icon from the RAW parameter -
@@ -145,14 +145,14 @@ the RTL flip case (setLayoutDirection honored by the slot geometry; no
 fork case drove it); their default-margin equivalence case pins the
 fix.
 
-### panelbackgroundtest - ADOPTED (e36f8a404)
+### panelbackgroundtest - ADOPTED (3f2ddd6f3)
 
 Both trees fixed the Plasma 6 Wayland band the same way (our Panel.qml
 keeps imagePath empty with the story in a comment). Two live-engine
 cases document the legacy backgroundHints fallthrough; a source scan
 keeps the shipped wrapper clean. Nothing else pinned Panel.qml.
 
-### configcontrolstest - ADOPTED (189ed6d8e)
+### configcontrolstest - ADOPTED (758cada52)
 
 Qt6 Controls-2 rules (final base members kill type LOADING, tooltip ->
 ToolTip attached, TabBar currentIndex, ListModel get() probing) plus
@@ -161,14 +161,14 @@ ItemDelegate, which carry the same fixed shapes as the fork's.
 Semantics fragments compile against plain QtQuick.Controls (the rules
 are Qt's; no Plasma import-path dependence).
 
-### schemesmodeltest - ADOPTED (4a642e73c)
+### schemesmodeltest - ADOPTED (3b6dda215)
 
 Details-dialog Schemes model over planted .colors fixtures. Premise
 note: our possibleSchemeFile carries a BreezeLight fallback for empty
 config homes; inside the temp dirs it also resolves to nothing, so
 row 0 stays the empty-file SchemeColors both trees expect.
 
-### viewmodelstest - ADOPTED (d40f5a17d)
+### viewmodelstest - ADOPTED (b16a730b2)
 
 TasksModel (insert/remove ranges, count discipline, dedupe + null/
 unknown refusals, survivor shift) + IndicatorPart::Info (nine bool
@@ -202,15 +202,15 @@ EdgePosition half: their-tree enum), 2 deferred (layouts/views models:
 live-Corona harness needed). Four inherited defects found and fixed at
 the origin, each landing before the test that pins it:
 
-1. f5a654217 fix(layouts): updateView wrote maxLength at the
+1. 9178957fd fix(layouts): updateView wrote maxLength at the
    containment level; view() reads [General] - max-length edits
    through view data were lost. Upstream still carries it.
-2. 4081c5e01 fix(layouts): nameOfConfigFile's remove(-1, 8) wraps to
+2. 6aac18f32 fix(layouts): nameOfConfigFile's remove(-1, 8) wraps to
    the string END on Qt 6 - extensionless import names lost their last
    character (proven with a qtbase-6.11.1 probe).
-3. 31fe30a77 fix(tools): stringToRect out-of-range crash on corrupted
+3. aa2ab9555 fix(tools): stringToRect out-of-range crash on corrupted
    persisted screen records - now a loud boundary refusal.
-4. 31d40d25b fix(settings): four icon helpers sized delegate icons
+4. 9838e9cad fix(settings): four icon helpers sized delegate icons
    from the raw -1 thickMargin sentinel - oversized/clipped icons
    under default margins.
 
