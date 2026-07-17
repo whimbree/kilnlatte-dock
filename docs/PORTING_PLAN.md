@@ -485,7 +485,16 @@ blocking.
       fallback harmlessly), and subwindow.cpp's visible-hack timer
       block re-derives an X11 id on forcedShown. Fold both into the
       wayland-id-only shape
-      Commits: (hash resolved at merge - wayland-id-sweep branch ed9416a21)
+      Commits: ed9416a21 (ff-merge preserves it)
+- [ ] View-side activity-stop reshow hack: assess with live evidence,
+      do not blind-delete (filed from the id-sweep review). Latte::View
+      carries a parallel same-named cluster (view.cpp
+      showHiddenViewFromActivityStopping + its timers + View::forcedShown
+      -> visibilitymanager republishes frame extents). The SubWindow twin
+      was X11-only, but the View comment claims the compositor clears
+      frame extents on activity close - possibly TRUE on wayland KWin;
+      needs an activity-close reproduction before any removal
+      Commits:
 - [ ] DECISION OWED (mine): the byPassWM layout setting. Found by the
       audit: Qt::BypassWindowManagerHint is X11-only machinery, but
       byPassWM is a Qt5-faithful, user-persisted layout setting with
