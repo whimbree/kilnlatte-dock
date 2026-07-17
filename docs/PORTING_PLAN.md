@@ -3142,6 +3142,23 @@ showed how much of the dock can only be driven by a pointer today.
 
 ### Phase 11: Nix packaging + Docker build verification
 
+- [ ] RE-PIN after the 2026-07-16 23:33 system rebuild (INCIDENT, blocks
+      all gates - full record in the handoff's 2026-07-17 entry): the
+      machine moved to nixpkgs 26.11.20260711 (e7a3ca8, generation 32)
+      while the flake still pins the old revision, and every new
+      nested kwin_wayland now crashes at QApplication init, taking the
+      sceneprobe gate down. Per the flake's own match-the-desktop
+      doctrine: re-pin flake.nix/flake.lock to the system's revision,
+      full rebuild, both WITH_X11 variants, full ctest, expect a
+      sceneprobe golden RE-BLESS (Mesa moved - two-run byte-identical
+      check first, as always), nested vehicle end-to-end verify, and a
+      real-session dock restart check. Consider rebooting into the new
+      generation first so session and system agree. Also decide the
+      upgrade STORY: if nixos-upgrade.timer did this, every future
+      upgrade re-creates the incident until re-pinning becomes a
+      scripted, gated flow.
+      Commits:
+
 Directly reusable knowledge from this session, not new research -
 confirmed transferable today when the same include-path fix was
 applied to get latte-dock-qt6 building on Nix during live debugging.

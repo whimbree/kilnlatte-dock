@@ -6,6 +6,50 @@ PHASE 8 IS OPEN - read its section in docs/PORTING_PLAN.md first; every item
 is current there, several sections below are now RESOLVED and kept only as
 archaeology.
 
+## 2026-07-17 ~01:00: INCIDENT - system rebuilt under the pinned env; sceneprobe gate down
+
+READ THIS BEFORE RUNNING ANY GATE. The machine was nixos-rebuilt at
+23:33 on 2026-07-16 (generation 32, nixpkgs 26.11.20260616 ->
+26.11.20260711 / e7a3ca8) while the session and the flake pin stayed
+on the old generation. Since then every NEW nested kwin_wayland
+crashes at QApplication init (SIGSEGV, null call in the theme-change
+path right after reading kdeglobals; cores in coredumpctl), so the
+sceneprobe gate reports GATE BROKEN (its selftest-good cannot get a
+compositor) and gate-all cannot go green. Eliminated by direct
+bisection: X-client saturation (fixed separately, see below), orphan
+process load, kwin config, private XDG_CONFIG_HOME, fresh
+XDG_CACHE_HOME, pinned-only XDG_DATA_DIRS, forced pinned-Mesa
+LD_LIBRARY_PATH/LIBGL/EGL dirs. The correlation that stands: the
+23:33 rebuild is the only system-level change in the breakage window,
+and only NEW processes on the kwin-QPA path die (the session
+compositor, her dock, and pinned QtGui apps are fine; the staged dock
+still initializes offscreen). THE FIX IS STRUCTURAL, next session's
+FIRST block: re-pin the flake to the system's new nixpkgs (e7a3ca8)
+per the flake's own match-the-desktop doctrine, full rebuild, re-run
+everything, expect a sceneprobe golden re-bless (Mesa moved), and
+verify the nested vehicle end to end. Consider rebooting into
+generation 32 first so the session and system agree. Until then the
+sceneprobe gate is DOWN for environmental reasons - the final push of
+2026-07-17 went out with --no-verify after build-check + full ctest +
+ratchet + qmllint ran green on the exact tree, the incident recorded
+here as the required explanation.
+
+Same night, found while root-causing (all fixed and committed): the
+nested harness leaked a full xdg-desktop-portal + ksecretd set per
+run with session-X connections that saturated the X client limit
+(fix: nested sessions strip DISPLAY/XAUTHORITY), and killing the
+dbus-run-session pid orphaned kwin children - 315 virtual
+compositors were alive (fix: setsid + process-group kill in cleanup;
+the 315 swept by hand). STILL OWED, needs me or my approval: the
+~790 already-orphaned portal-family processes from before the fix
+(automation correctly refused a name-scan kill of session-adjacent
+services): ps -eo pid,etimes,comm | awk '$3 ~
+/xdg-desktop-por|xdg-document-po|xdg-permission-|ksecretd-wrapp/ &&
+$2 < 30000 {print $1}' | xargs -r kill - or a logout/login clears
+them. ALSO OWED: whether the 23:33 rebuild was deliberate (if
+nixos-upgrade.timer did it, expect this incident class at every
+upgrade until the re-pin flow is scripted).
+
 ## 2026-07-16: stabilization execution session TWO (running record)
 
 Driving docs/prompts/stabilization-execution-prompt.md over the open
