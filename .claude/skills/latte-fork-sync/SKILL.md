@@ -22,7 +22,7 @@ skill was written and are examples only.
 
 Local checkout: `~/Projects/latte-dock-ng`, remote `origin` points at
 `ruizhi-lab/latte-dock-ng`. This fork moves fast. With LASTHASH taken
-from CLAUDE.md (currently `59e04b8b7`, reviewed 2026-07-04):
+from CLAUDE.md (at this skill's last touch: `456154efb`):
 
 ```
 cd ~/Projects/latte-dock-ng && git fetch origin && git log --oneline LASTHASH..origin/main
@@ -38,8 +38,8 @@ git log --format="%n=== %h %s ===%n%b" LASTHASH..origin/main
 ### 2. latte-dock-qt6 (CaptSilver)
 
 Local checkout: `~/Projects/latte-dock-qt6`, remote `origin` points at
-`CaptSilver/latte-dock-qt6`. Less active so far. Same pattern, with
-LASTHASH from CLAUDE.md (currently `9003f33a`):
+`CaptSilver/latte-dock-qt6`. It woke up in July 2026 with a testability campaign. Same pattern, with
+LASTHASH from CLAUDE.md (at this skill's last touch: `81384003`):
 
 ```
 cd ~/Projects/latte-dock-qt6 && git fetch origin && git log --oneline LASTHASH..origin/main
@@ -148,3 +148,14 @@ a finding, cite which checkout (commit) you actually read, the way
 docs/taskmanager-integration-research.md cites "read at ng checkout
 c705aa7e7". A file citation without the checkout hash is not
 reproducible once the worktree moves.
+
+## Test-infrastructure findings route to the adoption plan
+
+CaptSilver's testability campaign has its own standing plan:
+docs/captsilver-testability-adoption.md (P1-P5 waves, what is adopted
+vs skipped, and the hard VM-only constraint). Fork commits about test
+infrastructure are evaluated against THAT document, not folded ad hoc.
+Two standing rules recorded there: the fork's tests are the quality
+floor, never the ceiling (every adoption gets raised to this tree's
+bar), and anything adopted must run in CI under a plain VM - GPU
+support stays optional, never required.

@@ -95,6 +95,14 @@ b=$(awk '{print $14+$15}' /proc/$pid/stat); echo $((b-a)) ticks
 Dock logs are colorized; ANSI escapes make grep treat them as binary.
 Always `grep -a`.
 
+Message filtering truth (post-2e87b99ec): WITHOUT `-d` the production
+handler prints ONLY Critical and Fatal; Debug/Info/Warning are
+swallowed. A production log with zero warnings proves nothing about
+warnings - restart with `-d` before concluding anything from absence.
+(Before that fix even Criticals were swallowed, which cost a full
+investigation leg chasing a "config-specific" defect that fired
+everywhere silently.)
+
 Known benign noise. Do not chase any of these:
 
 - KWindowShadow warnings (~56 per run).
@@ -102,6 +110,12 @@ Known benign noise. Do not chase any of these:
   Behavior on opacity at its root; a second is ignored).
 - Connections deprecation warnings from third-party applet QML.
 - digitalclock Tooltip.qml "text" of null (third-party internal noise).
+- "Tools.colorBrightness/colorLumina/isLight: invalid color" Critical
+  BURSTS at view creation: the Kirigami attached theme serves
+  default-invalid colors on the first creation-time binding
+  evaluation and every consumer self-corrects on its change notify
+  (mechanism documented at declarativeimports/core/tools.cpp). A
+  STEADY stream at idle is NOT this and deserves a fresh hunt.
 
 One line that has burned people twice:
 `PLASMA SCREEN GEOMETRIES, CLEARED SCREEN :: X` is Latte's own strut
@@ -146,6 +160,45 @@ Zero lines there means zero physical flaps, whatever the dock log implies.
 4. Drive the failure, `grep -a TAG` the log, read the real values.
 5. REMOVE all instrumentation before committing. The tree must carry none
    of it; that is why the tag must be greppable.
+
+## Isolated reproduction: the nested vehicle
+
+When the failure reproduces in the dock itself, do NOT iterate against
+the live desk session. The staged dock runs fully isolated inside a
+nested compositor with a private bus:
+
+```
+nix develop -c tests/sceneprobe/run_in_kwin.sh dbus-run-session -- \
+  env LATTE_CONFIG_HOME=<config-copy> timeout 45 scripts/run-staged.sh -d
+```
+
+Three traps, all paid for: the dock inherits the caller's session bus
+and EXITS INSTANTLY on the KDBusService unique name unless wrapped in
+its own dbus-run-session; without `-d` it prints (almost) nothing; and
+if probes need KWin scripting (window moves, maximize), kwin and the
+probes must share ONE bus - wrap BOTH in the same dbus-run-session or
+every org.kde.KWin call silently no-ops (the e2e nested wrapper in
+tests/e2e has the correct shape once P4 lands; until then the handoff's
+session-two entry carries it).
+
+Instrumented binaries build in a SEPARATE tree and run with
+`BUILD=<dir>`: `cmake -B build-probe -S . -G Ninja
+-DCMAKE_BUILD_TYPE=RelWithDebInfo`, then
+`BUILD=$PWD/build-probe scripts/run-staged.sh` inside the vehicle.
+The live dock's build/bin is never touched, so no stop is needed and
+no instrumented code ever reaches the real session.
+
+QML-caller tracing: when a qCritical/qWarning boundary fires and the
+question is WHICH QML site passed the bad value, a temporary
+Qt6::QmlPrivate probe answers it in one run:
+`qjsEngine(this)->handle()->stackTrace(4)` inside the C++ boundary
+prints file:line:function for the calling binding (needs
+`find_package(Qt6 COMPONENTS QmlPrivate)` + the target linking
+Qt6::QmlPrivate, and an #ifdef so unit-test targets that compile the
+same .cpp do not need the private headers). This named ten distinct
+call sites in one run during the invalid-color hunt where static
+reading had produced three wrong hypotheses. Remove before commit,
+like all instrumentation.
 
 ## Environment confound control
 

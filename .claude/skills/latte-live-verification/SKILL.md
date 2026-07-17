@@ -45,8 +45,12 @@ where `$SCRATCH` is your session scratchpad directory. Facts to know:
   the latte-dock pid from another shell; gdb dumps the live stacks.
 - Default config home is a throwaway (build/_runconfig). Pass
   `--user-config` as the FIRST argument only when you deliberately want the
-  user's real ~/.config. Layout files live at
+  user's real ~/.config (`scripts/start-dock.sh` is the daily-driver
+  shorthand for exactly that). Layout files live at
   build/_runconfig/latte/*.layout.latte in the throwaway case.
+  `LATTE_CONFIG_HOME=<dir>` points the throwaway elsewhere and
+  `BUILD=<dir>` runs an alternate build tree (both used by the nested
+  harnesses).
 - Validate QML before launching: `nix develop -c scripts/qml-compile-gate.sh`.
 
 To STOP the dock without restarting (end of a session, leave the machine
@@ -233,22 +237,49 @@ disappearing after toggling back to the default is NORMAL, not a lost write.
 Grep before AND after each toggle and reason about defaults, not just
 presence.
 
-## 7. D-Bus surface for deterministic driving
+## 7. D-Bus surface for deterministic driving (PREFER THIS)
 
-Prefer D-Bus over menu clicking for structural operations:
+The interface is now the complete observability surface - full method
+list, signatures, JSON field lists and recipes live in
+docs/dbus-interface-reference.md. The habits that replace older
+sections of this skill:
 
-```bash
-busctl --user introspect org.kde.lattedock /Latte
-```
+- Poll `lifecycleState` for "running" instead of sleeping after a
+  restart, then poll `viewsData` until no view reports
+  `inStartup: true`.
+- Read `viewsData` for hidden-state, mask rects, input regions,
+  struts and edit-mode state instead of screenshots or dumpwins
+  (dumpwins remains the truth for NON-dock windows and layer/stacking
+  questions).
+- `setViewEditMode ub <cid> true` replaces the kglobalaccel
+  invoke-and-race dance in section 2 for entering edit mode
+  programmatically (the invoke path stays for testing the shortcut
+  itself).
+- `setViewVisibilityMode us <cid> <name>` replaces stop-dock,
+  kwriteconfig6, restart for visibility-mode flips (it persists).
+- `trackerData u <cid>` answers the dodge questions (touching,
+  maximized, active) that used to need window acrobatics plus eyes.
 
 Interface name is `org.kde.LatteDock` (capital L, capital D) even though the
-bus name is lowercase `org.kde.lattedock`. Useful methods (verified live):
-`duplicateView u`, `addView us`, `removeView u`, `quitApplication`,
-`showSettingsWindow i`, `switchToLayout s`. Example:
+bus name is lowercase `org.kde.lattedock`. Example:
 
 ```bash
 busctl --user call org.kde.lattedock /Latte org.kde.LatteDock addView us 0 "Default Panel"
 ```
+
+## 7b. The nested vehicle: live verification WITHOUT the desk
+
+Most recipes that only assert on STATE now run against a nested
+compositor, fully isolated from the real session - the dock, pointer
+injection (no desktop-file allowlist needed there), a real client
+window for dodge tests, and the whole D-Bus surface on a private bus.
+The EX-10 visibility matrix ran this way end to end. Shape and traps
+(dock needs its own dbus-run-session or KDBusService kills it;
+kwin and probes must share ONE bus or KWin scripting silently no-ops;
+`-d` or near-silence): latte-debugging's "Isolated reproduction"
+section and the session-handoff nested recipes. Reach for the real
+desk only when the thing under test IS the real session: feel,
+focus interplay with a human, real-mouse semantics, DPMS.
 
 ## 8. Confound control: DPMS and autolock
 

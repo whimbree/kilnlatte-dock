@@ -41,13 +41,34 @@ latte-fork-sync for reference-fork review).
   BehaviorConfig, EffectsConfig, TasksConfig.
 - `indicators/` - indicator packages: `default`, `org.kde.latte.plasma`,
   `org.kde.latte.plasmatabstyle`.
-- `scripts/` - build/run/verification tooling (`build-check.sh`,
-  `run-staged.sh`, `restart-staged.sh`, `qml-compile-gate.sh`,
-  `qml-interaction-tests.sh`, `lib-qml-env.sh`). latte-build-env and
+- `scripts/` - build/run/verification tooling (`gate-all.sh` runs every
+  merge gate and stamps the validated HEAD for the pre-push hook in
+  `scripts/git-hooks/`; `build-check.sh`, `run-staged.sh` the env core,
+  `restart-staged.sh` the desk lifecycle, `start-dock.sh` the
+  daily-driver shorthand, `qml-compile-gate.sh`, `qmllint-gate.sh`,
+  `qml-interaction-tests.sh`, `sceneprobe-gate.sh`, `run-e2e.sh`,
+  `coverage-ratchet.sh`, `lib-qml-env.sh`). latte-build-env and
   latte-live-verification document how to use these.
+- `tests/` - the test tree, tiered: `units/` (sanitized pure-core
+  suites via latte_add_unit_test: ASan+UBSan+QT_FORCE_ASSERTS),
+  `contracts/` (pins of exact Qt/KF6/libplasma behaviors), behavioral
+  suites at `tests/*.cpp` (real object graphs headless), `qml/`
+  (offscreen qmltests against the staged tree), `sceneprobe/` (the
+  real-pixel scene harness: probe binary, comparator, scenes with
+  committed goldens), `e2e/` (live-session shell recipes), plus the
+  committed `ratchet-baseline` and `qmllint-baseline`.
+- `app/dbusreports.{h,cpp}` - the D-Bus observability serializers
+  (viewsData and friends); Corona methods are one-line delegates.
+  Usage: docs/dbus-interface-reference.md; design:
+  docs/dbus-observability-interface.md.
+- `app/wm/windowid.h` - the WindowId newtype (explicit construction,
+  optional-returning X11 parse, byte-wise container semantics).
 - `docs/` - `PORTING_PLAN.md` is the master checklist (every task has a
   Commits: line, keep it ticked), `session-handoff.md` the rolling
-  handoff, plus research docs (`taskmanager-integration-research.md`,
+  handoff, `dbus-interface-reference.md` (the D-Bus how-to),
+  `captsilver-testability-adoption.md` (the test-infrastructure
+  adoption plan), plus research docs
+  (`taskmanager-integration-research.md`,
   `dock-replication-design.md`, `ng-upstream-audit.md`).
 
 ## The View family (app/view/)
@@ -233,3 +254,5 @@ verification recipes are in latte-live-verification.
 | Background/theming drawing | `containment/package/contents/ui/background/MultiLayered.qml`, `app/plasma/extended/theme.cpp` |
 | Auto-hide / dodge misbehaving | `app/view/visibilitymanager.cpp` |
 | Layout switching, activities | `app/layouts/synchronizer.cpp`, `app/layouts/manager.cpp` |
+| Inspect/drive the dock from outside | `docs/dbus-interface-reference.md`; serializers in `app/dbusreports.cpp` |
+| Meta+number, entry activation, shortcut badges | `app/shortcuts/globalshortcuts.cpp` -> `app/view/containmentinterface.cpp` `identifyShortcutsHost()` (defect family 9 lives here) |

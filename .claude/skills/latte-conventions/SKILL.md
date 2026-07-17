@@ -65,6 +65,13 @@ docs/PORTING_PLAN.md holds every task as `- [ ]` with a `Commits:` line.
   found, fixed, and never written down is invisible to the next session.
 - Never let the plan drift into "mostly done, some stale checkboxes."
   Ticking is part of landing the change, not an optional follow-up.
+- Worktree merges REBASE the agent's commits, so resolve hashes AFTER
+  the rebase, at tick time - never copy hashes from an agent's ledger
+  into the plan (session one shipped three items with dead hashes that
+  way; 2bba6cb8b is the cleanup).
+- The README is public-facing state: any major landing (new surface,
+  harness, phase completion, retired defect class) gets its README
+  line in the SAME session, same discipline as the plan tick.
 
 ## Session handoff
 
@@ -165,3 +172,12 @@ greppable ways. Both are required; neither substitutes for the other.
       no attribution trailers; no em-dashes.
 - [ ] QML gate passed (scripts/qml-compile-gate.sh) if any QML was touched.
 - [ ] Stubs, if any, marked both ways (`stub:` subject + `STUB:` comment).
+- [ ] New subsystem or state a test asserts on: D-Bus readback shipped with
+      it (observability-first), recorded in all three places - the adaptor
+      XML, docs/dbus-observability-interface.md (decision), and
+      docs/dbus-interface-reference.md (usage).
+- [ ] Before pushing code: scripts/gate-all.sh ran green AFTER the final
+      commit (exit code is the verdict; the pre-push hook enforces the
+      stamp - docs-only pushes are exempt). Never scrape logs for gate
+      success; never read a verdict and push in the same shell invocation.
+- [ ] README updated if the landing is major (standing rule, 2026-07-16).

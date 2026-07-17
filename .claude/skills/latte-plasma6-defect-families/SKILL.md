@@ -315,6 +315,40 @@ REAL EXAMPLES:
   installed`; owning packages added to LATTE_QML_MODULE_PATH from the
   flake pin, verified that the right-click menu stayed Latte's own.
 
+## 9. Plasma 5 tree walks miss the Plasma 6 containment root
+
+FINGERPRINT: a C++ walk over the containment's QML item tree finds
+nothing and its dependents silently no-op, while the QML side renders
+fine; invoke-by-name methods return false; a feature "works" only
+because some fallback path serves it. No error anywhere at the walk
+site (usually a silent early-return).
+
+MECHANISM: on Plasma 6, containment roots must BE
+ContainmentItem/PlasmoidItem types, so
+`PlasmaQuick::AppletQuickItem::itemForApplet(containment)` hands back
+the containment's OWN root - the item that carries the root
+objectName itself - where Plasma 5 wrapped that root one level down
+as a child. Any Qt5-era walk that scans childItems() for the root's
+objectName and then descends matches nothing, forever.
+
+FIX PATTERN: check the returned item ITSELF first, keep the child
+scan as the safety fallback, and warn loudly when neither matches
+(the walk failing is an environment/tree defect, not a normal state).
+Grep candidates: every `itemForApplet` caller that follows with an
+objectName comparison.
+
+REAL EXAMPLES:
+- Panel.qml viewLayout discovery (the round-five context-menu repair):
+  right-click menus fell through to the stock task menu because the
+  applet-position lookup never found the layout.
+- a3d2afc7c: identifyShortcutsHost never found
+  PositionShortcutsAbilityHost, so activate-entry, new-instance,
+  shortcut badges and applet-id lookup were ALL dead since the port -
+  Meta+number only appeared to work through view-iteration fallbacks.
+  Found by the activateTaskAt D-Bus smoke, invisible for months
+  because the invalid-method path returned false silently AND
+  production logging swallowed the (then nonexistent) warnings.
+
 ## Smaller changes (one line each, verified in the plan and commits)
 
 - Old-style `Connections` handlers (`onFoo: {...}`) still fire but are
@@ -330,6 +364,9 @@ REAL EXAMPLES:
   or `applet.plasmoid.internalAction(name)`; the removed method throws
   a TypeError that aborts the whole handler, family 3 style (b474adad).
 - Wayland window ids are QString UUIDs, not ints: WindowId is a
-  QByteArray, empty means invalid, X11 ids ride as decimal strings;
-  QML properties holding a winId must be `var`, not `int`
-  (8e8cdf31; the wider C++ WId-to-WindowId port landed in e9710e95).
+  NEWTYPE over QByteArray since 3c3f2d557 (explicit
+  fromWaylandUuid()/fromX11WId() constructors, optional-returning
+  toX11WId(), byte-wise ordering/hash - app/wm/windowid.h); empty
+  means invalid, X11 ids ride as decimal strings; QML properties
+  holding a winId must be `var`, not `int` (8e8cdf31 set the
+  substrate, e9710e95 the wider port).

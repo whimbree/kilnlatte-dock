@@ -81,10 +81,32 @@ none), so the staged install never changes what that test validates. Do not
 Config: run-staged.sh uses a throwaway XDG_CONFIG_HOME at build/_runconfig by
 default (override with LATTE_CONFIG_HOME), so the user's real Latte and Plasma
 configuration is never touched. Pass `--user-config` to restart-staged.sh or
-run-staged.sh to use the real one deliberately. XDG_DATA_DIRS puts the staged
-share tree first so the staged shell package, containment and indicators win,
-with the system dirs behind them for icons and themes.
+run-staged.sh to use the real one deliberately (`scripts/start-dock.sh` is the
+daily-driver shorthand for exactly that). `BUILD=<dir>` redirects the whole
+stage-and-run at an alternate build tree (how instrumented build-probe/
+binaries run without touching build/bin under a live dock). XDG_DATA_DIRS
+puts the staged share tree first so the staged shell package, containment and
+indicators win, with the system dirs behind them for icons and themes.
 `LATTE_RUN_WRAPPER="gdb -batch -ex run -ex bt --args"` gets a backtrace run.
+
+Script roles (challenged and settled 2026-07-16): run-staged.sh is the
+side-effect-free ENVIRONMENT CORE (foreground exec, manages no other
+instance - what nested-compositor harnesses and gdb/timeout wrappers
+call); restart-staged.sh is the DESK LIFECYCLE (safe kill + detach,
+delegates to the core). The file boundary is the safety boundary: the
+kill sequence must never live in the script harnesses invoke.
+
+## Gate discipline
+
+`scripts/gate-all.sh` is the single canonical gate runner (build-check
+both WITH_X11 variants + full ctest + coverage ratchet, qmllint gate,
+sceneprobe gate). Its EXIT CODE is the only verdict; success prints
+`GATES: ALL OK @ <sha>` last and stamps build/_gates-passed. The
+committed pre-push hook (scripts/git-hooks/pre-push, enabled via
+`git config core.hooksPath scripts/git-hooks`) refuses unstamped code
+pushes; docs-only drift is exempt. Never scrape logs for gate success
+and never combine reading a verdict with acting on it in one shell
+invocation (docs/TESTING.md carries the incident this rule comes from).
 
 ## QML import path doctrine
 
@@ -132,21 +154,27 @@ run may download the new packages. No other action is needed.
 
 ## Plugin path and platform theme
 
-run-staged.sh sets `QT_PLUGIN_PATH="$stage/lib/plugins"` and
-`QT_QPA_PLATFORMTHEME=` (empty). Both are load-bearing, per the comments in
-the script:
+run-staged.sh UNSETS QT_PLUGIN_PATH entirely, sets
+`QT_QPA_PLATFORMTHEME=` (empty), and hands Latte's plugin dirs over as
+`LATTE_EXTRA_PLUGIN_PATHS` (the staged plugin tree plus the exact
+kwindowsystem plugin leaf the binary links). main.cpp feeds that
+variable into process-local library paths. All three are load-bearing,
+per the comments in the script:
 
 - The session's QT_PLUGIN_PATH points at the system Plasma's plugins, built
   against a different Qt; loading its platform-theme plugin into this process
   "segfaults in QCoreApplication::init". The nix-built Qt finds its own
   plugins through baked-in paths, so the session list is dropped and the
   platform theme integration skipped entirely.
-- But Latte's own C++ plugins are staged, not system-installed, most
+- Latte's own C++ plugins are staged, not system-installed, most
   importantly plasma/containmentactions/org.kde.latte.contextmenu, which
-  builds the dock's right-click menu. With QT_PLUGIN_PATH empty,
-  findPluginById() cannot find it and right-click falls through to the stock
-  task menu. So the path points at the staged plugin tree ONLY: it holds just
-  Latte's plugins, no platform or theme plugin, so no segfault risk.
+  builds the dock's right-click menu; the kwindowsystem leaf gives the
+  process its wayland backend (dialog shadows, popup slide).
+- Why NOT QT_PLUGIN_PATH for those: the dock's environment is copied
+  verbatim into every app it launches (KIO's systemd runner), and a
+  child of a different Qt build dlopening the pinned kwindowsystem
+  plugin is an ABI mismatch. A LATTE_-namespaced variable is inert for
+  children (the 00a6766c child-env-leak fix).
 
 Do not add the session's plugin dirs back "to fix" a missing plugin; find the
 owning staged or pinned location instead.
@@ -165,8 +193,12 @@ app/wm/waylandlayershell.cpp. When layer-shell output pinning misbehaves
 grep LATTE_LAYERSHELL_HAS_SET_SCREEN build/CMakeCache.txt
 ```
 
-Probes cache; after changing the pinned layer-shell-qt, reconfigure so the
-probe reruns.
+Since 46ce2dfbb the probe is guarded: the answer caches keyed on
+LayerShellQt_DIR (a re-pin re-probes automatically, plain reconfigures
+do not), only a missing-setScreen-member diagnostic counts as a real
+"no", and any other probe failure is a FATAL_ERROR naming the likely
+environment cause - a broken configure can no longer silently flip the
+define.
 
 ## Blast radius and causation (from CLAUDE.md)
 
