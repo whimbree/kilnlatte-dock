@@ -1512,6 +1512,21 @@ Conventions used by all specs:
   (clicks outside must fall through to the desktop); floating-gap
   hover reveal; dumpwins geometry cross-check. This is the heaviest
   live matrix in the delegate-safe set - budget it.
+  RUN 2026-07-16 (session two) in the nested-kwin vehicle (single
+  shared private bus - the v2 wrapper lesson in the handoff), fully
+  desk-independent, asserted over the new viewsData/trackerData
+  D-Bus readbacks: dodge-active hide+return with
+  activeWindowTouching cross-checked, dodge-maximized hide+return,
+  windows-go-below stays shown under overlap, auto-hide hides with
+  the pointer away and the hidden input region collapses to the 2px
+  edge strip, click far outside the strip does not reveal
+  (fall-through), edge-glide reveal verified by a focused probe
+  (the batch matrix's glide arm is FLAKY in the vehicle - harness
+  choreography, not product; noted for the P4 promotion). STILL
+  OWED: floating-gap hover reveal (needs a screenEdgeMargin config
+  flip mid-run, deliberately deferred), shown-state mask-boundary
+  click probes. Scripts live in the session scratchpad
+  (nested-visibility-matrix*.sh) pending promotion with P4.
 - Delegation tag: delegate-safe (tables are mechanical), but the
   live matrix is mandatory before the cutover commit merges.
 - Risk + rollback: medium-high consequence, low likelihood given the

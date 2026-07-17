@@ -79,6 +79,34 @@ KDBusService unique name without the dbus-run-session wrap; without
 -d it used to print nothing at all). BUILD=<dir> redirects
 run-staged to an alternate build tree for instrumented binaries.
 
+SESSION TWO CLOSE: all four agent branches merged serially with full
+gates and pushed; master at the WindowId container-contract repair.
+Final state: ctest 66 entries, ratchet OK, qmllint baseline matched,
+build-check both variants OK, sceneprobe 13/13, all worktrees pruned,
+real dock running --user-config on the final binary (with -d, from
+the last verification restart - harmless, drop it at the next
+natural restart). EX-10 MATRIX RAN desk-independent in the nested
+vehicle: 10/11 PASS (both dodges with trackerData cross-check,
+windows-go-below, auto-hide hide + fall-through + edge-strip
+readback; edge-reveal verified by a focused probe - the batch glide
+arm is flaky harness choreography, noted in the ledger). VEHICLE v2
+LESSON, hard-won: kwin and the probes must share ONE private bus
+(dbus-run-session wrapping BOTH) - v1 gave them separate buses and
+every KWin-scripting mutation silently no-op'd, faking three dodge
+failures; and a kwin_js helper must check loadScript's return (mine
+swallowed it - the banned shape, in my own tooling). PROCESS SCAR:
+one gate verdict was misread from a tail -1 and a broken master got
+pushed for ~20 minutes before the repair (98e7b03aa); gate verdicts
+are now grepped for their literal OK marker. REMAINING for next
+session: EX-15 wheels / EX-17 hover / EX-14 drags can run in the
+nested vehicle (config flips + choreography, recipes in the ledger
+notes); EX-12 palette flip wants the real config at an idle desk;
+EX-19 visual checks + the desk items in
+docs/manual-flake-removal-testing.md; Phase 9 color-group audit;
+quartet items: keyboard focus mode (P0), Accessible rollout, e2e
+conversion (item c - fold scripts/run-e2e.sh, still untracked, plus
+the nested-matrix scripts into tests/e2e as P4 lands).
+
 SECOND DEFECT ROOT-CAUSED (found by the activateTaskAt busctl smoke
 the D-Bus merge owed): identifyShortcutsHost still walked the Plasma
 5 tree (find a CHILD named containmentViewLayout, then look inside)

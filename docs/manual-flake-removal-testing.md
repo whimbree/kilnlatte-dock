@@ -117,3 +117,21 @@ inStartup).
       Close the edit chrome within ~200ms of opening; switch layouts
       with chrome open; then `scripts/tools/dumpwins.sh` shows no
       lingering latte chrome windows (the 1096x527 layer-6 family).
+
+## Session two additions (2026-07-16, post-merge desk checks)
+
+- [ ] **WM surface pass after the WindowId newtype flip** (plan item
+      "WindowId newtype hardening", commits 46ce2dfbb..4ebadede9).
+      One normal desk session paying attention to: active-window
+      tracking (dock colorizer/dodge following the focused window),
+      dodge modes reacting to real window moves, window color-scheme
+      following, and a subwindow (dialog) closing+reopening still
+      tracked. Anything that stops following windows points at the
+      wm/ conversion.
+- [ ] **Meta+number and press-and-hold badges through the FIXED
+      shortcuts host** (a3d2afc7c). The old check verified fallbacks;
+      the real host is alive for the first time since the port. Hold
+      Meta: number badges must appear over tasks AND applets;
+      Meta+3 activates entry 3; Meta+Ctrl+3 opens a new instance.
+      If badges do not appear, grep the log for "shortcuts host" -
+      the discovery now warns loudly instead of dying silently.
