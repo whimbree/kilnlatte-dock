@@ -1,7 +1,52 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-17 (multi-distro CI plan + item 11 attribution).
+Last updated 2026-07-17 (multi-distro CI Phase A - Arch leg proven).
+
+## 2026-07-17 multi-distro CI Phase A: ARCH LEG PROVEN (branch multi-distro-ci-phase-a)
+
+Started executing docs/prompts/multi-distro-ci-execution-prompt.md. Phase
+A checkpoint on ONE distro (Arch) before scaling, per the prompt. Branch
+multi-distro-ci-phase-a off master bdd4f3e82, two commits (NOT pushed,
+NOT gated yet - gate-all owed before push):
+- 00400f16c fix(tests): the two qmltypes contract lookups hardcoded
+  nixpkgs' "qt-6/qml" subdir spelling, so configure aborted FATAL on
+  Arch (which uses "qt6/qml"). Now a helper searches both spellings from
+  libplasma's own libdir; verified the nix pin still resolves its
+  qt-6/qml store paths. This is a REAL portability defect that blocked
+  configuring the test suite on any non-nix distro.
+- d68ad64c0 build(ci): ci/containers/Containerfile.arch (deps-only
+  cacheable Arch layer) + ci/build-and-gate.sh (distro-agnostic
+  build/test/gate driver; gate stage is a marked # STUB: for Phase B).
+
+RESULT: the port builds clean (565/565) in the Arch container against Qt
+6.11.1 / KF6 6.28 / Plasma 6.7.3; 74/82 offscreen ctest pass. The 8
+failures are ALL harness-env, not port/build defects: 7 need the staged
+QML tree + LATTE_QML_MODULE_PATH the nix devShell exports
+(qmllint/qmlcompile/qmlcontracts/qmlinteraction gates, shortcutshost,
+layoutmanagerparking, representationswitch); schemesmodeltest is
+non-hermetic (reads ambient XDG_DATA_DIRS=/usr/share, finds real Breeze
+schemes not its fixtures). Both classes are Phase B in-container
+env-staging (filed in the plan's B2 item).
+
+USEFUL PRIOR ART (Bree flagged latte-dock-ng PR #26 mid-session): the ng
+fork's docker/ pipeline has per-distro Dockerfiles for
+arch/fedora/opensuse/ubuntu/debian/gentoo/mageia/nixos - a ready dep-NAME
+matrix to adapt for the remaining Phase A legs (ours is a superset; ng
+omits libksysguard/kpipewire/etc. and all render-gate deps). Also
+package-arch.sh + verify-ebuild-gentoo.sh for Phase F, and verify-
+install.sh's install-assertion pattern for "gate the installed package".
+Its build is build+install-verify ONLY (no render gates) - our headless
+tier is all-new. The PR's KF6 compat-shim finding (nixpkgs split-tree
+include breakage) does NOT affect merged-tree distros (Arch/Fedora/
+Debian), so our container legs are unaffected. NOTE: ng bakes in China
+USTC mirrors (USE_MIRRORS=true default) + a Mageia leg - neither wanted.
+
+NEXT: run gate-all.sh on the branch (the tests/CMakeLists.txt + ci/ files
+are CODE, need the stamp before push) -> push -> PR + lean Opus review ->
+ff-merge. Then Phase B (wire in-container nested-kwin + lavapipe, resolve
+the two env-staging classes above) OR widen Phase A to fedora/opensuse/
+neon/debian/gentoo/void using the ng dep matrix.
 
 ## 2026-07-17 NEW DIRECTION: multi-distro CI matrix for v0.12.0
 

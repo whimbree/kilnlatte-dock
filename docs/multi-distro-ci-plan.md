@@ -159,14 +159,31 @@ pass on every distro regardless of tier.
 ## Phased checklist
 
 ### Phase A - containerization (build the port on each distro)
-- [ ] A1 Base Containerfile + per-distro package layers; resolve the
+- [~] A1 Base Containerfile + per-distro package layers; resolve the
       distro dep-name matrix (Qt6/KF6/libplasma/kwin/mesa-lavapipe names
-      differ per distro). Commits:
-- [ ] A2 Clean cmake build of the port in each container locally (podman
+      differ per distro). ARCH DONE (ci/containers/Containerfile.arch,
+      deps-only cacheable layer + ci/build-and-gate.sh distro-agnostic
+      driver). Per-distro NAME reference: the latte-dock-ng docker/
+      pipeline (Bree's PR #26) covers arch/fedora/opensuse/ubuntu/debian/
+      gentoo - adapt those, but our set is a SUPERSET (libksysguard,
+      kpipewire, plasma-pa, plasma5support, kcmutils, sonnet,
+      ktextwidgets, qqc2-desktop-style, qt5compat, kidletime) PLUS the
+      render-gate deps ng omits (kwin, vulkan loader+lavapipe+validation,
+      fonts). Remaining: fedora/opensuse/neon/debian/gentoo/void layers.
+      Commits: d68ad64c0
+- [~] A2 Clean cmake build of the port in each container locally (podman
       is on the host - prototype here, no CI yet). Record per-distro
-      build quirks. Commits:
+      build quirks. ARCH DONE: builds clean (565/565) against Arch's Qt
+      6.11.1 / KF6 6.28 / Plasma 6.7.3; 74/82 offscreen ctest pass. QUIRK
+      found + fixed: two contract tests hardcoded the "qt-6/qml" (nixpkgs)
+      qmltypes subdir spelling; Arch uses "qt6/qml" so configure aborted
+      FATAL off-nix - now searches both (00400f16c). The 8 ctest failures
+      are all harness-env (7 need the staged QML tree + LATTE_QML_MODULE_
+      PATH; schemesmodeltest is non-hermetic re XDG_DATA_DIRS) -> Phase B.
+      Remaining distros TBD. Commits: 00400f16c, d68ad64c0
 - [ ] A3 Pin the exact base image tags that meet the Plasma 6.5 floor;
-      document the floor check per distro. Commits:
+      document the floor check per distro. Arch is rolling (archlinux:
+      latest for the prototype; archive-snapshot pin TBD). Commits:
 
 ### Phase B - headless gates in-container
 - [ ] B1 Get nested kwin_wayland + lavapipe running in each container
@@ -174,7 +191,17 @@ pass on every distro regardless of tier.
       differ by Mesa version; the harness already parameterizes ICD and
       no-permission-checks). Commits:
 - [ ] B2 Run the behavioral e2e recipes in-container; make them a hard
-      pass on each distro. Commits:
+      pass on each distro. KNOWN env-staging work surfaced in A2 (Arch
+      ctest): (1) build-and-gate.sh must stage the QML module tree and
+      export LATTE_QML_MODULE_PATH the way the nix devShell does, or the
+      QML gates (qmllint/qmlcompile/qmlcontracts/qmlinteraction) and the
+      QML-loading tests (shortcutshost, layoutmanagerparking,
+      representationswitch) hard-fail with "LATTE_QML_MODULE_PATH is not
+      set"; (2) schemesmodeltest is non-hermetic - it reads the ambient
+      XDG_DATA_DIRS and picks up the distro's real Breeze schemes instead
+      of its fixtures (the nix devShell's allow-listed XDG_DATA_DIRS hides
+      this), so it needs a fixture-only XDG_DATA_DIRS to be portable.
+      Commits:
 - [ ] B3 Run sceneprobe in-container in invariant+tolerance mode; confirm
       scenes render (not blank, right regions). Commits:
 
