@@ -109,17 +109,20 @@ plan item for the recorded decision. Never land replacement icons.)
    the keyboard focus mode for the dock window; then Accessible.*
    rollout per the inventory's gap list with qmltest pins; the Orca
    pass is acceptance and needs my hands at the end.
-9. **OPEN - CaptSilver adoption, remaining waves** (the analysis and
-   P1+P2 are DONE and merged: sceneprobe runs headless on lavapipe
-   with bit-exact goldens, six contract pins landed including the
-   alternatives createApplet live-bug fix). Remaining per
+9. **OPEN - CaptSilver adoption, remaining waves** (the analysis,
+   P1+P2 AND the follow-up scenes are DONE and merged: sceneprobe
+   runs headless on lavapipe with bit-exact goldens plus an opt-in
+   dgpu mode - works with a GPU, never requires one; six contract
+   pins landed including the alternatives createApplet live-bug fix;
+   the four follow-up scenes landed session two with probeExpect and
+   injection proof). Remaining per
    docs/captsilver-testability-adoption.md: P3 behavioral tests over
    lattedock-core (screenpool and visibility-reveal first - they
-   serve Phase 8), P4 e2e pixel assertions (latte-imgdiff + KWin
-   ScreenShot2, composes with the new D-Bus surface), follow-up
-   scenes (parabolic_zoom with a PINNED font, colorizer stack,
-   monochromatic icons, indicator glow), and cross-machine golden
-   verification when a second machine exists.
+   serve Phase 8; agent ran session two), P4 e2e pixel assertions
+   (latte-imgdiff + KWin ScreenShot2, composes with the new D-Bus
+   surface; the nested-kwin staged-dock recipe in the handoff is the
+   vehicle proof), and cross-machine golden verification when a
+   second machine exists.
 10. **OPEN - the tail**: Phase 9 color-group audit (surveyed: ~12
     files read Kirigami.Theme colors; audit each site's theme-object
     scope), WindowId newtype hardening (its own pass, wm/-wide blast

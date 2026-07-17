@@ -2342,11 +2342,22 @@ showed how much of the dock can only be driven by a pointer today.
             MultiEffect permutations, badgeeffect), all text-free so no
             font pinning needed yet; 9 goldens blessed at the strict
             {0,0} tier after a two-run byte-identical determinism check.
-            Scenes still owed (follow-up, not blockers): parabolic_zoom
-            (needs a pinned/shipped font or text-free redesign), the
-            colorizer ColorOverlay stack, forced-monochromatic icon
-            path, indicator glow. Cross-machine golden verification
-            still owed once a second machine exists.
+            FOLLOW-UP SCENES LANDED 2026-07-16 (session two, agent
+            ledger docs/agent-logs/2026-07-16-sceneprobe-followup-scenes.md):
+            parabolic_zoom (text-free redesign - production parabolic
+            content is icons, and a font file alone cannot pin
+            rendering), applet_colorizer (the 1f835402 ColorOverlay
+            stack), forced_monochromatic (the 1932db32 sites),
+            indicator_glow (GlowPoint + Shapes gradient port). All
+            four carry probeExpect invariants, defect-injection
+            negative proof, and {0,0}-tier goldens after two-run
+            byte-identical checks; 13/13 gate. Same wave: opt-in dgpu
+            device mode restored (my direction - works WITH a GPU,
+            never requires one; lavapipe stays the only CI tier),
+            verified on the real RX 5700 XT. Cross-machine golden
+            verification still owed once a second machine exists.
+            Follow-up commits: 0ecc2ea2e, 7ea3ed156, b7d02dc11,
+            af04acf35, 8d97c1e46.
             Commits: e0d5dcce9, e9f9d7734, 2c3547a18, c5372aba4
             (plus 27668839a, a build-check re-exec fix caught while
             running the gate suite for this item; the worktree merge
