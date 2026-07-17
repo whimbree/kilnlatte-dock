@@ -27,8 +27,17 @@ RUN pacman -Syu --noconfirm --needed \
         plasma-wayland-protocols layer-shell-qt \
         kwin wayland wayland-protocols \
         vulkan-headers vulkan-icd-loader vulkan-swrast vulkan-validation-layers \
-        noto-fonts dbus \
+        noto-fonts dbus libcap rsync perl \
     && pacman -Scc --noconfirm
+
+# kwin_wayland ships with cap_sys_nice=ep (the EFFECTIVE bit set). Podman's
+# default capability set excludes CAP_SYS_NICE, so execve of a file whose
+# effective caps aren't in the container bounding set fails EPERM
+# ("Operation not permitted") - the nested compositor never comes up. The
+# cap only lets kwin raise its scheduler priority, which is meaningless for
+# a throwaway headless CI compositor. Strip it so kwin execs under the
+# default locked-down cap set and CI needs no --cap-add.
+RUN setcap -r /usr/bin/kwin_wayland 2>/dev/null || true
 
 # The nested-kwin harness and sceneprobe gate read these to find the
 # distro's lavapipe ICD and Vulkan validation layers instead of the nix
