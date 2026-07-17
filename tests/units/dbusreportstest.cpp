@@ -40,6 +40,14 @@ private Q_SLOTS:
     void appletRecordSerialization();
     void appletRecordKeySet();
     void appletRecordsSerializeAsCompactJsonArray();
+
+    void visibilityModeRoundTrip_data();
+    void visibilityModeRoundTrip();
+    void settableVisibilityModeRefusals_data();
+    void settableVisibilityModeRefusals();
+    void trackerRecordSerialization();
+    void trackerRecordKeySet();
+    void trackerDataSerializesAsCompactJsonObject();
 };
 
 //! the exact sorted key list of a serialized record: the schema pin that
@@ -331,6 +339,119 @@ void DbusReportsTest::appletRecordsSerializeAsCompactJsonArray()
     QCOMPARE(document.array().at(1).toObject().value(QStringLiteral("id")).toInt(), 2);
 
     QCOMPARE(serializeAppletRecords({}), QStringLiteral("[]"));
+}
+
+//! every visibility mode must survive name -> mode -> name, so the two
+//! directions of the mapping can never drift apart; the settable parse
+//! agrees with the full inverse everywhere except "none"
+void DbusReportsTest::visibilityModeRoundTrip_data()
+{
+    visibilityModeNames_data();
+}
+
+void DbusReportsTest::visibilityModeRoundTrip()
+{
+    QFETCH(int, mode);
+    QFETCH(QString, name);
+
+    const auto expected = static_cast<Types::Visibility>(mode);
+    const auto parsed = visibilityModeFromName(name);
+
+    QVERIFY(parsed.has_value());
+    QCOMPARE(static_cast<int>(*parsed), static_cast<int>(expected));
+    QCOMPARE(visibilityModeName(*parsed), name);
+
+    const auto settable = settableVisibilityModeFromName(name);
+
+    if (expected == Types::None) {
+        QVERIFY(!settable.has_value());
+    } else {
+        QVERIFY(settable.has_value());
+        QCOMPARE(static_cast<int>(*settable), static_cast<int>(expected));
+    }
+}
+
+//! degenerate mode names must be refused (nullopt), never guessed: the
+//! D-Bus boundary turns nullopt into a loud qWarning refusal
+void DbusReportsTest::settableVisibilityModeRefusals_data()
+{
+    QTest::addColumn<QString>("name");
+
+    QTest::newRow("unknown") << QStringLiteral("dodgeEverything");
+    QTest::newRow("empty") << QString();
+    QTest::newRow("case mismatch") << QStringLiteral("AutoHide");
+    QTest::newRow("surrounding space") << QStringLiteral(" autoHide ");
+    QTest::newRow("unset-state name") << QStringLiteral("none");
+    QTest::newRow("numeric") << QStringLiteral("1");
+}
+
+void DbusReportsTest::settableVisibilityModeRefusals()
+{
+    QFETCH(QString, name);
+
+    QVERIFY(!settableVisibilityModeFromName(name).has_value());
+}
+
+//! one fully populated tracker record, pinning every field name and value
+//! type of trackerData() against docs/dbus-observability-interface.md
+void DbusReportsTest::trackerRecordSerialization()
+{
+    TrackerRecord record;
+    record.containmentId = 9;
+    record.enabled = true;
+    record.activeWindowTouching = true;
+    record.activeWindowTouchingEdge = true;
+    record.activeWindowMaximized = true;
+    record.existsWindowActive = true;
+    record.existsWindowTouching = true;
+    record.existsWindowTouchingEdge = true;
+    record.existsWindowMaximized = true;
+    record.lastActiveWindowPresent = true;
+    record.lastActiveWindowAppName = QStringLiteral("firefox");
+
+    const QJsonObject json = serializeTrackerRecord(record);
+
+    QCOMPARE(json.value(QStringLiteral("containmentId")).toInt(), 9);
+    QCOMPARE(json.value(QStringLiteral("enabled")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("activeWindowTouching")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("activeWindowTouchingEdge")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("activeWindowMaximized")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("existsWindowActive")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("existsWindowTouching")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("existsWindowTouchingEdge")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("existsWindowMaximized")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("lastActiveWindowPresent")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("lastActiveWindowAppName")).toString(), QStringLiteral("firefox"));
+}
+
+void DbusReportsTest::trackerRecordKeySet()
+{
+    const QStringList expected{
+        QStringLiteral("activeWindowMaximized"), QStringLiteral("activeWindowTouching"),
+        QStringLiteral("activeWindowTouchingEdge"), QStringLiteral("containmentId"),
+        QStringLiteral("enabled"), QStringLiteral("existsWindowActive"),
+        QStringLiteral("existsWindowMaximized"), QStringLiteral("existsWindowTouching"),
+        QStringLiteral("existsWindowTouchingEdge"), QStringLiteral("lastActiveWindowAppName"),
+        QStringLiteral("lastActiveWindowPresent")};
+
+    QCOMPARE(sortedKeys(serializeTrackerRecord(TrackerRecord{})), expected);
+}
+
+void DbusReportsTest::trackerDataSerializesAsCompactJsonObject()
+{
+    TrackerRecord record;
+    record.containmentId = 4;
+
+    const QString data = serializeTrackerData(record);
+
+    //! compact serialization: no newlines, per the interface doc
+    QVERIFY(!data.contains(QLatin1Char('\n')));
+
+    QJsonParseError error{};
+    const QJsonDocument document = QJsonDocument::fromJson(data.toUtf8(), &error);
+    QCOMPARE(error.error, QJsonParseError::NoError);
+    QVERIFY(document.isObject());
+    QCOMPARE(document.object().value(QStringLiteral("containmentId")).toInt(), 4);
 }
 
 QTEST_GUILESS_MAIN(DbusReportsTest)
