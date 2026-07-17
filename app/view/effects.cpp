@@ -51,19 +51,6 @@ void Effects::init()
     connect(this, &Effects::rectChanged, this, &Effects::updateEffects);
 
 
-    connect(this, &Effects::backgroundCornersMaskChanged, this, &Effects::updateMask);
-    connect(this, &Effects::backgroundRadiusEnabledChanged, this, &Effects::updateMask);
-    connect(this, &Effects::subtractedMaskRegionsChanged, this, &Effects::updateMask);
-    connect(this, &Effects::unitedMaskRegionsChanged, this, &Effects::updateMask);
-    connect(m_view, &QQuickWindow::widthChanged, this, &Effects::updateMask);
-    connect(m_view, &QQuickWindow::heightChanged, this, &Effects::updateMask);
-    connect(m_view, &Latte::View::behaveAsPlasmaPanelChanged, this, &Effects::updateMask);
-    connect(this, &Effects::rectChanged, this, [&]() {
-        if (!Latte::compositingActive() && !m_view->behaveAsPlasmaPanel()) {
-            setMask(m_rect);
-        }
-    });
-
     connect(this, &Effects::backgroundRadiusChanged, this, &Effects::updateBackgroundCorners);
 
     connect(this, &Effects::drawShadowsChanged, this, [&]() {
@@ -83,7 +70,6 @@ void Effects::init()
     connect(m_view, &Latte::View::behaveAsPlasmaPanelChanged, this, &Effects::updateEffects);
     connect(this, &Effects::drawShadowsChanged, this, &Effects::updateShadows);
     connect(m_view, &Latte::View::behaveAsPlasmaPanelChanged, this, &Effects::updateShadows);
-    connect(m_view, &Latte::View::configWindowGeometryChanged, this, &Effects::updateMask);
     connect(m_view, &Latte::View::layoutChanged, this, &Effects::onPopUpMarginChanged);
 
     connect(&m_theme, &Plasma::Theme::themeChanged, this, [&]() {
@@ -282,10 +268,12 @@ void Effects::setMask(QRect area)
     if (m_mask == area)
         return;
 
+    //! the value is what matters here: QML (the visibility overlay, the
+    //! debug window) reads it back and the visibility manager stamps
+    //! ISHIDDENMASK through it; under wayland the WINDOW mask is owned by
+    //! setInputMask() alone (input + damage, see there). The old X11 arms
+    //! that painted a visual mask from this value died with the backend.
     m_mask = area;
-    updateMask();
-
-    // qDebug() << "dock mask set:" << m_mask;
     Q_EMIT maskChanged();
 }
 
@@ -302,32 +290,19 @@ void Effects::setInputMask(QRect area)
 
     m_inputMask = area;
 
-    if (KWindowSystem::isPlatformX11()) {
-        if (m_view->devicePixelRatio() != 1.0) {
-            //!Fix for X11 Global Scale
-            auto ratio = m_view->devicePixelRatio();
-            area = QRect(qRound(area.x() * ratio),
-                         qRound(area.y() * ratio),
-                         qRound(area.width()*ratio),
-                         qRound(area.height() * ratio));
-        }
-
-        m_corona->wm()->setInputMask(m_view, area);
+    //! Under Qt6's wayland backend the window mask no longer carries
+    //! only the input area: Qt also restricts each frame's submitted
+    //! damage to it, so an empty or degenerate region freezes the
+    //! surface at its last content - initially fully transparent, which
+    //! made the whole dock render 30fps into buffers that never showed.
+    //! The mask computation legitimately passes degenerate rects while
+    //! the layouter is still warming up (localGeometry width 0) and
+    //! Qt.rect(0,0,-1,-1) as the explicit clear request; both must clear
+    //! the mask instead of being forwarded.
+    if (area.isValid() && !area.isEmpty()) {
+        m_view->setMask(area);
     } else {
-        //! Under Qt6's wayland backend the window mask no longer carries
-        //! only the input area: Qt also restricts each frame's submitted
-        //! damage to it, so an empty or degenerate region freezes the
-        //! surface at its last content - initially fully transparent, which
-        //! made the whole dock render 30fps into buffers that never showed.
-        //! The mask computation legitimately passes degenerate rects while
-        //! the layouter is still warming up (localGeometry width 0) and
-        //! Qt.rect(0,0,-1,-1) as the explicit clear request; both must clear
-        //! the mask instead of being forwarded.
-        if (area.isValid() && !area.isEmpty()) {
-            m_view->setMask(area);
-        } else {
-            m_view->setMask(QRegion());
-        }
+        m_view->setMask(QRegion());
     }
 
     Q_EMIT inputMaskChanged();
@@ -370,51 +345,6 @@ void Effects::onPopUpMarginChanged()
     m_view->setProperty("_applets_popup_margin", QVariant(popUpMargin()));
 }
 
-void Effects::forceMaskRedraw()
-{
-    updateMask();
-}
-
-void Effects::setSubtractedMaskRegion(const QString &regionid, const QRegion &region)
-{
-    if (m_subtractedMaskRegions.contains(regionid) && m_subtractedMaskRegions[regionid] == region) {
-        return;
-    }
-
-    m_subtractedMaskRegions[regionid] = region;
-    Q_EMIT subtractedMaskRegionsChanged();
-}
-
-void Effects::removeSubtractedMaskRegion(const QString &regionid)
-{
-    if (!m_subtractedMaskRegions.contains(regionid)) {
-        return;
-    }
-
-    m_subtractedMaskRegions.remove(regionid);
-    Q_EMIT subtractedMaskRegionsChanged();
-}
-
-void Effects::setUnitedMaskRegion(const QString &regionid, const QRegion &region)
-{
-    if (m_unitedMaskRegions.contains(regionid) && m_unitedMaskRegions[regionid] == region) {
-        return;
-    }
-
-    m_unitedMaskRegions[regionid] = region;
-    Q_EMIT unitedMaskRegionsChanged();
-}
-
-void Effects::removeUnitedMaskRegion(const QString &regionid)
-{
-    if (!m_unitedMaskRegions.contains(regionid)) {
-        return;
-    }
-
-    m_unitedMaskRegions.remove(regionid);
-    Q_EMIT unitedMaskRegionsChanged();
-}
-
 QRegion Effects::customMask(const QRect &rect)
 {
     QRegion result = rect;
@@ -448,21 +378,6 @@ QRegion Effects::customMask(const QRect &rect)
     return result;
 }
 
-QRegion Effects::maskCombinedRegion()
-{
-    QRegion region = m_mask;
-
-    for(auto subregion : m_subtractedMaskRegions) {
-        region = region.subtracted(subregion);
-    }
-
-    for(auto subregion : m_unitedMaskRegions) {
-        region = region.united(subregion);
-    }
-
-    return region;
-}
-
 void Effects::updateBackgroundCorners()
 {
     if (m_backgroundRadius<0) {
@@ -475,54 +390,6 @@ void Effects::updateBackgroundCorners()
     Q_EMIT backgroundCornersMaskChanged();
 }
 
-void Effects::updateMask()
-{
-    if (Latte::compositingActive()) {
-        if (KWindowSystem::isPlatformX11()) {
-            if (m_view->behaveAsPlasmaPanel()) {
-                // set as NULL in order for plasma framrworks to identify NULL Mask properly
-                m_view->setMask(QRect(-1, -1, 0, 0));
-            } else {
-                m_view->setMask(QRect(0, 0, m_view->width(), m_view->height()));
-            }
-        } else {
-            // under wayland do nothing
-        }
-    } else {
-        QRegion fixedMask;
-
-        QRect maskRect = m_view->behaveAsPlasmaPanel() ? QRect(0,0, m_view->width(), m_view->height()) : m_mask;
-
-        if (m_backgroundRadiusEnabled) {
-            //! CustomBackground way
-            fixedMask = customMask(QRect(0,0,maskRect.width(), maskRect.height()));
-        } else {
-            //! Plasma::Theme way
-            //! this is used when compositing is disabled and provides
-            //! the correct way for the mask to be painted in order for
-            //! rounded corners to be shown correctly
-            //! the enabledBorders check was added because there was cases
-            //! that the mask region wasn't calculated correctly after location changes
-            if (!m_panelBackgroundSvg) {
-                return;
-            }
-
-            const QVariant maskProperty = m_panelBackgroundSvg->property("mask");
-            if (static_cast<QMetaType::Type>(maskProperty.type()) == QMetaType::QRegion) {
-                fixedMask = maskProperty.value<QRegion>();
-            }
-        }
-
-        fixedMask.translate(maskRect.x(), maskRect.y());
-
-        //! fix for KF5.32 that return empty QRegion's for the mask
-        if (fixedMask.isEmpty()) {
-            fixedMask = QRegion(maskRect);
-        }
-
-        m_view->setMask(fixedMask);
-    }
-}
 
 void Effects::clearShadows()
 {
@@ -579,17 +446,6 @@ void Effects::updateEffects()
 
                 //! adjust mask coordinates based on local coordinates
                 int fX = m_rect.x(); int fY = m_rect.y();
-
-                //! Latte is now using GtkFrameExtents so Effects geometries must be adjusted
-                //! windows that use GtkFrameExtents and apply Effects on them they take GtkFrameExtents
-                //! as granted
-                if (KWindowSystem::isPlatformX11() && !m_view->byPassWM()) {
-                    if (m_view->location() == Plasma::Types::BottomEdge) {
-                        fY = qMax(0, fY - m_view->headThicknessGap());
-                    } else if (m_view->location() == Plasma::Types::RightEdge) {
-                        fX = qMax(0, fX - m_view->headThicknessGap());
-                    }
-                }
 
                 //! There are cases that mask is NULL even though it should not
                 //! Example: SidebarOnDemand from v0.10 that BEHAVEASPLASMAPANEL in EditMode
