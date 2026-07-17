@@ -8,6 +8,11 @@ include(ECMAddTests)
 # extracted core header, enforced by scripts/coverage-ratchet.sh.
 add_subdirectory(units)
 
+# sceneprobe render harness (docs/captsilver-testability-adoption.md P1):
+# builds the probe/imgdiff binaries and registers the comparator unit test;
+# the render gate itself is scripts/sceneprobe-gate.sh (needs nested kwin).
+add_subdirectory(sceneprobe)
+
 ecm_add_test(importerregressiontest.cpp
     TEST_NAME importerregressiontest
     LINK_LIBRARIES lattedock-core Qt6::Test
