@@ -86,6 +86,11 @@ mapfile -t recipes < <(
 )
 
 recipe_mode() { sed -n 's/^# e2e-mode: *//p' "$1" | head -1; }
+# A recipe that reproduces a known-open bug carries "# e2e-expect: fail": the
+# driver then treats its failure as EXPECTED (XFAIL, not counted against the
+# suite) and its unexpected PASS as a hard failure (XPASS - the guarded bug is
+# fixed, so the marker must come off and the recipe becomes a real guard).
+recipe_expect() { sed -n 's/^# e2e-expect: *//p' "$1" | head -1; }
 
 # ---- nested vehicle --------------------------------------------------------
 
@@ -190,7 +195,7 @@ else
     start_live
 fi
 
-failed=0 skipped=0 ran=0 passed=0
+failed=0 skipped=0 ran=0 passed=0 xfailed=0
 for recipe in "${recipes[@]}"; do
     name="$(basename "$recipe")"
     if [[ ! -x "$recipe" ]]; then
@@ -202,6 +207,11 @@ for recipe in "${recipes[@]}"; do
     case "$constraint" in
         ""|nested-only|live-only) ;;
         *) echo "run-e2e: FAIL unknown e2e-mode marker '$constraint' in $name (allowed: nested-only, live-only, or none)"; failed=$((failed+1)); continue;;
+    esac
+    expect="$(recipe_expect "$recipe")"
+    case "$expect" in
+        ""|fail) ;;
+        *) echo "run-e2e: FAIL unknown e2e-expect marker '$expect' in $name (allowed: fail, or none)"; failed=$((failed+1)); continue;;
     esac
     if [[ ( "$constraint" == "nested-only" && "$MODE" != nested ) \
        || ( "$constraint" == "live-only"   && "$MODE" != live   ) ]]; then
@@ -224,11 +234,23 @@ for recipe in "${recipes[@]}"; do
     echo "run-e2e: ---- $name"
     ran=$((ran+1))
     if "$recipe"; then
-        echo "run-e2e: PASS $name"
-        passed=$((passed+1))
+        if [[ "$expect" == fail ]]; then
+            #! the guarded bug is FIXED - this must go red until the marker is
+            #! removed and the recipe is promoted to a real guard
+            echo "run-e2e: XPASS $name (expected to fail but passed - remove '# e2e-expect: fail', the guarded condition is fixed)"
+            failed=$((failed+1))
+        else
+            echo "run-e2e: PASS $name"
+            passed=$((passed+1))
+        fi
     else
-        echo "run-e2e: FAIL $name"
-        failed=$((failed+1))
+        if [[ "$expect" == fail ]]; then
+            echo "run-e2e: XFAIL $name (expected failure of a known-open bug, not counted)"
+            xfailed=$((xfailed+1))
+        else
+            echo "run-e2e: FAIL $name"
+            failed=$((failed+1))
+        fi
         if [[ "$MODE" == nested ]]; then
             cp "$E2E_DOCK_LOG" "$E2E_ARTIFACTS/$name.dock.log" 2>/dev/null || true
             cp "$E2E_KWIN_LOG" "$E2E_ARTIFACTS/$name.kwin.log" 2>/dev/null || true
@@ -251,5 +273,5 @@ else
     finish_live
 fi
 
-echo "run-e2e: $passed/$ran recipes passed (${skipped} skipped for mode)"
+echo "run-e2e: $passed/$ran recipes passed (${skipped} skipped for mode, ${xfailed} xfail)"
 [[ "$failed" == 0 ]]

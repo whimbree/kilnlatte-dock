@@ -104,7 +104,18 @@ Adopt latte-dock-qt6's three-piece shape, adapted rather than copied:
   (`scripts/lib-nested-kwin.sh`); recipe helpers live in
   `tests/e2e/lib.sh`. Assertions are D-Bus state first (lifecycleState,
   viewsData and friends); pixels only where pixels are the thing under
-  test. Every recipe passes SOLO; the pointer-precision recipes
+  test. The ONE thing D-Bus state cannot see is state/render
+  divergence - the dock believing the right geometry while the
+  compositor draws it elsewhere - so `e2e_assert_geometry_agrees`
+  (`060-geometry-agreement.sh`) compares each view's reported origin
+  against its true rendered surface position as a standing guard for
+  exactly that class. A recipe that reproduces a known-open bug carries
+  a `# e2e-expect: fail` marker: the driver reports its failure as XFAIL
+  (not counted against the suite) and its unexpected pass as XPASS (a
+  hard failure - the guarded bug is fixed, so the marker comes off and
+  the recipe becomes a real guard). `060` is XFAIL today against the
+  Phase 8 drift below and will XPASS the moment it is fixed.
+  Every recipe passes SOLO; the pointer-precision recipes
   (`050-drag-reorder`, `parabolic-hover-preview`) and the
   focus-grant-timed `keyboard-navigation-mode` can flake in a long
   back-to-back run because the bottom-dock surface-geometry drift filed

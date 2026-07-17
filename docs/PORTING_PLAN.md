@@ -1187,7 +1187,13 @@ multi-view, multi-monitor setup.
       surface re-anchors mid-suite (see docs/TESTING.md's e2e note). A
       per-recipe dock reseed was tried and worsened it (a fresh surface
       is less settled), so the fix has to be this root cause, not the
-      harness.
+      harness. REPRODUCTION IS NOW A FIRST-CLASS TEST:
+      tests/e2e/060-geometry-agreement.sh asserts reported==rendered
+      geometry via e2e_assert_geometry_agrees and currently XFAILs at
+      -44px (marked # e2e-expect: fail, so it does not red the suite).
+      When this item lands the recipe XPASSes and the driver goes red
+      on purpose - that is the signal to delete the recipe's two marker
+      lines and promote it to a permanent standing guard.
       Commits:
 
 - [x] Render-thread crash whenever an overflowing dock relayouts (enter

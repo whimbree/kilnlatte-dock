@@ -266,3 +266,46 @@ v = match[0]
 print($expr)
 "
 }
+
+# e2e_geometry_drift <containment-id>: pixels the view's rendered surface sits
+# off its REPORTED origin, rendered_x - (absoluteGeometry.x - localGeometry.x).
+# Zero means the compositor draws the dock exactly where viewsData claims it
+# is; a nonzero value is the state/render divergence that every D-Bus assertion
+# in this suite is blind to by construction (viewsData is self-consistent even
+# when the surface renders elsewhere - the Phase 8 bottom-dock drift is the
+# known instance). Prints the signed x drift, or returns non-zero (no output)
+# for a view whose window this helper cannot locate - a non-horizontal or
+# non-screen-width dock, a clone, or a view still settling.
+e2e_geometry_drift() {
+    local id="$1" winx reportedx
+    winx="$(e2e_view_window_x "$id")"
+    [[ -n "$winx" ]] || return 1
+    reportedx="$(e2e_view_field "$id" 'v["absoluteGeometry"][0] - v["localGeometry"][0]')" || return 1
+    [[ -n "$reportedx" ]] || return 1
+    echo $(( winx - reportedx ))
+}
+
+# e2e_assert_geometry_agrees [tolerance-px]: every LOCATABLE horizontal view's
+# rendered surface must sit within <tolerance> (default 2, for sub-pixel
+# rounding) of the origin viewsData reports. Fails loud, naming each divergent
+# view. This is the standing guard for the one bug class the D-Bus assertions
+# cannot catch: the dock believing the right geometry while the compositor
+# draws it somewhere else. Views the drift helper cannot measure are skipped
+# (not silently passed) - a run where NOTHING was measurable also fails, so a
+# broken dump can never look like agreement.
+e2e_assert_geometry_agrees() {
+    local tol="${1:-2}" id drift bad=0 measured=0
+    for id in $(e2e_json viewsData | python3 -c 'import json,sys; print("\n".join(str(v["containmentId"]) for v in json.load(sys.stdin)))'); do
+        drift="$(e2e_geometry_drift "$id")" || continue
+        measured=$((measured + 1))
+        if (( drift < -tol || drift > tol )); then
+            echo "e2e_assert_geometry_agrees: view $id renders ${drift}px off its reported origin (tolerance ${tol}px)" >&2
+            bad=1
+        fi
+    done
+    if (( measured == 0 )); then
+        echo "e2e_assert_geometry_agrees: no view geometry was measurable - refusing to report agreement" >&2
+        return 1
+    fi
+    (( bad == 0 ))
+}
