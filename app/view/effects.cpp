@@ -22,9 +22,6 @@
 // KDE
 #include <KWindowEffects>
 #include <KWindowSystem>
-#if HAVE_X11
-#include <KX11Extras>
-#endif
 
 
 namespace Latte {
@@ -61,16 +58,6 @@ void Effects::init()
     connect(m_view, &QQuickWindow::widthChanged, this, &Effects::updateMask);
     connect(m_view, &QQuickWindow::heightChanged, this, &Effects::updateMask);
     connect(m_view, &Latte::View::behaveAsPlasmaPanelChanged, this, &Effects::updateMask);
-#if HAVE_X11
-    connect(KX11Extras::self(), &KX11Extras::compositingChanged, this, [&]() {
-        if (!Latte::compositingActive() && !m_view->behaveAsPlasmaPanel()) {
-            setMask(m_rect);
-        }
-
-        updateMask();
-    });
-#endif
-
     connect(this, &Effects::rectChanged, this, [&]() {
         if (!Latte::compositingActive() && !m_view->behaveAsPlasmaPanel()) {
             setMask(m_rect);

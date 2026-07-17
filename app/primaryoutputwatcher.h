@@ -7,7 +7,6 @@
 #ifndef PRIMARYOUTPUTWATCHER_H
 #define PRIMARYOUTPUTWATCHER_H
 
-#include <QAbstractNativeEventFilter>
 #include <QObject>
 
 namespace KWayland
@@ -21,7 +20,7 @@ class ConnectionThread;
 
 class QScreen;
 
-class PrimaryOutputWatcher : public QObject, public QAbstractNativeEventFilter
+class PrimaryOutputWatcher : public QObject
 {
     Q_OBJECT
 public:
@@ -38,17 +37,11 @@ protected:
 
 private:
     void setupRegistry();
-    bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;
 
-    // All
     QString m_primaryOutputName;
 
-    // Wayland
     KWayland::Client::Registry *m_registry = nullptr;
     QString m_primaryOutputWayland;
-
-    // Xrandr
-    int m_xrandrExtensionOffset;
 };
 
 #endif // PRIMARYOUTPUTWATCHER_H

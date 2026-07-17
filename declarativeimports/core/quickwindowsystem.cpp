@@ -14,9 +14,6 @@
 
 // KDE
 #include <KWindowSystem>
-#if HAVE_X11
-#include <KX11Extras>
-#endif
 
 namespace Latte {
 
@@ -27,20 +24,6 @@ QuickWindowSystem::QuickWindowSystem(QObject *parent)
         //! the wayland compositor is the display server, compositing is unconditional
         m_compositing = true;
     }
-#if HAVE_X11
-    else {
-        connect(KX11Extras::self(), &KX11Extras::compositingChanged
-        , this, [&](bool enabled) {
-            if (m_compositing == enabled)
-                return;
-
-            m_compositing = enabled;
-            Q_EMIT compositingChanged();
-        });
-
-        m_compositing = KX11Extras::compositingActive();
-    }
-#endif
 }
 
 QuickWindowSystem::~QuickWindowSystem()
@@ -56,11 +39,6 @@ bool QuickWindowSystem::compositingActive() const
 bool QuickWindowSystem::isPlatformWayland() const
 {
     return KWindowSystem::isPlatformWayland();
-}
-
-bool QuickWindowSystem::isPlatformX11() const
-{
-    return KWindowSystem::isPlatformX11();
 }
 
 } //end of namespace

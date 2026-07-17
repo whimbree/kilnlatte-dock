@@ -24,8 +24,8 @@ namespace Latte {
 QString rectToString(const QRect &rect);
 QRect stringToRect(const QString &str);
 
-//! KF6 moved the X11 compositing query to KX11Extras; a wayland compositor is
-//! the display server, so compositing is unconditionally active there
+//! a wayland compositor is the display server, so compositing is
+//! unconditionally active on the only platform the dock runs on
 bool compositingActive();
 
 //! returns the standard path found that contains the subPath

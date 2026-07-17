@@ -28,9 +28,6 @@
 
 // X11
 #include <KWindowSystem>
-#if HAVE_X11
-#include <KX11Extras>
-#endif
 
 #define DEFAULTCOLORSCHEME "default.colors"
 #define REVERSEDCOLORSCHEME "reversed.colors"
@@ -55,20 +52,6 @@ Theme::Theme(KSharedConfig::Ptr config, QObject *parent) :
         //! the wayland compositor is the display server, compositing is unconditional
         m_compositing = true;
     }
-#if HAVE_X11
-    else {
-        connect(KX11Extras::self(), &KX11Extras::compositingChanged
-                , this, [&](bool enabled) {
-            if (m_compositing == enabled)
-                return;
-
-            m_compositing = enabled;
-            Q_EMIT compositingChanged();
-        });
-
-        m_compositing = KX11Extras::compositingActive();
-    }
-#endif
     //!
 
     loadConfig();

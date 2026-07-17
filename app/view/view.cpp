@@ -51,9 +51,6 @@
 #include <PlasmaActivities/Consumer>
 #include <KWindowSystem>
 #include <config-latte.h>
-#if HAVE_X11
-#include <KX11Extras>
-#endif
 
 // Plasma
 #include <Plasma/Containment>
@@ -100,17 +97,6 @@ View::View(Plasma::Corona *corona, QScreen *targetScreen, bool byPassX11WM)
         m_byPassWM = byPassX11WM;
     } else {
         setFlags(flags);
-    }
-
-    if (KWindowSystem::isPlatformX11()) {
-        //! Enable OnAllDesktops during creation in order to protect corner cases that is ignored
-        //! during startup. Such corner case is bug #447689.
-        //! Best guess is that this is needed because OnAllDesktops is set through visibilitymanager
-        //! after containment has been assigned. That delay might lead wm ignoring the flag
-        //! until it is reapplied.
-#if HAVE_X11
-        KX11Extras::setOnAllDesktops(winId(), true);
-#endif
     }
 
     if (targetScreen) {
@@ -821,11 +807,6 @@ void View::statusChanged(Plasma::Types::ItemStatus status)
         m_visibility->removeBlockHidingEvent(BLOCKHIDINGNEEDSATTENTIONTYPE);
         setFlags(flags() & ~Qt::WindowDoesNotAcceptFocus);
         m_visibility->initViewFlags();
-#if HAVE_X11
-        if (KWindowSystem::isPlatformX11()) {
-            KX11Extras::forceActiveWindow(winId());
-        }
-#endif
         if (m_layerShellConfigured) {
             LS::setFocusPolicy(this, true);
         }
