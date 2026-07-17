@@ -112,6 +112,20 @@ target_include_directories(storagetest PRIVATE
     ${CMAKE_SOURCE_DIR}/app
     ${CMAKE_BINARY_DIR}/app)
 
+# UniversalSettings over a throwaway KSharedConfig with a null corona: the
+# signal->saveConfig persistence wiring, guarded setters, documented
+# defaults, screen scales and the transient inConfigureAppletsMode contract;
+# carries its own main() so XDG_CONFIG_HOME lands before QGuiApplication.
+ecm_add_test(universalsettingstest.cpp
+    TEST_NAME universalsettingstest
+    LINK_LIBRARIES lattedock-core Qt6::Test
+)
+set_tests_properties(universalsettingstest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_include_directories(universalsettingstest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app
+    ${CMAKE_BINARY_DIR}/app)
+
 # The app/data value-type layer: tables, sentinels, state machines and the
 # serialization round trips the settings dialogs and storage ride on.
 ecm_add_test(datatypestest.cpp

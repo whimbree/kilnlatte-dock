@@ -1,4 +1,4 @@
-68
+69
 abstractlayouttest
 activitiesinfotest
 activitysetalgebratest
@@ -59,6 +59,7 @@ storagetest
 syncedlaunchersclienttest
 tasksbackendtest
 tooltiptexttest
+universalsettingstest
 userconfiguringcontracttest
 visibilityrevealtest
 visibleindextest
