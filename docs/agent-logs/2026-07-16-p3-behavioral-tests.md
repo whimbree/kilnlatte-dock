@@ -290,8 +290,76 @@ it claims to pin at this optimization level.
 
 ## Gates
 
-(recorded when run)
+- full build (RelWithDebInfo, worktree): OK (301 targets)
+- full ctest: 65/65 green; tests/ratchet-baseline updated with each
+  new entry in the same commit (54 -> 65 over eleven test commits,
+  each intermediate state consistent)
+- nix develop -c ./scripts/coverage-ratchet.sh: OK (65 ctest entries,
+  28 unit headers paired)
+- nix develop -c ./scripts/qmllint-gate.sh: OK (155 finding files,
+  6025 curated warnings, baseline matched - no QML touched)
+- nix develop -c ./scripts/build-check.sh --fresh (both WITH_X11
+  variants + full ctest + ratchet): OK
 
 ## Commits
 
-(final list; the merge to master will rebase these hashes)
+(the merge to master will rebase these hashes)
+
+- 8fd65aaeb docs: open the P3 behavioral-test transplant ledger
+- cc81a0fbb fix(screenpool): remove every listed obsolete screen, not
+  just until the first absent id
+- bb07f267b test: pin both ScreenPool implementations over seeded
+  connector groups
+- 44f73ef9a test: pin the edge-ghost reveal predicate over every
+  visibility mode
+- 32312e605 docs: ledger for the two Phase 8 transplants
+- 6a4ef9ac6 fix(layout): keep the last character of non-layout names
+  in layoutName
+- 28f2b2ab6 test: strengthen screenpooltest beyond the fork's cases
+- 24c9f44b2 test: pin AbstractLayout persistence, setter guards and
+  the layoutName parser
+- 313d1320f test: pin the activity-manager state validation and
+  running filter
+- d9e08a4e1 test: drive SyncedLaunchers end to end over its real
+  broadcast surface
+- f5e71f1da test: pin the LastActiveWindow tracker graph over a
+  concrete headless WM
+- 1c80a1e9e test: pin the vendored tasks backend and smart-launcher
+  item
+- c008d539c fix(data): default-initialize Applet.isSelected
+- 1e7830d63 fix(data): repair three composition bugs in the View
+  debug string
+- 6eb7d5f38 test: cover the app/data value-type layer
+- 4c2621827 fix(settings): reject negative rows in the table models'
+  data()
+- 9a9d5c731 test: pin the applets and screens settings table models
+- a980110e8 fix(view): sidebar state is assigned, not compared and
+  discarded
+- 6999616b1 fix(settings): layouts controller modeIsChanged delegates
+  instead of recursing
+- 27be86be2 test: source guards for the two one-token fixes without a
+  headless repro
+- 6dd5bab78 docs: ledger through all ten candidates plus the source
+  guards
+- (this commit) docs: gates and final commit list
+
+## Verdict summary
+
+1. screenpooltest: ADOPTED + removeScreens FIX (live bug), then
+   strengthened (+5 cases)
+2. visibilityrevealtest: ADOPTED, extended over the full enum domain
+3. abstractlayouttest: ADOPTED + layoutName FIX (live bug), extended
+4. activitiesinfotest: ADOPTED (code already correct), extended
+5. syncedlaunchersclienttest: ADOPTED, REDESIGNED to drive the real
+   object (fork's mirror shape rejected)
+6. lastactivewindowtest: ADOPTED, adapted to WindowId=QByteArray,
+   real-signal-path drive, extended
+7. smartlauncheritemtest: ADOPTED, extended (signal discipline)
+8. tasksbackendtest: ADOPTED, extended (data table, third mime key)
+9. datatypestest: ADOPTED + isSelected FIX + viewdata FIXES (three),
+   missing-id case adapted to OUR contract, poison case redesigned
+10. settingsmodelstest: ADOPTED + negative-row guard FIX (crash),
+    extended
+- sourceguardtest: two cases adopted as pins for the sidebar and
+  modeIsChanged fixes
+- storageroundtriptest, templatesnametest: SKIPPED (mirror logic)
