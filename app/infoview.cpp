@@ -22,9 +22,6 @@
 // KDE
 #include <KLocalizedContext>
 #include <KWindowSystem>
-#if HAVE_X11
-#include <KX11Extras>
-#endif
 
 // Plasma
 #include <KPackage/Package>
@@ -170,16 +167,10 @@ void InfoView::setupWaylandIntegration()
 
 void InfoView::setOnActivities(QStringList activities)
 {
-#if HAVE_X11
-    if (KWindowSystem::isPlatformX11()) {
-        KX11Extras::setOnActivities(winId(), activities);
-        return;
-    }
-#endif
-    //! STUB: Phase 4 - KF6 moved WId-based setOnActivities to KX11Extras and
-    //! there is no equivalent call for Wayland here yet; the info window shows
-    //! on all activities until the window-system backend phase decides whether
-    //! per-activity placement needs a wayland implementation
+    //! STUB: Phase 4 - there is no wayland equivalent of the old WId-based
+    //! setOnActivities here yet; the info window shows on all activities
+    //! until the window-system backend phase decides whether per-activity
+    //! placement needs a wayland implementation
     Q_UNUSED(activities);
 }
 

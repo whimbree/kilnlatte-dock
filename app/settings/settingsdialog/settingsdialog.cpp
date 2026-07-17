@@ -34,9 +34,6 @@
 #include <KMessageBox>
 #include <KWindowSystem>
 #include <config-latte.h>
-#if HAVE_X11
-#include <KX11Extras>
-#endif
 #include <KIO/OpenFileManagerWindowJob>
 
 
@@ -96,12 +93,6 @@ SettingsDialog::SettingsDialog(QWidget *parent, Latte::Corona *corona)
             m_ui->layoutsView->setColumnHidden(Settings::Model::Layouts::BORDERSCOLUMN, true);
         }
     });
-
-    //! timers
-    m_activitiesTimer.setSingleShot(true);
-    m_activitiesTimer.setInterval(750);
-    connect(&m_activitiesTimer, &QTimer::timeout, this, &SettingsDialog::updateWindowActivities);
-    m_activitiesTimer.start();
 
     updateApplyButtonsState();
 }
@@ -605,15 +596,6 @@ void SettingsDialog::dropEvent(QDropEvent *event)
 }
 
 
-
-void SettingsDialog::updateWindowActivities()
-{
-#if HAVE_X11
-    if (KWindowSystem::isPlatformX11()) {
-        KX11Extras::setOnActivities(winId(), QStringList());
-    }
-#endif
-}
 
 void SettingsDialog::save()
 {

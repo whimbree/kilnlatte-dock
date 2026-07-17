@@ -16,13 +16,6 @@
 #include <QStandardPaths>
 #include <QStringList>
 
-// KDE
-#include <KWindowSystem>
-
-#include <config-latte.h>
-#if HAVE_X11
-#include <KX11Extras>
-#endif
 
 namespace Latte {
 
@@ -88,11 +81,8 @@ QString configPath()
 
 bool compositingActive()
 {
-#if HAVE_X11
-    if (KWindowSystem::isPlatformX11()) {
-        return KX11Extras::compositingActive();
-    }
-#endif
+    //! the wayland compositor is the display server - compositing is
+    //! unconditional on the only platform the dock runs on
     return true;
 }
 

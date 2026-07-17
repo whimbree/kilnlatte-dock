@@ -95,7 +95,6 @@ private Q_SLOTS:
     void showLayoutInformation();
     void showScreensInformation();
     void updateApplyButtonsState();
-    void updateWindowActivities();    
 
     void loadConfig();
     void saveConfig();
@@ -146,8 +145,6 @@ private:
     KConfigGroup m_deprecatedStorage;
     KConfigGroup m_storage;
 
-    //! workaround to assign ALLACTIVITIES during startup
-    QTimer m_activitiesTimer;
 };
 
 }
