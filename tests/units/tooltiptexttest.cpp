@@ -60,6 +60,10 @@ private Q_SLOTS:
 
     void wrapper_composesTheQmlSuiteStrings();
     void wrapper_refusesMalformedFacts();
+
+    void planAccessibleDescription_tokenSelectionAndOrder();
+    void wrapper_composesAccessibleDescriptions();
+    void wrapper_refusesMalformedAccessibleFacts();
 };
 
 void TooltipTextTest::composeTitle_referenceTable_data()
@@ -362,6 +366,135 @@ void TooltipTextTest::wrapper_refusesMalformedFacts()
     // the map's doing, not leftover state)
     QCOMPARE(composer.composeSubText(facts),
              QStringLiteral("On Two\nAlso available on Work"));
+}
+
+void TooltipTextTest::planAccessibleDescription_tokenSelectionAndOrder()
+{
+    // nothing shown, nothing announced
+    QVERIFY(planAccessibleDescription(AccessibleDescriptionFacts{}).isEmpty());
+
+    // a plain single window: the name already carries the title, so the
+    // description stays empty
+    AccessibleDescriptionFacts facts;
+    facts.windowsCount = 1;
+    QVERIFY(planAccessibleDescription(facts).isEmpty());
+
+    // launcher kind announces itself
+    facts = {};
+    facts.isLauncher = true;
+    QCOMPARE(planAccessibleDescription(facts),
+             (QList<AccessibleAnnouncement>{LauncherAnnouncement{}}));
+
+    // group parent announces its window count; a groupless windowsCount
+    // does not (single windows say nothing beyond the name)
+    facts = {};
+    facts.isGroupParent = true;
+    facts.windowsCount = 3;
+    QCOMPARE(planAccessibleDescription(facts),
+             (QList<AccessibleAnnouncement>{WindowCountAnnouncement{3}}));
+
+    // a group whose windows just closed (count 0) has nothing to count
+    facts.windowsCount = 0;
+    QVERIFY(planAccessibleDescription(facts).isEmpty());
+
+    // audio badge: muted wins over playing (the badge draws the muted icon)
+    facts = {};
+    facts.showsAudioBadge = true;
+    QCOMPARE(planAccessibleDescription(facts),
+             (QList<AccessibleAnnouncement>{PlayingAudioAnnouncement{}}));
+    facts.isMuted = true;
+    QCOMPARE(planAccessibleDescription(facts),
+             (QList<AccessibleAnnouncement>{AudioMutedAnnouncement{}}));
+
+    // muted without a shown badge stays silent - the flag qualifies the
+    // badge, it is not an announcement of its own
+    facts = {};
+    facts.isMuted = true;
+    QVERIFY(planAccessibleDescription(facts).isEmpty());
+
+    // everything at once: kind, group size, then badges in audio,
+    // progress, info order
+    facts = {};
+    facts.isGroupParent = true;
+    facts.windowsCount = 2;
+    facts.showsAudioBadge = true;
+    facts.showsProgressBadge = true;
+    facts.progressPercent = 45;
+    facts.infoBadgeCount = 7;
+    QCOMPARE(planAccessibleDescription(facts),
+             (QList<AccessibleAnnouncement>{WindowCountAnnouncement{2},
+                                            PlayingAudioAnnouncement{},
+                                            ProgressAnnouncement{45},
+                                            InfoBadgeAnnouncement{7}}));
+}
+
+void TooltipTextTest::wrapper_composesAccessibleDescriptions()
+{
+    // end-to-end through the wrapper: same fact bag TaskItem.qml sends,
+    // asserted as English msgids (no catalogs offscreen). The qmltest
+    // twin tests/qml/tst_taskaccessible.qml drives the SHIPPED singleton
+    // through the module import with these same vectors.
+    const Latte::Tasks::TooltipTextComposer composer;
+
+    QVariantMap facts{
+        {QStringLiteral("isLauncher"), false},
+        {QStringLiteral("isGroupParent"), false},
+        {QStringLiteral("windowsCount"), 0},
+        {QStringLiteral("showsAudioBadge"), false},
+        {QStringLiteral("isMuted"), false},
+        {QStringLiteral("showsProgressBadge"), false},
+        {QStringLiteral("progressPercent"), 0},
+        {QStringLiteral("infoBadgeCount"), 0},
+    };
+    QCOMPARE(composer.composeAccessibleDescription(facts), QString());
+
+    QVariantMap launcher = facts;
+    launcher[QStringLiteral("isLauncher")] = true;
+    QCOMPARE(composer.composeAccessibleDescription(launcher), QStringLiteral("launcher"));
+
+    QVariantMap group = facts;
+    group[QStringLiteral("isGroupParent")] = true;
+    group[QStringLiteral("windowsCount")] = 1;
+    QCOMPARE(composer.composeAccessibleDescription(group), QStringLiteral("1 window"));
+    group[QStringLiteral("windowsCount")] = 4;
+    QCOMPARE(composer.composeAccessibleDescription(group), QStringLiteral("4 windows"));
+
+    QVariantMap loaded = facts;
+    loaded[QStringLiteral("isGroupParent")] = true;
+    loaded[QStringLiteral("windowsCount")] = 2;
+    loaded[QStringLiteral("showsAudioBadge")] = true;
+    loaded[QStringLiteral("isMuted")] = true;
+    loaded[QStringLiteral("showsProgressBadge")] = true;
+    loaded[QStringLiteral("progressPercent")] = 45;
+    loaded[QStringLiteral("infoBadgeCount")] = 7;
+    QCOMPARE(composer.composeAccessibleDescription(loaded),
+             QStringLiteral("2 windows, audio muted, 45% complete, 7 notifications"));
+
+    QCOMPARE(composer.muteToggleLabel(), QStringLiteral("Mute"));
+}
+
+void TooltipTextTest::wrapper_refusesMalformedAccessibleFacts()
+{
+    const Latte::Tasks::TooltipTextComposer composer;
+
+    // a missing fact key is a drifted shell: refuse loudly, compose nothing
+    QCOMPARE(composer.composeAccessibleDescription(QVariantMap{}), QString());
+
+    QVariantMap partial{
+        {QStringLiteral("isLauncher"), true},
+        {QStringLiteral("isGroupParent"), false},
+        {QStringLiteral("windowsCount"), 0},
+        {QStringLiteral("showsAudioBadge"), false},
+        {QStringLiteral("isMuted"), false},
+        {QStringLiteral("showsProgressBadge"), false},
+        {QStringLiteral("progressPercent"), 0},
+    };
+    // infoBadgeCount missing
+    QCOMPARE(composer.composeAccessibleDescription(partial), QString());
+
+    // and completing the bag composes (the refusal was the map's doing)
+    partial[QStringLiteral("infoBadgeCount")] = 0;
+    QCOMPARE(composer.composeAccessibleDescription(partial), QStringLiteral("launcher"));
 }
 
 QTEST_GUILESS_MAIN(TooltipTextTest)

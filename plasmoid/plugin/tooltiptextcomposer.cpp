@@ -131,5 +131,80 @@ QString TooltipTextComposer::composeSubText(const QVariantMap &facts) const
     return lines.join(QLatin1Char('\n'));
 }
 
+QString TooltipTextComposer::composeAccessibleDescription(const QVariantMap &facts) const
+{
+    // boundary refusal: a shell drifting a key name must fail loudly here,
+    // not compose from silently-defaulted facts
+    static const QStringList requiredKeys = {
+        QStringLiteral("isLauncher"),
+        QStringLiteral("isGroupParent"),
+        QStringLiteral("windowsCount"),
+        QStringLiteral("showsAudioBadge"),
+        QStringLiteral("isMuted"),
+        QStringLiteral("showsProgressBadge"),
+        QStringLiteral("progressPercent"),
+        QStringLiteral("infoBadgeCount"),
+    };
+
+    for (const QString &key : requiredKeys) {
+        if (!facts.contains(key)) {
+            qCritical() << "TooltipTextComposer: composeAccessibleDescription called without fact" << key
+                        << "- got keys" << facts.keys();
+            return QString();
+        }
+    }
+
+    TooltipText::AccessibleDescriptionFacts coreFacts;
+    coreFacts.isLauncher = facts.value(QStringLiteral("isLauncher")).toBool();
+    coreFacts.isGroupParent = facts.value(QStringLiteral("isGroupParent")).toBool();
+    coreFacts.windowsCount = facts.value(QStringLiteral("windowsCount")).toInt();
+    coreFacts.showsAudioBadge = facts.value(QStringLiteral("showsAudioBadge")).toBool();
+    coreFacts.isMuted = facts.value(QStringLiteral("isMuted")).toBool();
+    coreFacts.showsProgressBadge = facts.value(QStringLiteral("showsProgressBadge")).toBool();
+    coreFacts.progressPercent = facts.value(QStringLiteral("progressPercent")).toInt();
+    coreFacts.infoBadgeCount = facts.value(QStringLiteral("infoBadgeCount")).toInt();
+
+    const QList<TooltipText::AccessibleAnnouncement> plan = TooltipText::planAccessibleDescription(coreFacts);
+
+    QStringList parts;
+    parts.reserve(plan.size());
+
+    for (const TooltipText::AccessibleAnnouncement &announcement : plan) {
+        parts << std::visit(
+            Overloaded{
+                [](const TooltipText::LauncherAnnouncement &) {
+                    return i18nc("accessible description of a pinned launcher task", "launcher");
+                },
+                [](const TooltipText::WindowCountAnnouncement &line) {
+                    return i18ncp("accessible description of a task's grouped-window count",
+                                  "%1 window", "%1 windows", line.count);
+                },
+                [](const TooltipText::AudioMutedAnnouncement &) {
+                    return i18nc("accessible description of a task's muted audio badge", "audio muted");
+                },
+                [](const TooltipText::PlayingAudioAnnouncement &) {
+                    return i18nc("accessible description of a task's audio badge", "playing audio");
+                },
+                [](const TooltipText::ProgressAnnouncement &line) {
+                    return i18nc("accessible description of a task's progress badge, %1 is a percentage",
+                                 "%1% complete", line.percent);
+                },
+                [](const TooltipText::InfoBadgeAnnouncement &line) {
+                    return i18ncp("accessible description of a task's number badge",
+                                  "%1 notification", "%1 notifications", line.count);
+                },
+            },
+            announcement);
+    }
+
+    return parts.join(QStringLiteral(", "));
+}
+
+QString TooltipTextComposer::muteToggleLabel() const
+{
+    // deliberately the exact msgid ContextMenu.qml's checkable item uses
+    return i18n("Mute");
+}
+
 }
 }

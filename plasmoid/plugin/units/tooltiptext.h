@@ -229,6 +229,108 @@ inline SubTextPlan planSubText(const SubTextFacts &facts)
     return plan;
 }
 
+//! Accessible-description facts for one task item (the Phase 10 AT-SPI
+//! rollout): what the item's group state and badges currently show. The
+//! QML shell resolves badge VISIBILITY before calling - the user-config
+//! gates (root.showAudioBadge and friends) and the info-vs-progress badge
+//! precedence live in TaskIcon.qml as live session state - so this core
+//! only decides which announcements a shown state produces and their
+//! order.
+struct AccessibleDescriptionFacts {
+    bool isLauncher = false;
+    bool isGroupParent = false;
+    int windowsCount = 0;
+    //! the audio badge is shown (streams exist, audible, badge enabled)
+    bool showsAudioBadge = false;
+    //! every stream of the task is muted (the badge draws the muted icon)
+    bool isMuted = false;
+    //! the progress badge is shown; percent is what it draws
+    bool showsProgressBadge = false;
+    int progressPercent = 0;
+    //! the number the info badge draws; 0 = no info badge shown
+    int infoBadgeCount = 0;
+};
+
+//! the announcement tokens, one alternative per distinct sentence the
+//! wrapper can speak; value-carrying alternatives keep their argument so
+//! "a window count without a count" is unrepresentable
+struct LauncherAnnouncement {
+    bool operator==(const LauncherAnnouncement &) const = default;
+};
+
+struct WindowCountAnnouncement {
+    int count = 0;
+
+    bool operator==(const WindowCountAnnouncement &) const = default;
+};
+
+struct AudioMutedAnnouncement {
+    bool operator==(const AudioMutedAnnouncement &) const = default;
+};
+
+struct PlayingAudioAnnouncement {
+    bool operator==(const PlayingAudioAnnouncement &) const = default;
+};
+
+struct ProgressAnnouncement {
+    int percent = 0;
+
+    bool operator==(const ProgressAnnouncement &) const = default;
+};
+
+struct InfoBadgeAnnouncement {
+    int count = 0;
+
+    bool operator==(const InfoBadgeAnnouncement &) const = default;
+};
+
+using AccessibleAnnouncement = std::variant<LauncherAnnouncement,
+                                            WindowCountAnnouncement,
+                                            AudioMutedAnnouncement,
+                                            PlayingAudioAnnouncement,
+                                            ProgressAnnouncement,
+                                            InfoBadgeAnnouncement>;
+
+//! Decides what a screen reader announces about a task beyond its name:
+//! kind (launcher), group size, then the badges in the fixed order
+//! audio, progress, info - stable state first, transient values last.
+//! The wrapper maps each token onto its i18nc string and joins them.
+inline QList<AccessibleAnnouncement> planAccessibleDescription(const AccessibleDescriptionFacts &facts)
+{
+    // production counts are non-negative; a negative value is a caller bug
+    Q_ASSERT(facts.windowsCount >= 0);
+    Q_ASSERT(facts.progressPercent >= 0);
+    Q_ASSERT(facts.infoBadgeCount >= 0);
+
+    QList<AccessibleAnnouncement> plan;
+
+    if (facts.isLauncher) {
+        plan << LauncherAnnouncement{};
+    }
+
+    if (facts.isGroupParent && facts.windowsCount > 0) {
+        plan << WindowCountAnnouncement{facts.windowsCount};
+    }
+
+    if (facts.showsAudioBadge) {
+        if (facts.isMuted) {
+            plan << AudioMutedAnnouncement{};
+        } else {
+            plan << PlayingAudioAnnouncement{};
+        }
+    }
+
+    if (facts.showsProgressBadge) {
+        plan << ProgressAnnouncement{facts.progressPercent};
+    }
+
+    if (facts.infoBadgeCount > 0) {
+        plan << InfoBadgeAnnouncement{facts.infoBadgeCount};
+    }
+
+    return plan;
+}
+
 }
 }
 

@@ -43,6 +43,23 @@ public:
     //! currentActivity. activityIds/activityNames are null together (the
     //! Activities role is unknown) or equal-length lists.
     Q_INVOKABLE QString composeSubText(const QVariantMap &facts) const;
+
+    //! Phase 10 AT-SPI rollout: the Accessible.description a task item
+    //! reports - group size and badge state, composed from what the item
+    //! currently SHOWS (the shell resolves badge visibility; see
+    //! AccessibleDescriptionFacts in units/tooltiptext.h). facts keys
+    //! (all required): isLauncher, isGroupParent, windowsCount,
+    //! showsAudioBadge, isMuted, showsProgressBadge, progressPercent,
+    //! infoBadgeCount.
+    Q_INVOKABLE QString composeAccessibleDescription(const QVariantMap &facts) const;
+
+    //! The audio badge's accessible name. Lives here, not as a QML i18n
+    //! call, for the same reason as every composed string: the qmllint
+    //! ratchet holds new package QML at zero unqualified accesses, and
+    //! i18n resolves through the context chain. Same msgid and catalog
+    //! as the context menu's checkable Mute item, so a screen reader
+    //! announces the badge and the menu item identically.
+    Q_INVOKABLE QString muteToggleLabel() const;
 };
 
 }
