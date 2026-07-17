@@ -103,7 +103,7 @@ the headless harness's job, not a separate mechanism.
 ## Gate discipline for agentic sessions (added 2026-07-16)
 
 One runner, one verdict: `scripts/gate-all.sh` runs every merge gate
-(build-check with both WITH_X11 variants + full ctest + coverage
+(build-check: full build + full ctest + coverage
 ratchet, qmllint gate, sceneprobe gate) and its EXIT CODE is the only
 verdict - success additionally prints `GATES: ALL OK @ <sha>` as the
 last line and stamps that sha into `build/_gates-passed`. The

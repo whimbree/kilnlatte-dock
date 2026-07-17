@@ -102,14 +102,6 @@ target_link_libraries(lattedock-core PUBLIC
     Wayland::Client
 )
 
-
-if(HAVE_X11)
-    target_link_libraries(lattedock-core PUBLIC
-        ${X11_LIBRARIES}
-        ${XCB_LIBRARIES}
-    )
-endif()
-
 configure_file(org.kde.latte-dock.desktop.cmake org.kde.latte-dock.desktop)
 configure_file(org.kde.latte-dock.appdata.xml.cmake org.kde.latte-dock.appdata.xml)
 

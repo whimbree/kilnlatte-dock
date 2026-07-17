@@ -75,16 +75,6 @@
   vulkan-headers,
   vulkan-loader,
 
-  # Best-effort X11 backend. Off by default: Wayland is the only runtime the
-  # port targets, and dropping it keeps the closure lean. The C++ still
-  # compiles with it on (option WITH_X11 in the top-level CMakeLists).
-  withX11 ? false,
-  libX11,
-  libSM,
-  libICE,
-  libxcb,
-  xcbutil,
-  libXrandr,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
@@ -149,18 +139,6 @@ stdenv.mkDerivation (finalAttrs: {
 
     vulkan-headers
     vulkan-loader
-  ]
-  ++ lib.optionals withX11 [
-    libX11
-    libSM
-    libICE
-    libxcb
-    xcbutil
-    libXrandr
-  ];
-
-  cmakeFlags = [
-    (lib.cmakeBool "WITH_X11" withX11)
   ];
 
   meta = {

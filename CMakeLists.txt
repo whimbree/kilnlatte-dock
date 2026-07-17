@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 project(lattedock)
 
 # C++20, verified not assumed (step 2.5 in the extraction plan): the KF6
-# pin builds this tree at 20 (checked with full build-check on both
-# WITH_X11 variants); KDECompilerSettings at level 6.0.0 would only pick
+# pin builds this tree at 20 (checked with full build-check; at the time
+# that meant both WITH_X11 variants, since removed - the tree is
+# Wayland-only); KDECompilerSettings at level 6.0.0 would only pick
 # 17 on its own (it defaults to 20 from level 6.13), so the standard is
 # pinned here explicitly. Pure cores are consumed by app targets and use
 # this same standard - never fork it per-target.
@@ -79,29 +80,6 @@ find_package(LibNotificationManager ${PLASMA_MIN_VERSION} REQUIRED)
 find_package(LibTaskManager ${PLASMA_MIN_VERSION} REQUIRED)
 find_package(PlasmaActivitiesStats ${PLASMA_MIN_VERSION} REQUIRED)
 add_definitions(-DPLASMA_WORKSPACE_VERSION="${LibTaskManager_VERSION}")
-
-# Best-effort X11 backend: Wayland is the primary target and the only one the
-# maintainer runs; X11 must keep compiling but its absence never fails
-# configure. Qt6 removed the X11Extras module - native X11 handles come from
-# QNativeInterface::QX11Application, and the WId-based KWindowSystem APIs
-# from KX11Extras (part of KF6WindowSystem, found above).
-option(WITH_X11 "Build the best-effort X11 backend" ON)
-set(HAVE_X11 OFF)
-if(WITH_X11)
-    find_package(X11)
-    set_package_properties(X11 PROPERTIES DESCRIPTION "X11 libraries"
-        URL "https://www.x.org"
-        TYPE OPTIONAL
-        PURPOSE "Required for the best-effort X11 backend")
-    if(X11_FOUND)
-        find_package(XCB MODULE COMPONENTS XCB RANDR SHAPE EVENT)
-    endif()
-    if(X11_FOUND AND X11_SM_FOUND AND XCB_FOUND)
-        set(HAVE_X11 ON)
-    else()
-        message(STATUS "X11/SM/XCB development files incomplete - building without the X11 backend")
-    endif()
-endif()
 
 find_package(QtWaylandScanner REQUIRED)
 find_package(Qt6WaylandClient ${QT_MIN_VERSION} REQUIRED)
