@@ -1,4 +1,4 @@
-76
+77
 abstractlayouttest
 activitiesinfotest
 activitysetalgebratest
@@ -37,6 +37,7 @@ layoutmanagertest
 lengthoffsetclamptest
 maskgeometrytest
 panelbackgroundscantest
+panelbackgroundtest
 parabolicmathtest
 parabolicroutertest
 popupplacementcontracttest

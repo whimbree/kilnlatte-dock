@@ -182,6 +182,18 @@ target_include_directories(generictoolstest PRIVATE
     ${CMAKE_SOURCE_DIR}/app
     ${CMAKE_BINARY_DIR}/app)
 
+# The shell view wrapper's no-band contract: the legacy backgroundHints
+# ternary demonstrably falls through on Plasma 6 (live engine), and the
+# shipped Panel.qml keeps its imagePath empty (source scan).
+ecm_add_test(panelbackgroundtest.cpp
+    TEST_NAME panelbackgroundtest
+    LINK_LIBRARIES Qt6::Test Qt6::Qml
+)
+set_tests_properties(panelbackgroundtest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_compile_definitions(panelbackgroundtest PRIVATE
+    PANEL_QML_PATH="${CMAKE_SOURCE_DIR}/shell/package/contents/views/Panel.qml")
+
 # The app/data value-type layer: tables, sentinels, state machines and the
 # serialization round trips the settings dialogs and storage ride on.
 ecm_add_test(datatypestest.cpp
