@@ -48,6 +48,26 @@ private Q_SLOTS:
     void trackerRecordSerialization();
     void trackerRecordKeySet();
     void trackerDataSerializesAsCompactJsonObject();
+
+    void taskRecordSerialization();
+    void taskRecordKeySet();
+    void taskRecordsSerializeAsCompactJsonArray();
+
+    void themeColorsModeNames_data();
+    void themeColorsModeNames();
+    void windowColorsModeNames_data();
+    void windowColorsModeNames();
+    void colorModeConfigValueRoundTrip();
+    void colorModeConfigValueRefusals_data();
+    void colorModeConfigValueRefusals();
+    void colorizerRecordSerialization();
+    void colorizerRecordKeySet();
+
+    void memoryUsageNames_data();
+    void memoryUsageNames();
+    void layoutRecordSerialization();
+    void layoutRecordKeySet();
+    void layoutsDataSerialization();
 };
 
 //! the exact sorted key list of a serialized record: the schema pin that
@@ -452,6 +472,276 @@ void DbusReportsTest::trackerDataSerializesAsCompactJsonObject()
     QCOMPARE(error.error, QJsonParseError::NoError);
     QVERIFY(document.isObject());
     QCOMPARE(document.object().value(QStringLiteral("containmentId")).toInt(), 4);
+}
+
+//! one fully populated task record, pinning every field name and value
+//! type of viewTasksData() against docs/dbus-observability-interface.md -
+//! note there is deliberately NO title field anywhere in the schema
+void DbusReportsTest::taskRecordSerialization()
+{
+    TaskRecord record;
+    record.appletId = 5;
+    record.index = 2;
+    record.appId = QStringLiteral("firefox");
+    record.launcherUrl = QStringLiteral("applications:firefox.desktop");
+    record.isLauncher = true;
+    record.isGrouped = true;
+    record.childCount = 3;
+    record.isActive = true;
+    record.isMinimized = true;
+    record.demandsAttention = true;
+    record.badge = 7;
+    record.geometry = QRect(100, 200, 48, 48);
+
+    const QJsonObject json = serializeTaskRecord(record);
+
+    QCOMPARE(json.value(QStringLiteral("appletId")).toInt(), 5);
+    QCOMPARE(json.value(QStringLiteral("index")).toInt(), 2);
+    QCOMPARE(json.value(QStringLiteral("appId")).toString(), QStringLiteral("firefox"));
+    QCOMPARE(json.value(QStringLiteral("launcherUrl")).toString(), QStringLiteral("applications:firefox.desktop"));
+    QCOMPARE(json.value(QStringLiteral("isLauncher")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("isGrouped")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("childCount")).toInt(), 3);
+    QCOMPARE(json.value(QStringLiteral("isActive")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("isMinimized")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("demandsAttention")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("badge")).toInt(), 7);
+    QCOMPARE(json.value(QStringLiteral("geometry")).toArray(), serializeRect(QRect(100, 200, 48, 48)));
+}
+
+void DbusReportsTest::taskRecordKeySet()
+{
+    const QStringList expected{
+        QStringLiteral("appId"), QStringLiteral("appletId"),
+        QStringLiteral("badge"), QStringLiteral("childCount"),
+        QStringLiteral("demandsAttention"), QStringLiteral("geometry"),
+        QStringLiteral("index"), QStringLiteral("isActive"),
+        QStringLiteral("isGrouped"), QStringLiteral("isLauncher"),
+        QStringLiteral("isMinimized"), QStringLiteral("launcherUrl")};
+
+    QCOMPARE(sortedKeys(serializeTaskRecord(TaskRecord{})), expected);
+}
+
+void DbusReportsTest::taskRecordsSerializeAsCompactJsonArray()
+{
+    TaskRecord first;
+    first.index = 0;
+    TaskRecord second;
+    second.index = 1;
+
+    const QString data = serializeTaskRecords({first, second});
+
+    QVERIFY(!data.contains(QLatin1Char('\n')));
+
+    QJsonParseError error{};
+    const QJsonDocument document = QJsonDocument::fromJson(data.toUtf8(), &error);
+    QCOMPARE(error.error, QJsonParseError::NoError);
+    QVERIFY(document.isArray());
+    QCOMPARE(document.array().count(), 2);
+    QCOMPARE(document.array().at(1).toObject().value(QStringLiteral("index")).toInt(), 1);
+
+    QCOMPARE(serializeTaskRecords({}), QStringLiteral("[]"));
+}
+
+void DbusReportsTest::themeColorsModeNames_data()
+{
+    QTest::addColumn<int>("mode"); //! int: see viewTypeNames_data
+    QTest::addColumn<QString>("name");
+
+    QTest::newRow("plasma") << static_cast<int>(Containment::Types::PlasmaThemeColors) << QStringLiteral("plasma");
+    QTest::newRow("reverse") << static_cast<int>(Containment::Types::ReverseThemeColors) << QStringLiteral("reverse");
+    QTest::newRow("smart") << static_cast<int>(Containment::Types::SmartThemeColors) << QStringLiteral("smart");
+    QTest::newRow("dark") << static_cast<int>(Containment::Types::DarkThemeColors) << QStringLiteral("dark");
+    QTest::newRow("light") << static_cast<int>(Containment::Types::LightThemeColors) << QStringLiteral("light");
+    QTest::newRow("layout") << static_cast<int>(Containment::Types::LayoutThemeColors) << QStringLiteral("layout");
+}
+
+void DbusReportsTest::themeColorsModeNames()
+{
+    QFETCH(int, mode);
+    QFETCH(QString, name);
+
+    QCOMPARE(themeColorsModeName(static_cast<Containment::Types::ThemeColorsGroup>(mode)), name);
+}
+
+void DbusReportsTest::windowColorsModeNames_data()
+{
+    QTest::addColumn<int>("mode"); //! int: see viewTypeNames_data
+    QTest::addColumn<QString>("name");
+
+    QTest::newRow("none") << static_cast<int>(Containment::Types::NoneWindowColors) << QStringLiteral("none");
+    QTest::newRow("active") << static_cast<int>(Containment::Types::ActiveWindowColors) << QStringLiteral("active");
+    QTest::newRow("touching") << static_cast<int>(Containment::Types::TouchingWindowColors) << QStringLiteral("touching");
+}
+
+void DbusReportsTest::windowColorsModeNames()
+{
+    QFETCH(int, mode);
+    QFETCH(QString, name);
+
+    QCOMPARE(windowColorsModeName(static_cast<Containment::Types::WindowColorsGroup>(mode)), name);
+}
+
+//! every valid config int must come back as its enum value, so the
+//! validators cannot drift from the enums they guard
+void DbusReportsTest::colorModeConfigValueRoundTrip()
+{
+    for (const auto mode : {Containment::Types::PlasmaThemeColors, Containment::Types::ReverseThemeColors,
+                            Containment::Types::SmartThemeColors, Containment::Types::DarkThemeColors,
+                            Containment::Types::LightThemeColors, Containment::Types::LayoutThemeColors}) {
+        const auto parsed = themeColorsFromConfigValue(static_cast<int>(mode));
+        QVERIFY(parsed.has_value());
+        QCOMPARE(static_cast<int>(*parsed), static_cast<int>(mode));
+    }
+
+    for (const auto mode : {Containment::Types::NoneWindowColors, Containment::Types::ActiveWindowColors,
+                            Containment::Types::TouchingWindowColors}) {
+        const auto parsed = windowColorsFromConfigValue(static_cast<int>(mode));
+        QVERIFY(parsed.has_value());
+        QCOMPARE(static_cast<int>(*parsed), static_cast<int>(mode));
+    }
+}
+
+//! the mode ints arrive from the user-editable containment config, so
+//! out-of-range values must parse to nullopt (the collector turns that
+//! into a loud qWarning), never be cast into a Q_UNREACHABLE switch
+void DbusReportsTest::colorModeConfigValueRefusals_data()
+{
+    QTest::addColumn<int>("value");
+
+    QTest::newRow("negative") << -1;
+    QTest::newRow("past themeColors end") << 6;
+    QTest::newRow("garbage") << 9000;
+}
+
+void DbusReportsTest::colorModeConfigValueRefusals()
+{
+    QFETCH(int, value);
+
+    QVERIFY(!themeColorsFromConfigValue(value).has_value());
+    //! 6 and 9000 are also outside the smaller windowColors range,
+    //! together with everything below zero
+    QVERIFY(!windowColorsFromConfigValue(value).has_value());
+}
+
+//! one fully populated colorizer record, pinning every field name and
+//! value type of colorizerData() against the interface doc and the ledger
+void DbusReportsTest::colorizerRecordSerialization()
+{
+    ColorizerRecord record;
+    record.containmentId = 3;
+    record.enabled = true;
+    record.themeColors = Containment::Types::SmartThemeColors;
+    record.windowColors = Containment::Types::TouchingWindowColors;
+    record.colorizerPresent = true;
+    record.mustBeShown = true;
+    record.applyingWindowColors = true;
+    record.backgroundIsBusy = true;
+    record.currentBackgroundBrightness = 42.5;
+    record.scheme = QStringLiteral("DarkScheme.colors");
+
+    const QJsonObject json = serializeColorizerRecord(record);
+
+    QCOMPARE(json.value(QStringLiteral("containmentId")).toInt(), 3);
+    QCOMPARE(json.value(QStringLiteral("enabled")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("themeColorsMode")).toString(), QStringLiteral("smart"));
+    QCOMPARE(json.value(QStringLiteral("windowColorsMode")).toString(), QStringLiteral("touching"));
+    QCOMPARE(json.value(QStringLiteral("colorizerPresent")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("mustBeShown")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("applyingWindowColors")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("backgroundIsBusy")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("currentBackgroundBrightness")).toDouble(), 42.5);
+    QCOMPARE(json.value(QStringLiteral("scheme")).toString(), QStringLiteral("DarkScheme.colors"));
+}
+
+void DbusReportsTest::colorizerRecordKeySet()
+{
+    const QStringList expected{
+        QStringLiteral("applyingWindowColors"), QStringLiteral("backgroundIsBusy"),
+        QStringLiteral("colorizerPresent"), QStringLiteral("containmentId"),
+        QStringLiteral("currentBackgroundBrightness"), QStringLiteral("enabled"),
+        QStringLiteral("mustBeShown"), QStringLiteral("scheme"),
+        QStringLiteral("themeColorsMode"), QStringLiteral("windowColorsMode")};
+
+    QCOMPARE(sortedKeys(serializeColorizerRecord(ColorizerRecord{})), expected);
+
+    //! the unmeasured-brightness sentinel is the Manager item's own and
+    //! must survive serialization unchanged
+    QCOMPARE(serializeColorizerRecord(ColorizerRecord{}).value(QStringLiteral("currentBackgroundBrightness")).toDouble(), -1000.0);
+}
+
+void DbusReportsTest::memoryUsageNames_data()
+{
+    QTest::addColumn<int>("memory"); //! int: see viewTypeNames_data
+    QTest::addColumn<QString>("name");
+
+    //! Current is the query sentinel memoryUsage() never returns; the
+    //! mapping still covers it so the switch stays exhaustive
+    QTest::newRow("current") << static_cast<int>(MemoryUsage::Current) << QStringLiteral("current");
+    QTest::newRow("single") << static_cast<int>(MemoryUsage::SingleLayout) << QStringLiteral("single");
+    QTest::newRow("multiple") << static_cast<int>(MemoryUsage::MultipleLayouts) << QStringLiteral("multiple");
+}
+
+void DbusReportsTest::memoryUsageNames()
+{
+    QFETCH(int, memory);
+    QFETCH(QString, name);
+
+    QCOMPARE(memoryUsageName(static_cast<MemoryUsage::LayoutsMemory>(memory)), name);
+}
+
+//! one fully populated layout record, pinning every field name and value
+//! type of layoutsData() against docs/dbus-observability-interface.md
+void DbusReportsTest::layoutRecordSerialization()
+{
+    LayoutRecord record;
+    record.name = QStringLiteral("My Layout");
+    record.isActive = true;
+    record.activities = QStringList{QStringLiteral("uuid-1"), QStringLiteral("uuid-2")};
+    record.viewsCount = 2;
+
+    const QJsonObject json = serializeLayoutRecord(record);
+
+    QCOMPARE(json.value(QStringLiteral("name")).toString(), QStringLiteral("My Layout"));
+    QCOMPARE(json.value(QStringLiteral("isActive")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("activities")).toArray(), QJsonArray::fromStringList(record.activities));
+    QCOMPARE(json.value(QStringLiteral("viewsCount")).toInt(), 2);
+}
+
+void DbusReportsTest::layoutRecordKeySet()
+{
+    const QStringList expected{
+        QStringLiteral("activities"), QStringLiteral("isActive"),
+        QStringLiteral("name"), QStringLiteral("viewsCount")};
+
+    QCOMPARE(sortedKeys(serializeLayoutRecord(LayoutRecord{})), expected);
+}
+
+void DbusReportsTest::layoutsDataSerialization()
+{
+    LayoutRecord layout;
+    layout.name = QStringLiteral("My Layout");
+
+    const QString data = serializeLayoutsData(MemoryUsage::MultipleLayouts, {layout});
+
+    QVERIFY(!data.contains(QLatin1Char('\n')));
+
+    QJsonParseError error{};
+    const QJsonDocument document = QJsonDocument::fromJson(data.toUtf8(), &error);
+    QCOMPARE(error.error, QJsonParseError::NoError);
+    QVERIFY(document.isObject());
+
+    const QJsonObject json = document.object();
+    QCOMPARE(sortedKeys(json), (QStringList{QStringLiteral("layouts"), QStringLiteral("memoryUsage")}));
+    QCOMPARE(json.value(QStringLiteral("memoryUsage")).toString(), QStringLiteral("multiple"));
+    QCOMPARE(json.value(QStringLiteral("layouts")).toArray().count(), 1);
+    QCOMPARE(json.value(QStringLiteral("layouts")).toArray().at(0).toObject().value(QStringLiteral("name")).toString(),
+             QStringLiteral("My Layout"));
+
+    //! no layouts still answers the full schema
+    const QJsonDocument empty = QJsonDocument::fromJson(serializeLayoutsData(MemoryUsage::SingleLayout, {}).toUtf8());
+    QCOMPARE(empty.object().value(QStringLiteral("memoryUsage")).toString(), QStringLiteral("single"));
+    QVERIFY(empty.object().value(QStringLiteral("layouts")).toArray().isEmpty());
 }
 
 QTEST_GUILESS_MAIN(DbusReportsTest)
