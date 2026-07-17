@@ -1609,7 +1609,10 @@ void Storage::updateView(KConfigGroup viewGroup, const Data::View &viewData)
     viewGroup.writeEntry("lastScreen", viewData.screen);
     viewGroup.group("General").writeEntry("screenEdgeMargin", viewData.screenEdgeMargin);
     viewGroup.writeEntry("location", (int)viewData.edge);
-    viewGroup.writeEntry("maxLength", viewData.maxLength);
+    //! maxLength lives under [General] on disk (the containment plugin's
+    //! config key); view() reads it from there, so writing it at the
+    //! containment level would land on a dead key and the edit would be lost
+    viewGroup.group("General").writeEntry("maxLength", viewData.maxLength);
     viewGroup.group("General").writeEntry("alignment", (int)viewData.alignment);
     viewGroup.sync();
 }
