@@ -201,8 +201,18 @@ pass on every distro regardless of tier.
       Debian ENV traps: lavapipe ICD is UNSUFFIXED lvp_icd.json; QML tree
       at the multiarch /usr/lib/x86_64-linux-gnu/qt6/qml; Qt6 host tools
       (qmltestrunner/qmllint) off-PATH under /usr/lib/qt6/bin (added to
-      the image PATH). Remaining: fedora/opensuse/neon/gentoo/void layers.
-      Commits: d68ad64c0, 3eaa21261
+      the image PATH). OPENSUSE TUMBLEWEED DONE
+      (ci/containers/Containerfile.opensuse, deps-only cacheable layer +
+      cap-strip + ENV block). Full dep-name resolution and the
+      Arch->Tumbleweed rename table are in
+      docs/agent-logs/2026-07-17-opensuse-leg.md; all KF6 frameworks are
+      kf6-<name>-devel, ECM is kf6-extra-cmake-modules, qt6-5compat is
+      qt6-qt5compat-devel, and Qt private headers are a SPLIT package
+      (qt6-base-private-devel) Arch bundles in qt6-base. F2 feed: the ledger
+      records the Tumbleweed-vs-Fedora divergences the single .spec must
+      bridge (ECM name, qt6 private-devel name qt6-base-private-devel vs
+      qt6-qtbase-private-devel, kwin6 vs kwin, %cmake macro set). Remaining:
+      fedora/neon/gentoo/void layers. Commits: d68ad64c0, 3eaa21261, a14c6efef
 - [~] A2 Clean cmake build of the port in each container locally (podman
       is on the host - prototype here, no CI yet). Record per-distro
       build quirks. ARCH DONE: builds clean (565/565) against Arch's Qt
@@ -230,8 +240,20 @@ pass on every distro regardless of tier.
       extended. The one remaining ctest failure (qmllintgate) is CORRECT:
       its ratchet baseline is calibrated to the pinned nix qmllint and it
       refuses a foreign one by design - a NixOS-tier merge gate, excluded
-      from the distro gate stage (note for B2). Remaining distros TBD.
-      Commits: 00400f16c, d68ad64c0, 3fb8f899d, 3eaa21261
+      from the distro gate stage (note for B2). OPENSUSE TUMBLEWEED DONE:
+      builds clean (565/565, same target count as Arch) against
+      Tumbleweed's Qt 6.11.1 / KF6 6.28.0 / Plasma 6.7.3; the qt-6/qml vs
+      qt6/qml search fix (00400f16c) and the KDE_INSTALL_QMLDIR emit
+      (18aac31b0) carry the leg with NO source change - build/latte-
+      qmldir.txt came out lib64/qt6/qml and resolved. test stage: 77/81
+      ctest pass; the 4 fails (qmlcompilegate/qmlinteraction/qmllintgate/
+      qmlcontracts) are the same harness-env QML-gate class Arch defers to
+      Phase B, plus a Tumbleweed trap under it - the Qt6 QML tooling
+      (qmllint/qmlcachegen/qmlimportscanner) is not on PATH here (under
+      /usr/lib64/qt6/bin + /usr/libexec/qt6; only qmllint6 in /usr/bin), so
+      the gate scripts' bare-name lookup misses. Flagged for B2. Remaining
+      distros TBD.
+      Commits: 00400f16c, d68ad64c0, 3fb8f899d, 3eaa21261, a14c6efef
 - [~] A3 Pin the exact base image tags that meet the Plasma 6.5 floor;
       document the floor check per distro. Arch is rolling (archlinux:
       latest for the prototype; archive-snapshot pin TBD). DEBIAN DONE:
@@ -239,8 +261,13 @@ pass on every distro regardless of tier.
       above floor; sid not needed). Floor check recorded in the
       Containerfile header comment + the ledger. testing rolls slowly
       (tracks next stable), so the tag is stable enough; a digest pin can
-      follow once CI caches the base. Remaining distros TBD.
-      Commits: 3eaa21261
+      follow once CI caches the base. OPENSUSE TUMBLEWEED floor CHECKED
+      in-container 2026-07-17 and recorded in the Containerfile comment: Qt
+      6.11.1 / KF6 6.28.0 / Plasma+kwin 6.7.3, well past the >=6.5/>=6.6
+      floor. Tumbleweed is rolling (opensuse/tumbleweed:latest for the
+      prototype; an OBS/download.o.o archived-repo snapshot pin is TBD,
+      same open item as Arch). Remaining distros TBD.
+      Commits: 3eaa21261, a14c6efef
 
 ### Phase B - headless gates in-container
 - [~] B1 Get nested kwin_wayland + lavapipe running in each container
@@ -255,7 +282,10 @@ pass on every distro regardless of tier.
       sceneprobe suite (13/13) under the default cap set. QUIRK: Debian's
       kwin_wayland ships WITHOUT cap_sys_nice (getcap empty), so the
       setcap -r is a harmless no-op here - kept for parity/robustness in
-      case a future package adds the cap. Commits: 79a8008f0, 3eaa21261
+      case a future package adds the cap. OPENSUSE TUMBLEWEED DONE: nested
+      kwin_wayland (from kwin6) comes up headless in podman; the SAME
+      cap_sys_nice=ep trap applies and the image strips it (libcap-progs
+      provides setcap). Commits: 79a8008f0, 3eaa21261, a14c6efef
 - [~] B2 Run the behavioral e2e recipes in-container; make them a hard
       pass on each distro. ARCH PROVEN BY HAND (000-smoke PASSES in the
       Arch container: dock reaches lifecycleState running in ~2s,
@@ -314,7 +344,14 @@ pass on every distro regardless of tier.
       versions; no tolerance tier needed on the current Debian Mesa. The
       image ENV (LATTE_QML_MODULE_PATH, lavapipe ICD path) is what let the
       reused gate resolve the distro's framework qml tree and ICD.
-      Commits: 18aac31b0, 79a8008f0, 3eaa21261
+      OPENSUSE TUMBLEWEED DONE: all 13 scenes render and PASS in the
+      Tumbleweed container, and bit-exact against the nix-blessed lavapipe
+      goldens too - Tumbleweed's Mesa 26.1.4 lavapipe matches nix Mesa for
+      these text-free scenes, same as Arch, so no tolerance tier was needed
+      at this Mesa version (recorded, not relied on - Phase C still owns the
+      rolling-drift axis). The QMLDIR emit (18aac31b0) carries it: build/
+      latte-qmldir.txt came out lib64/qt6/qml and the staged org.kde.latte.*
+      modules resolved. Commits: 18aac31b0, 79a8008f0, 3eaa21261, a14c6efef
 
 ### Phase C - per-distro golden tiers
 - [ ] C1 Extend the sceneprobe device/tier axis to per-distro naming
