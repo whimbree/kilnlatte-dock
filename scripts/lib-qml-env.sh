@@ -1,6 +1,8 @@
 # Shared QML environment assembly for the headless QML checks (sourced by
 # qml-compile-gate.sh and qml-interaction-tests.sh). Assumes bash with
-# nounset; sets the `imports` array and the `stage` directory.
+# nounset; sets the `imports` array, the `stage`/`build` directories and the
+# `qmldir` install subdir (lib/qml on nixpkgs, lib/qt6/qml on Arch/Fedora/
+# Debian - the caller needs it to find the staged org.kde.latte.* modules).
 #
 # The user profile's QML2_IMPORT_PATH must not leak in: it carries Qt 5 and
 # differently-pinned Qt 6 builds whose plugins fail to load in this runtime
@@ -52,7 +54,10 @@ qml_env_setup() {
     # latte-qmldir.txt; read it, defaulting to lib/qml only if the file is
     # somehow absent. Without this, scenes importing org.kde.latte.* fail
     # "module not installed" on any distro whose QMLDIR is not lib/qml.
-    local qmldir=""
+    # leaked to the caller (like build/stage above): qml-interaction-tests.sh
+    # reuses it to probe whether the staged Latte tree already exists on this
+    # distro's QMLDIR, instead of hardcoding one distro's lib/qml spelling.
+    qmldir=""
     [[ -f "$build/latte-qmldir.txt" ]] && read -r qmldir < "$build/latte-qmldir.txt"
     [[ -n "$qmldir" ]] || qmldir="lib/qml"
     imports+=(-import "$stage/$qmldir")
