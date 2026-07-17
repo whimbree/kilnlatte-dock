@@ -68,7 +68,13 @@ storage (zero conversion from KWayland uuid()):
   fromX11WId(quint64) (0, X11 None, maps to the empty id);
 - std::optional<quint32> toX11WId(): checked decimal parse, nullopt for
   empty and for malformed bytes - the silent-0 toUInt() becomes a
-  type-enforced absence;
+  type-enforced absence; a parsed 0 is ALSO refused (0 is X11 None, not
+  a window), so window 0 becomes unproducible at the type level;
+- the loud boundary parse lives next to the type as a free function
+  (parseX11WindowId(wid, operation) - quiet nullopt for the documented
+  empty/no-window id, qWarning + nullopt for malformed bytes) rather
+  than file-local in xwindowinterface, so the negative test can drive
+  it headless;
 - bytes() for the QVariant/QML and logging boundaries (the QML winId
   property stays QVariant-of-QByteArray per 8e8cdf31);
 - operator== and operator< (QMap/QList keys), QDebug streaming;
@@ -114,9 +120,34 @@ flip commit is purely mechanical renames:
   skip-taskbar subwindows may depend on the lazy re-resolve. Tightening
   needs a live session; flagged for merge-time verification.
 
+### Test-quality direction (mid-task, from Bree)
+
+The step-2.5 floor is a floor. The windowid unit test must carry:
+exhaustive malformed-input rows for toX11WId() (empty, non-numeric,
+trailing garbage, overflow past quint32, negative), a compile-time pin
+that implicit conversion stays deleted (static_assert on
+!std::is_convertible where expressible), QMap key ordering/equality
+semantics pinned against the old QByteArray behavior so the substrate
+swap is provably behavior-preserving on the wayland path, and the
+loud-absence boundary negative-tested (malformed id in, assert the
+qWarning fires via QTest::ignoreMessage and that window 0 is NOT
+produced).
+
 ### Chunk notes
 
-(filled as commits land)
+- chunk 1 (checked X11 parsing, pre-flip): all toUInt()/toInt() id
+  parses in xwindowinterface.cpp funneled through one file-local
+  parseX11WindowId(wid, operation) helper (quiet on the documented
+  empty id, qWarning + refuse on malformed bytes). Two latent toInt()
+  bugs retired on the way: requestActivate and requestToggleMaximized
+  turned ids above INT_MAX into silent window-0 operations.
+  isAcceptableWindow(unparseable) now answers false instead of the
+  old accidental true from a window-0 KWindowInfo (reachable only
+  through degenerate paths; noted in a comment at the site).
+  lattecorona's windowColorScheme D-Bus handler (X11 branch) refuses
+  malformed ids loudly instead of tagging window 0. The helper moves
+  next to the newtype at the flip so the boundary contract is
+  unit-testable headless.
 
 ### Gate results
 

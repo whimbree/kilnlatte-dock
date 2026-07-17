@@ -29,10 +29,37 @@
 #include <xcb/xcb.h>
 #include <xcb/shape.h>
 
+// C++
+#include <optional>
+
 namespace Latte {
 namespace WindowSystem {
 
 namespace {
+//! Parse the string-typed WindowId at the X11 boundary. An empty id is the
+//! documented no-window value (e.g. activeWindow() with nothing active), so
+//! it refuses quietly - a deliberate contract, not a swallowed failure.
+//! Non-empty bytes that do not parse as a decimal WId mean a foreign id (a
+//! wayland uuid, or corruption) reached the X11 backend: that is a defect,
+//! refused loudly instead of silently becoming window 0 the way an
+//! ok-flag-less toUInt() did.
+std::optional<quint32> parseX11WindowId(const WindowId &wid, const char *operation)
+{
+    if (wid.isEmpty()) {
+        return std::nullopt;
+    }
+
+    bool ok{false};
+    const quint32 parsed = wid.toUInt(&ok);
+
+    if (!ok) {
+        qWarning() << operation << "- refusing malformed X11 window id" << wid;
+        return std::nullopt;
+    }
+
+    return parsed;
+}
+
 //! Qt6 removed QX11Info; native X11 handles come from the platform interface
 xcb_connection_t *x11Connection()
 {
@@ -230,7 +257,13 @@ void XWindowInterface::switchToPreviousVirtualDesktop()
 
 void XWindowInterface::setWindowOnActivities(const WindowId &wid, const QStringList &activities)
 {
-    KX11Extras::setOnActivities(wid.toUInt(), activities);
+    const auto xwid = parseX11WindowId(wid, "setWindowOnActivities");
+
+    if (!xwid) {
+        return;
+    }
+
+    KX11Extras::setOnActivities(*xwid, activities);
 }
 
 void XWindowInterface::removeViewStruts(QWindow &view)
@@ -342,7 +375,13 @@ void XWindowInterface::setActiveEdge(QWindow *view, bool active)
 
 QRect XWindowInterface::visibleGeometry(const WindowId &wid, const QRect &frameGeometry) const
 {
-    NETWinInfo ni(x11Connection(), wid.toUInt(), x11AppRootWindow(), NET::Properties(), NET::WM2GTKFrameExtents);
+    const auto xwid = parseX11WindowId(wid, "visibleGeometry");
+
+    if (!xwid) {
+        return frameGeometry;
+    }
+
+    NETWinInfo ni(x11Connection(), *xwid, x11AppRootWindow(), NET::Properties(), NET::WM2GTKFrameExtents);
     NETStrut struts = ni.gtkFrameExtents();
     QMargins margins(struts.left, struts.top, struts.right, struts.bottom);
     QRect visibleGeometry = frameGeometry;
@@ -453,7 +492,15 @@ WindowInfoWrap XWindowInterface::requestInfoActive()
 
 WindowInfoWrap XWindowInterface::requestInfo(WindowId wid)
 {
-    const KWindowInfo winfo{static_cast<xcb_window_t>(wid.toUInt()), NET::WMFrameExtents
+    const auto xwid = parseX11WindowId(wid, "requestInfo");
+
+    if (!xwid) {
+        //! stays isValid()==false, the same answer the caller got for the
+        //! old silent window-0 lookup, minus the silence on malformed ids
+        return WindowInfoWrap();
+    }
+
+    const KWindowInfo winfo{static_cast<xcb_window_t>(*xwid), NET::WMFrameExtents
                 | NET::WMWindowType
                 | NET::WMGeometry
                 | NET::WMDesktop
@@ -479,7 +526,7 @@ WindowInfoWrap XWindowInterface::requestInfo(WindowId wid)
         winfoWrap.setWid(wid);
         const WId transientId = winfo.transientFor();
         winfoWrap.setParentId(transientId ? QByteArray::number((qulonglong)transientId) : QByteArray());
-        winfoWrap.setIsActive(KX11Extras::activeWindow() == static_cast<xcb_window_t>(wid.toUInt()));
+        winfoWrap.setIsActive(KX11Extras::activeWindow() == static_cast<xcb_window_t>(*xwid));
         winfoWrap.setIsMinimized(winfo.hasState(NET::Hidden));
         winfoWrap.setIsMaxVert(winfo.hasState(NET::MaxVert));
         winfoWrap.setIsMaxHoriz(winfo.hasState(NET::MaxHoriz));
@@ -524,7 +571,13 @@ AppData XWindowInterface::appDataFor(WindowId wid)
 
 QUrl XWindowInterface::windowUrl(WindowId wid)
 {
-    const KWindowInfo info(static_cast<xcb_window_t>(wid.toUInt()), NET::Properties(), NET::WM2WindowClass | NET::WM2DesktopFileName);
+    const auto xwid = parseX11WindowId(wid, "windowUrl");
+
+    if (!xwid) {
+        return QUrl();
+    }
+
+    const KWindowInfo info(static_cast<xcb_window_t>(*xwid), NET::Properties(), NET::WM2WindowClass | NET::WM2DesktopFileName);
 
     QString desktopFile = QString::fromUtf8(info.desktopFileName());
 
@@ -553,7 +606,7 @@ QUrl XWindowInterface::windowUrl(WindowId wid)
     }
 
     return windowUrlFromMetadata(info.windowClassClass(),
-                                 NETWinInfo(x11Connection(), static_cast<xcb_window_t>(wid.toUInt()), x11AppRootWindow(), NET::WMPid, NET::Properties2()).pid(),
+                                 NETWinInfo(x11Connection(), static_cast<xcb_window_t>(*xwid), x11AppRootWindow(), NET::WMPid, NET::Properties2()).pid(),
                                  rulesConfig, info.windowClassName());
 }
 
@@ -577,17 +630,31 @@ bool XWindowInterface::windowCanBeMaximized(WindowId wid)
 
 void XWindowInterface::requestActivate(WindowId wid)
 {
-    KX11Extras::activateWindow(wid.toInt());
+    //! this parse also retires a toInt() call that turned ids above
+    //! INT_MAX into a silent activate of window 0
+    const auto xwid = parseX11WindowId(wid, "requestActivate");
+
+    if (!xwid) {
+        return;
+    }
+
+    KX11Extras::activateWindow(*xwid);
 }
 
 QIcon XWindowInterface::iconFor(WindowId wid)
 {
     QIcon icon;
 
-    icon.addPixmap(KX11Extras::icon(static_cast<xcb_window_t>(wid.toUInt()), KIconLoader::SizeSmall, KIconLoader::SizeSmall, false));
-    icon.addPixmap(KX11Extras::icon(static_cast<xcb_window_t>(wid.toUInt()), KIconLoader::SizeSmallMedium, KIconLoader::SizeSmallMedium, false));
-    icon.addPixmap(KX11Extras::icon(static_cast<xcb_window_t>(wid.toUInt()), KIconLoader::SizeMedium, KIconLoader::SizeMedium, false));
-    icon.addPixmap(KX11Extras::icon(static_cast<xcb_window_t>(wid.toUInt()), KIconLoader::SizeLarge, KIconLoader::SizeLarge, false));
+    const auto xwid = parseX11WindowId(wid, "iconFor");
+
+    if (!xwid) {
+        return icon;
+    }
+
+    icon.addPixmap(KX11Extras::icon(static_cast<xcb_window_t>(*xwid), KIconLoader::SizeSmall, KIconLoader::SizeSmall, false));
+    icon.addPixmap(KX11Extras::icon(static_cast<xcb_window_t>(*xwid), KIconLoader::SizeSmallMedium, KIconLoader::SizeSmallMedium, false));
+    icon.addPixmap(KX11Extras::icon(static_cast<xcb_window_t>(*xwid), KIconLoader::SizeMedium, KIconLoader::SizeMedium, false));
+    icon.addPixmap(KX11Extras::icon(static_cast<xcb_window_t>(*xwid), KIconLoader::SizeLarge, KIconLoader::SizeLarge, false));
 
     return icon;
 }
@@ -610,8 +677,14 @@ void XWindowInterface::requestClose(WindowId wid)
         return;
     }
 
+    const auto xwid = parseX11WindowId(wInfo.wid(), "requestClose");
+
+    if (!xwid) {
+        return;
+    }
+
     NETRootInfo ri(x11Connection(), NET::CloseWindow);
-    ri.closeWindowRequest(wInfo.wid().toUInt());
+    ri.closeWindowRequest(*xwid);
 }
 
 void XWindowInterface::requestMoveWindow(WindowId wid, QPoint from)
@@ -636,8 +709,14 @@ void XWindowInterface::requestMoveWindow(WindowId wid, QPoint from)
     int validX = qBound(minX, from.x(), maxX);
     int validY = qBound(minY, from.y(), maxY);
 
+    const auto xwid = parseX11WindowId(wInfo.wid(), "requestMoveWindow");
+
+    if (!xwid) {
+        return;
+    }
+
     NETRootInfo ri(x11Connection(), NET::WMMoveResize);
-    ri.moveResizeRequest(wInfo.wid().toUInt(), validX, validY, NET::Move);
+    ri.moveResizeRequest(*xwid, validX, validY, NET::Move);
 }
 
 void XWindowInterface::requestToggleIsOnAllDesktops(WindowId wid)
@@ -652,11 +731,17 @@ void XWindowInterface::requestToggleIsOnAllDesktops(WindowId wid)
         return;
     }
 
+    const auto xwid = parseX11WindowId(wid, "requestToggleIsOnAllDesktops");
+
+    if (!xwid) {
+        return;
+    }
+
     if (wInfo.isOnAllDesktops()) {
-        KX11Extras::setOnDesktop(wid.toUInt(), KX11Extras::currentDesktop());
-        KX11Extras::forceActiveWindow(wid.toUInt());
+        KX11Extras::setOnDesktop(*xwid, KX11Extras::currentDesktop());
+        KX11Extras::forceActiveWindow(*xwid);
     } else {
-        KX11Extras::setOnAllDesktops(wid.toUInt(), true);
+        KX11Extras::setOnAllDesktops(*xwid, true);
     }
 }
 
@@ -668,7 +753,13 @@ void XWindowInterface::requestToggleKeepAbove(WindowId wid)
         return;
     }
 
-    NETWinInfo ni(x11Connection(), wid.toUInt(), x11AppRootWindow(), NET::WMState, NET::Properties2());
+    const auto xwid = parseX11WindowId(wid, "requestToggleKeepAbove");
+
+    if (!xwid) {
+        return;
+    }
+
+    NETWinInfo ni(x11Connection(), *xwid, x11AppRootWindow(), NET::WMState, NET::Properties2());
 
     if (wInfo.isKeepAbove()) {
         ni.setState(NET::States(), NET::KeepAbove);
@@ -679,29 +770,33 @@ void XWindowInterface::requestToggleKeepAbove(WindowId wid)
 
 void XWindowInterface::setKeepAbove(WindowId wid, bool active)
 {
-    if (wid.toUInt() <= 0) {
+    const auto xwid = parseX11WindowId(wid, "setKeepAbove");
+
+    if (!xwid) {
         return;
     }
 
     if (active) {
-        KX11Extras::setState(wid.toUInt(), NET::KeepAbove);
-        KX11Extras::clearState(wid.toUInt(), NET::KeepBelow);
+        KX11Extras::setState(*xwid, NET::KeepAbove);
+        KX11Extras::clearState(*xwid, NET::KeepBelow);
     } else {
-        KX11Extras::clearState(wid.toUInt(), NET::KeepAbove);
+        KX11Extras::clearState(*xwid, NET::KeepAbove);
     }
 }
 
 void XWindowInterface::setKeepBelow(WindowId wid, bool active)
 {
-    if (wid.toUInt() <= 0) {
+    const auto xwid = parseX11WindowId(wid, "setKeepBelow");
+
+    if (!xwid) {
         return;
     }
 
     if (active) {
-        KX11Extras::setState(wid.toUInt(), NET::KeepBelow);
-        KX11Extras::clearState(wid.toUInt(), NET::KeepAbove);
+        KX11Extras::setState(*xwid, NET::KeepBelow);
+        KX11Extras::clearState(*xwid, NET::KeepAbove);
     } else {
-        KX11Extras::clearState(wid.toUInt(), NET::KeepBelow);
+        KX11Extras::clearState(*xwid, NET::KeepBelow);
     }
 }
 
@@ -714,16 +809,22 @@ void XWindowInterface::requestToggleMinimized(WindowId wid)
         return;
     }
 
+    const auto xwid = parseX11WindowId(wid, "requestToggleMinimized");
+
+    if (!xwid) {
+        return;
+    }
+
     if (wInfo.isMinimized()) {
         bool onCurrent = wInfo.isOnDesktop(m_currentDesktop);
 
-        KX11Extras::unminimizeWindow(wid.toUInt());
+        KX11Extras::unminimizeWindow(*xwid);
 
         if (onCurrent) {
-            KX11Extras::forceActiveWindow(wid.toUInt());
+            KX11Extras::forceActiveWindow(*xwid);
         }
     } else {
-        KX11Extras::minimizeWindow(wid.toUInt());
+        KX11Extras::minimizeWindow(*xwid);
     }
 }
 
@@ -735,13 +836,21 @@ void XWindowInterface::requestToggleMaximized(WindowId wid)
         return;
     }
 
+    const auto xwid = parseX11WindowId(wid, "requestToggleMaximized");
+
+    if (!xwid) {
+        return;
+    }
+
     bool restore = wInfo.isMaxHoriz() && wInfo.isMaxVert();
 
     if (wInfo.isMinimized()) {
-        KX11Extras::unminimizeWindow(wid.toUInt());
+        KX11Extras::unminimizeWindow(*xwid);
     }
 
-    NETWinInfo ni(x11Connection(), wid.toInt(), x11AppRootWindow(), NET::WMState, NET::Properties2());
+    //! *xwid also retires a toInt() here that turned ids above INT_MAX
+    //! into a silent NETWinInfo lookup of window 0
+    NETWinInfo ni(x11Connection(), *xwid, x11AppRootWindow(), NET::WMState, NET::Properties2());
 
     if (restore) {
         ni.setState(NET::States(), NET::Max);
@@ -761,7 +870,17 @@ bool XWindowInterface::isValidWindow(WindowId wid)
 
 bool XWindowInterface::isAcceptableWindow(WindowId wid)
 {
-    const KWindowInfo info(wid.toUInt(), NET::WMGeometry | NET::WMState, NET::WM2WindowClass);
+    const auto xwid = parseX11WindowId(wid, "isAcceptableWindow");
+
+    if (!xwid) {
+        //! the old window-0 lookup answered true here (an invalid
+        //! KWindowInfo has no skip states); an absent window is not an
+        //! acceptable one, and no caller reaches this with an empty id
+        //! through a path that relied on that answer
+        return false;
+    }
+
+    const KWindowInfo info(*xwid, NET::WMGeometry | NET::WMState, NET::WM2WindowClass);
 
     const auto winClass = QString(info.windowClassName());
 

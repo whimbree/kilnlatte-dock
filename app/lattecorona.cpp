@@ -1103,7 +1103,17 @@ void Corona::windowColorScheme(QString windowIdAndScheme)
             m_wm->schemesTracker()->setColorSchemeForWindow(m_wm->activeWindow(), schemeStr);
         });
     } else {
-        m_wm->schemesTracker()->setColorSchemeForWindow(WindowSystem::windowIdFromWId(windowIdStr.toULongLong()), schemeStr);
+        //! external D-Bus boundary: a malformed window id used to parse to 0
+        //! silently and tag window 0 with the scheme; refuse it loudly instead
+        bool widParsed{false};
+        const qulonglong parsedWId = windowIdStr.toULongLong(&widParsed);
+
+        if (!widParsed) {
+            qWarning() << "windowColorScheme D-Bus call carried a malformed X11 window id, refusing:" << windowIdAndScheme;
+            return;
+        }
+
+        m_wm->schemesTracker()->setColorSchemeForWindow(WindowSystem::windowIdFromWId(parsedWId), schemeStr);
     }
 }
 
