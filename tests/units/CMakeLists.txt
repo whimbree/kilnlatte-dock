@@ -100,6 +100,14 @@ target_include_directories(windowtrackingpredicatestest PRIVATE
 target_link_libraries(windowtrackingpredicatestest
     Qt6::Gui)
 
+# WindowId newtype (the WindowId newtype hardening item in
+# docs/PORTING_PLAN.md): header-only id type with the checked X11 parse
+# and the loud boundary refusal, pinned incl. compile-time
+# non-convertibility.
+latte_add_unit_test(windowidtest)
+target_include_directories(windowidtest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app)
+
 latte_add_unit_test(extraviewhintstest)
 target_include_directories(extraviewhintstest PRIVATE
     ${CMAKE_SOURCE_DIR}/app)

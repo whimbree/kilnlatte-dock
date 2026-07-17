@@ -10,5 +10,6 @@ app/plasma/extended/panelbackgroundscan.h
 app/settings/lengthoffsetclamp.h
 app/screengeometrycalculator.h
 app/view/positionergeometry.h
+app/wm/windowid.h
 app/wm/windowtrackingpredicates.h
 app/wm/tracker/extraviewhints.h

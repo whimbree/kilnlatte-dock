@@ -1,8 +1,4 @@
-# ctest entry baseline for scripts/coverage-ratchet.sh.
-# First non-comment line: entry count. Rest: the entry list, one per
-# line (kept sorted for diffability). Regenerate the list with:
-#   ctest --test-dir build -N | sed -n 's/^ *Test *#[0-9]*: //p' | sort
-65
+66
 abstractlayouttest
 activitiesinfotest
 activitysetalgebratest
@@ -66,5 +62,6 @@ visibleindextest
 visualhostwindowtest
 wheelaccumulatortest
 windowcyclertest
+windowidtest
 windowinfowraptest
 windowtrackingpredicatestest
