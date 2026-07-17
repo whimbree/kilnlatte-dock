@@ -1,7 +1,39 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-17 (stabilization-execution session three, in progress).
+Last updated 2026-07-17 (stabilization-execution session three, complete).
+
+## 2026-07-17 SESSION THREE CLOSE (master at ed62ce333, all pushed)
+
+The whole open list from the stabilization prompt is landed. Master
+moved e2db89a25 -> ed62ce333 over the session, every feature through
+the branch -> gate -> lean Sonnet review -> merge flow. In order:
+re-pin (item 0), X11 removal (PR #1, the ONLY GitHub-rebase-merge -
+it rewrote hashes and cost a re-resolution, which is why ff-merge is
+now the documented default), restart-sweep fix, color-group audit,
+P3b (14 suites, ctest to 81), wayland-id sweep, keyboard focus mode
+(the a11y P0 gate, ctest to 82), Accessible.* rollout, e2e vehicle
+promotion + EX-14/15/17 (PR #2), and the CaptSilver attribution +
+process rules (PR #3). Real dock verified running on the final build
+(2 views, keyboardNavigation readback false by default).
+
+PROCESS additions this session, all in CLAUDE.md now: feature ->
+branch -> real GitHub PR (`nix run nixpkgs#gh --`) -> lean Sonnet
+review (diff-read only, no independent rebuild - the branch gate
+stamp proves gates) -> ff-merge (NOT GitHub rebase-merge, which
+rewrites shas). Transplanted code cites the exact fork commit
+(81384003 for CaptSilver) plus the original author's SPDX line when
+derived.
+
+OWED, needs Bree's hands (none block the code): the Meta+Alt+D
+keyboard-nav desk pass + Orca screen-reader pass
+(docs/manual-flake-removal-testing.md), the byPassWM retire/keep
+decision (Phase 4 item), the Phase 8 bottom-dock surface-drift
+root-cause (it is the e2e suite's sequence-flakiness source - recipes
+pass solo), the two keyboard-focus follow-ups (denied-activation flag
+staleness, cross-view exclusivity), the nixos-upgrade-timer story,
+and the e2e audio-badge recipe (needs pipewire). Full desk checklist
+in docs/manual-flake-removal-testing.md.
 
 ## 2026-07-17: stabilization execution session THREE (running record)
 
