@@ -349,22 +349,22 @@ void LastActiveWindowTest::requestForwardersUseCurrentWindow()
     QCOMPARE(law->currentWinId().toInt(), 42);
 
     law->requestActivate();
-    QCOMPARE(m_wm->lastActivated.toInt(), 42);
+    QCOMPARE(m_wm->lastActivated, WindowId::fromWaylandUuid(QByteArray::number(42)));
 
     law->requestClose();
-    QCOMPARE(m_wm->lastClosed.toInt(), 42);
+    QCOMPARE(m_wm->lastClosed, WindowId::fromWaylandUuid(QByteArray::number(42)));
 
     law->requestToggleMaximized();
-    QCOMPARE(m_wm->lastToggledMaximized.toInt(), 42);
+    QCOMPARE(m_wm->lastToggledMaximized, WindowId::fromWaylandUuid(QByteArray::number(42)));
 
     law->requestToggleMinimized();
-    QCOMPARE(m_wm->lastToggledMinimized.toInt(), 42);
+    QCOMPARE(m_wm->lastToggledMinimized, WindowId::fromWaylandUuid(QByteArray::number(42)));
 
     law->requestToggleKeepAbove();
-    QCOMPARE(m_wm->lastToggledKeepAbove.toInt(), 42);
+    QCOMPARE(m_wm->lastToggledKeepAbove, WindowId::fromWaylandUuid(QByteArray::number(42)));
 
     law->requestToggleIsOnAllDesktops();
-    QCOMPARE(m_wm->lastToggledAllDesktops.toInt(), 42);
+    QCOMPARE(m_wm->lastToggledAllDesktops, WindowId::fromWaylandUuid(QByteArray::number(42)));
 }
 
 void LastActiveWindowTest::canBeDraggedReflectsWm()
@@ -376,10 +376,10 @@ void LastActiveWindowTest::canBeDraggedReflectsWm()
     law->setInformation(makeShownWindow(99));
     QCOMPARE(law->currentWinId().toInt(), 99);
 
-    m_wm->draggable[QByteArray::number(99)] = false;
+    m_wm->draggable[WindowId::fromWaylandUuid(QByteArray::number(99))] = false;
     QVERIFY(!law->canBeDragged());
 
-    m_wm->draggable[QByteArray::number(99)] = true;
+    m_wm->draggable[WindowId::fromWaylandUuid(QByteArray::number(99))] = true;
     QVERIFY(law->canBeDragged());
 }
 

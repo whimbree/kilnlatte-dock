@@ -78,14 +78,20 @@ public:
         return m_id;
     }
 
-    //! equality and ordering are byte-wise - exactly the QByteArray
-    //! semantics the QMap keys and QList lookups relied on before the
-    //! newtype, so the substrate swap preserves container behavior
+    //! equality, ordering and hashing are byte-wise - exactly the
+    //! QByteArray semantics the QMap/QHash keys and QList lookups relied
+    //! on before the newtype, so the substrate swap preserves container
+    //! behavior
     friend bool operator==(const WindowId &left, const WindowId &right) = default;
 
     friend bool operator<(const WindowId &left, const WindowId &right)
     {
         return left.m_id < right.m_id;
+    }
+
+    friend size_t qHash(const WindowId &wid, size_t seed = 0)
+    {
+        return qHash(wid.m_id, seed);
     }
 
 private:
