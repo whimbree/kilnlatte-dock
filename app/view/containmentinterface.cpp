@@ -708,6 +708,16 @@ QList<int> ContainmentInterface::appletsOrder() const
     return m_appletOrder;
 }
 
+QList<int> ContainmentInterface::appletsInLockedZoom() const
+{
+    return m_appletsInLockedZoom;
+}
+
+QList<int> ContainmentInterface::appletsDisabledColoring() const
+{
+    return m_appletsDisabledColoring;
+}
+
 void ContainmentInterface::updateAppletsOrder()
 {
     if (!m_layoutManager) {

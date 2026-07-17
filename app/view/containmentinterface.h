@@ -92,6 +92,8 @@ public:
 
     int indexOfApplet(const int &id);
     QList<int> appletsOrder() const;
+    QList<int> appletsInLockedZoom() const;
+    QList<int> appletsDisabledColoring() const;
     ViewPart::AppletInterfaceData appletDataAtIndex(const int &index);
     ViewPart::AppletInterfaceData appletDataForId(const int &id);
 
