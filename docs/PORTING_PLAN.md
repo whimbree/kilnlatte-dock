@@ -2412,16 +2412,28 @@ showed how much of the dock can only be driven by a pointer today.
       owed (real keyboard: Meta+Alt+D, arrows/Home/End, Enter,
       Escape, badge + highlight visuals) - filed in
       docs/manual-flake-removal-testing.md.
+      TWO FOLLOW-UPS from the merge review (neither is the
+      stuck-focus defect class): (1) if the compositor silently
+      denies requestActivate at mode entry, the mode FLAG stays true
+      with no keys ever reaching the window - Escape cannot exit
+      (no key delivery) and the activeChanged watcher never fires;
+      recoverable via toggle/D-Bus only. Fix shape: a bounded
+      activation-confirmation timeout that reverts the flag when
+      isActive() never goes true. (2) setViewKeyboardNavigation has
+      no cross-view exclusivity - two views can hold the mode at
+      once over D-Bus while the shortcut toggle assumes one; decide
+      the contract (exclusive enter, or make the toggle multi-view
+      aware).
       Group previews are
       keyboard-unreachable BY CONSTRUCTION (WindowDoesNotAcceptFocus
       in both modes); edit-mode chrome buttons are hand-rolled
       ghost-button chips; QWidget settings dialogs are already dense
       with QAction shortcuts. Work order per the inventory's gap
       list.
-      Commits: worktree keyboard-focus-mode 626d63e4d (view state
-      machine), d5c54cbdd (Meta+Alt+D), 649b49c86 (D-Bus surface),
-      12d45bbf5 (VisibleIndex slot math), 81e0e0a2d (QML traversal),
-      0f16c908a (owed pin test), aedde465c (e2e drive) - retick with
+      Commits: worktree keyboard-focus-mode 634ae2083 (view state
+      machine), a5759f19b (Meta+Alt+D), 0c3fa2a70 (D-Bus surface),
+      84884c246 (VisibleIndex slot math), 1fbe25b45 (QML traversal),
+      1c7fe9871 (owed pin test), 920e84ff9 (e2e drive) - retick with
       post-rebase hashes at merge
 - [ ] qmlc-cache audit for the qrc QML harnesses (filed 2026-07-17
       from the shortcutshosttest introduction): qrc URLs carry no

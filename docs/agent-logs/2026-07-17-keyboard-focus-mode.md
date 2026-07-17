@@ -11,7 +11,7 @@ plan gets its final ones at merge.
 The dock window is focus-refusing by construction; the mode makes it
 temporarily focusable and everything else rides existing machinery:
 
-- **C++ state machine** (626d63e4d, app/view/view.{h,cpp}):
+- **C++ state machine** (634ae2083, app/view/view.{h,cpp}):
   `keyboardNavigationIsActive` property with
   enter/exit/toggleKeyboardNavigation. Enter: block-hiding event (also
   reveals an auto-hidden dock via mustBeShown - the Meta press-and-hold
@@ -24,20 +24,20 @@ temporarily focusable and everything else rides existing machinery:
   QWindow::activeChanged - ANY focus loss converges the window back to
   focus-refusing, because a dock stuck focusable breaks fullscreen
   apps.
-- **Global shortcut** (d5c54cbdd): Meta+Alt+D in the existing
+- **Global shortcut** (a5759f19b): Meta+Alt+D in the existing
   kglobalaccel family; strict toggle (exits from whichever view is
   navigating, enters on the isPreferredForShortcuts-then-sorted view,
   the activateEntry choice). Meta+Alt+P is plasmashell's panel-focus
   analog; D avoids the collision.
-- **D-Bus surface** (649b49c86): setViewKeyboardNavigation(u,b) coarse
+- **D-Bus surface** (0c3fa2a70): setViewKeyboardNavigation(u,b) coarse
   action + viewsData `keyboardNavigation` readback; XML + both docs +
   dbusreportstest per the maintenance triple.
-- **Traversal core** (12d45bbf5): VisibleIndex gains countVisibleSlots
+- **Traversal core** (84884c246): VisibleIndex gains countVisibleSlots
   (max over per-entry upper bounds, NOT a sub-item sum - a trailing
   empty tasks applet owns its exact base slot one past the sum) and
   steppedVisibleSlot (clamped, no wrap; stale current clamps back in).
   Unit-pinned in visibleindextest.
-- **QML traversal** (81e0e0a2d): KeyboardNavigationHandler.qml in the
+- **QML traversal** (1fbe25b45): KeyboardNavigationHandler.qml in the
   containment takes collaborators as typed properties; arrows/Home/End
   step the same 1-based entry space Meta+number addresses;
   Enter/Return/Space call the shortcuts host's activateEntryAtIndex
@@ -48,7 +48,7 @@ temporarily focusable and everything else rides existing machinery:
   position badges show while navigating (the Meta-hold view). One new
   shared ability property: PositionShortcuts.keyboardFocusedEntryIndex,
   client-mirrored like showPositionShortcutBadges.
-- **Pin test** (0f16c908a): the owed offscreen pin. The walk +
+- **Pin test** (1c7fe9871): the owed offscreen pin. The walk +
   signature resolution extracted to statics
   (ContainmentInterface::findShortcutsHost /
   resolveShortcutsHostMethods); real containment graph through
@@ -58,7 +58,7 @@ temporarily focusable and everything else rides existing machinery:
 ## Evidence
 
 - Nested vehicle (run_in_kwin.sh + dbus-run-session, private bus):
-  tests/e2e/keyboard-navigation-mode.sh (aedde465c) 8/8 ok on the
+  tests/e2e/keyboard-navigation-mode.sh (920e84ff9) 8/8 ok on the
   final binary - lifecycle running, baseline false, unknown-id refusal
   with the dock alive, enter/exit readback true/false, focus-loss
   self-exit (instrumented run showed the full chain: requestActivate

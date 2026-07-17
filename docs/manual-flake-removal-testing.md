@@ -144,11 +144,11 @@ refusal, focus-loss self-exit); what it cannot drive is real key events
 into the focused window. All of these against the staged dock:
 
 - [ ] **Meta+Alt+D toggle** (plan keyboard item, worktree commit
-      d5c54cbdd). Press once: dock takes focus, position badges appear
+      a5759f19b). Press once: dock takes focus, position badges appear
       (the Meta-hold view), the first item lights its indicator hover
       state. Press again: everything reverts. `viewsData`'s
       keyboardNavigation is the readback if the visuals are ambiguous.
-- [ ] **Traversal keys** (81e0e0a2d). Arrows step along the row
+- [ ] **Traversal keys** (1fbe25b45). Arrows step along the row
       (Up/Left back, Down/Right forward), no wrap at either edge,
       Home/End jump; the highlight and the badges must always agree
       with what Enter would activate (they share the shortcut-index

@@ -6,7 +6,7 @@ Last updated 2026-07-17 (stabilization-execution session three, in progress).
 ## 2026-07-17: stabilization execution session THREE (running record)
 
 KEYBOARD FOCUS MODE LANDED (branch keyboard-focus-mode, 7 commits,
-worktree hashes 626d63e4d..aedde465c - retick at merge): the
+worktree hashes 634ae2083..920e84ff9 - retick at merge): the
 accessibility quartet's P0 gate plus the owed shortcuts-host pin.
 View::enter/exit/toggleKeyboardNavigation (layer-shell OnDemand,
 three bulletproof exits: Escape / toggle / focus loss via
