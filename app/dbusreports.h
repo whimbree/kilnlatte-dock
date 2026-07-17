@@ -35,6 +35,19 @@ namespace DbusReports {
 //! pure (unit-tested without a corona in tests/units/dbusreportstest.cpp);
 //! only the collect* functions in dbusreports.cpp read live View objects.
 
+//! One applet of a view as viewAppletsData() reports it
+//! (docs/dbus-observability-interface.md, step 2)
+struct AppletRecord {
+    int id{-1};
+    QString plugin;
+    int index{-1};
+    QRect geometry;
+    bool isExpanded{false};
+    bool inScheduledDestruction{false};
+    bool lockedZoom{false};
+    bool colorizingBlocked{false};
+};
+
 struct ViewRecord {
     uint containmentId{0};
     QString layout;
@@ -130,6 +143,32 @@ inline QJsonArray serializeRect(const QRect &rect)
     return QJsonArray{rect.x(), rect.y(), rect.width(), rect.height()};
 }
 
+inline QJsonObject serializeAppletRecord(const AppletRecord &record)
+{
+    QJsonObject json;
+    json[QStringLiteral("id")] = record.id;
+    json[QStringLiteral("plugin")] = record.plugin;
+    json[QStringLiteral("index")] = record.index;
+    json[QStringLiteral("geometry")] = serializeRect(record.geometry);
+    json[QStringLiteral("isExpanded")] = record.isExpanded;
+    json[QStringLiteral("inScheduledDestruction")] = record.inScheduledDestruction;
+    json[QStringLiteral("lockedZoom")] = record.lockedZoom;
+    json[QStringLiteral("colorizingBlocked")] = record.colorizingBlocked;
+
+    return json;
+}
+
+inline QString serializeAppletRecords(const QList<AppletRecord> &records)
+{
+    QJsonArray array;
+
+    for (const auto &record : records) {
+        array.append(serializeAppletRecord(record));
+    }
+
+    return QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact));
+}
+
 inline QJsonObject serializeViewRecord(const ViewRecord &record)
 {
     QJsonObject json;
@@ -187,6 +226,9 @@ ViewRecord collectViewRecord(const Latte::View *view, bool inConfigureAppletsMod
 
 //! serialize a set of live views for the viewsData() D-Bus read
 QString collectViewsData(const QList<Latte::View *> &views, bool inConfigureAppletsMode);
+
+//! serialize one live view's applets for the viewAppletsData() D-Bus read
+QString collectAppletsData(const Latte::View *view);
 
 }
 }

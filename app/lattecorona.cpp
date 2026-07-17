@@ -1287,6 +1287,37 @@ void Corona::setViewEditMode(const uint &containmentId, const bool &editing)
     configView->hideConfigWindow();
 }
 
+void Corona::activateTaskAt(const uint &containmentId, const int &index)
+{
+    auto view = m_layoutsManager->synchronizer()->viewForContainment(containmentId);
+
+    if (!view) {
+        qWarning() << "corona: activateTaskAt requested for containment" << containmentId << "which has no view";
+        return;
+    }
+
+    //! the exact Meta+<index> path (docs/dbus-observability-interface.md):
+    //! plasma-tasks fallback, wait-for-shown deferral while the dock is
+    //! hidden, then the shortcuts host's activateEntryAtIndex - the same
+    //! code a left-click on the entry drives. Index is therefore the
+    //! 1-based visual entry index the shortcut badges show.
+    if (!m_globalShortcuts->activateEntryForView(view, index, static_cast<Qt::Key>(Qt::META))) {
+        qWarning() << "corona: activateTaskAt could not activate entry" << index << "on containment" << containmentId;
+    }
+}
+
+QString Corona::viewAppletsData(const uint &containmentId)
+{
+    auto view = m_layoutsManager->synchronizer()->viewForContainment(containmentId);
+
+    if (!view) {
+        qWarning() << "corona: viewAppletsData queried for containment" << containmentId << "which has no view";
+        return QStringLiteral("[]");
+    }
+
+    return DbusReports::collectAppletsData(view);
+}
+
 QString Corona::viewsData()
 {
     return DbusReports::collectViewsData(m_layoutsManager->synchronizer()->currentViews(),

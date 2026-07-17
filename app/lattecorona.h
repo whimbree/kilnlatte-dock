@@ -193,6 +193,13 @@ public:
     //! The serialization lives in dbusreports.h; this stays a delegation.
     QString viewsData();
 
+    //! D-Bus state readback (observability-first): one view's applets as a
+    //! compact JSON array (id, plugin, index, geometry, expanded and
+    //! destruction/lockedZoom/coloring flags), documented in
+    //! docs/dbus-observability-interface.md. "[]" means no view exists for
+    //! that containment id (warned in the log).
+    QString viewAppletsData(const uint &containmentId);
+
 public Q_SLOTS:
     void aboutApplication();
     void activateLauncherMenu();
@@ -210,6 +217,11 @@ public Q_SLOTS:
     //! leave a view's edit mode through the same paths the context menu's
     //! Edit Dock... entry and the settings chrome's close button use
     void setViewEditMode(const uint &containmentId, const bool &editing);
+
+    //! D-Bus coarse action (docs/dbus-observability-interface.md): activate
+    //! a view's entry at the given 1-based visual index through the exact
+    //! Meta+<index> global-shortcut path
+    void activateTaskAt(const uint &containmentId, const int &index);
 
     void setBackgroundFromBroadcast(QString activity, QString screenName, QString filename);
     void setBroadcastedBackgroundsEnabled(QString activity, QString screenName, bool enabled);

@@ -8,13 +8,21 @@
 
 // local
 #include "layout/genericlayout.h"
+#include "view/containmentinterface.h"
 #include "view/effects.h"
 #include "view/positioner.h"
 #include "view/view.h"
 #include "view/visibilitymanager.h"
 
+// Qt
+#include <QQuickItem>
+
 // Plasma
+#include <Plasma/Applet>
 #include <Plasma/Containment>
+
+// PlasmaQuick
+#include <plasmaquick/appletquickitem.h>
 
 namespace Latte {
 namespace DbusReports {
@@ -60,6 +68,54 @@ ViewRecord collectViewRecord(const Latte::View *view, bool inConfigureAppletsMod
     record.inConfigureAppletsMode = inConfigureAppletsMode;
 
     return record;
+}
+
+QString collectAppletsData(const Latte::View *view)
+{
+    //! same invariant layer as collectViewRecord: the view comes from
+    //! Synchronizer::viewForContainment, and a registered view always
+    //! carries its extended interface
+    Q_ASSERT(view);
+    Q_ASSERT(view->extendedInterface());
+
+    auto interface = view->extendedInterface();
+
+    QList<AppletRecord> records;
+    const QList<int> order = interface->appletsOrder();
+    records.reserve(order.count());
+
+    for (const int id : order) {
+        const auto data = interface->appletDataForId(id);
+
+        //! appletsOrder() also carries justify-splitter pseudo-ids that own
+        //! no applet data; they are layout artifacts, not applets, so the
+        //! report (schema: "per applet") skips them
+        if (data.id < 0) {
+            continue;
+        }
+
+        //! applet data entries always carry their quick item: the tracking
+        //! block in onAppletAdded only runs with a non-null AppletQuickItem
+        Q_ASSERT(data.applet && data.plasmoid);
+
+        AppletRecord record;
+        record.id = data.id;
+        record.plugin = data.plugin;
+        record.index = interface->indexOfApplet(data.id);
+        //! "geometry within the view": the applet item mapped to scene
+        //! coordinates, and the scene IS the view window
+        record.geometry = data.plasmoid->mapRectToScene(QRectF(0, 0, data.plasmoid->width(), data.plasmoid->height())).toAlignedRect();
+        record.isExpanded = interface->appletIsExpanded(data.id);
+        //! Plasma::Applet::destroyed() is the scheduled-destruction bit the
+        //! interface already forwards as appletInScheduledDestructionChanged
+        record.inScheduledDestruction = data.applet->destroyed();
+        record.lockedZoom = interface->appletsInLockedZoom().contains(data.id);
+        record.colorizingBlocked = interface->appletsDisabledColoring().contains(data.id);
+
+        records << record;
+    }
+
+    return serializeAppletRecords(records);
 }
 
 QString collectViewsData(const QList<Latte::View *> &views, bool inConfigureAppletsMode)

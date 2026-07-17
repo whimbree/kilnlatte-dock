@@ -46,6 +46,10 @@
         <arg name="containmentId" type="u" direction="in"/>
         <arg name="editing" type="b" direction="in"/>
     </method>
+    <method name="activateTaskAt">
+        <arg name="containmentId" type="u" direction="in"/>
+        <arg name="index" type="i" direction="in"/>
+    </method>
     <method name="showSettingsWindow">
         <arg name="page" type="i" direction="in"/>
     </method>
@@ -62,6 +66,10 @@
     </method>
     <method name="viewsData">
         <arg name="data" type="s" direction="out"/>
+    </method>
+    <method name="viewAppletsData">
+        <arg name="data" type="s" direction="out"/>
+        <arg name="containmentId" type="u" direction="in"/>
     </method>
     <method name="setBackgroundFromBroadcast">
         <arg name="activity" type="s" direction="in"/>
