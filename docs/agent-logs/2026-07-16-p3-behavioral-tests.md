@@ -49,11 +49,51 @@ sites in our tree before adopting any test that pins them:
 
 ## Per-candidate verification and verdicts
 
-(filled in as work lands)
+### 1. screenpooltest - ADOPTED, and it pins a live-bug fix
+
+Premise checks against our tree, all green: Latte::ScreenPool carries
+the exact API the test drives (config-injected ctor, load(),
+NOSCREENID=-1, hasScreenId, insertScreenMapping(connector),
+removeScreens(ScreensTable), FIRSTSCREENID=10);
+PlasmaExtended::ScreenPool self-loads from the hardcoded plasmashellrc
+in its ctor with the 0=primary/-1=not-found id semantics;
+Data::Screen has the (id, serialized) ctor. The removeScreens premise
+was NOT green: our loop carried the early return the fork's e997ac93
+fixed (defect 1 above). Fixed at the origin first (return -> continue,
+contract comment added), then adopted the test. Adaptation: the fork
+compiles fifteen sources into the test binary; ours links the
+lattedock-core object library like every other behavioral test.
+
+### 2. visibilityrevealtest - ADOPTED, extended over the full enum
+
+Our tree already carries the static
+VisibilityManager::revealsOnScreenEdge helper (landed with cf05d8564,
+the layer-shell placement port) gating
+WaylandInterface::setActiveEdge - identical semantics to the fork's.
+Nothing pinned it. Adopted the fork's eight assertions and extended
+with the four enum values our Types::Visibility also carries
+(WindowsAlwaysCover, SidebarOnDemand, SidebarAutoHide, NormalWindow),
+all non-revealing, verified against updateKWinEdgesSupport() which
+creates edge ghosts only for the four reveal modes plus
+WindowsCanCover's layer mechanism.
 
 ## Negative tests
 
-(actual outcomes recorded as they run)
+Actual outcomes, not plans; every fix was committed before its
+negative test so a git checkout restores the fixed state:
+
+- screenpooltest: reintroduced the removeScreens early return alone ->
+  lattePool_removeScreensSkipsAbsentIdAndRemovesPresent FAILED on
+  '!pool.hasScreenId(11)'; restored -> green. Process note: the first
+  attempt used a sed that clobbered two unrelated `continue`
+  statements in the same file and broke the build, and ctest then
+  reported a stale PASSING binary - the lesson is to make
+  negative-test edits with an exact-match edit, never a pattern
+  substitution, and to confirm the build succeeded before reading the
+  test result.
+- visibilityrevealtest: removed AutoHide from the predicate ->
+  revealsOnScreenEdge_revealingModes FAILED naming the AutoHide check;
+  restored -> green.
 
 ## Gates
 
