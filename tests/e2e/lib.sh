@@ -44,15 +44,22 @@ e2e_wait_running() {
 # view-creation window (caught by duplicate-view failing against a view id
 # that did not exist yet).
 e2e_wait_settled() {
-    local timeout="${1:-60}" i payload
+    local timeout="${1:-60}" i payload previous=""
     for ((i = 0; i < timeout; i++)); do
         payload="$(e2e_call viewsData 2>/dev/null)"
         if [[ -n "$payload" && "$payload" != 's "[]"' ]] && ! grep -q 'inStartup\\":true' <<<"$payload"; then
-            return 0
+            #! geometry must also STOP MOVING: the startup zoom animation keeps
+            #! resizing strips and applets for seconds after inStartup clears,
+            #! and coordinates sampled mid-animation put recipe pointer math
+            #! off by up to ~90px (caught as an applet rect below the screen)
+            if [[ "$payload" == "$previous" ]]; then
+                return 0
+            fi
+            previous="$payload"
         fi
         sleep 1
     done
-    echo "views still absent or inStartup after ${timeout}s" >&2
+    echo "views still absent, inStartup, or animating after ${timeout}s" >&2
     return 1
 }
 
@@ -172,7 +179,9 @@ e2e_tasks_view() {
     for id in $(e2e_json viewsData | python3 -c '
 import json, sys
 views = [v for v in json.load(sys.stdin) if v["edge"] in ("bottom", "top")]
-views.sort(key=lambda v: -v["absoluteGeometry"][2])
+# deterministic: widest first, bottom beats top on ties (my config carries
+# same-width top and bottom docks; every by-hand calibration used bottom)
+views.sort(key=lambda v: (-v["absoluteGeometry"][2], v["edge"] != "bottom"))
 for v in views:
     print(v["containmentId"])
 '); do
