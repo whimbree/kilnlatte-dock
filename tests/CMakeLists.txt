@@ -97,6 +97,21 @@ target_include_directories(shortcutstest PRIVATE
     ${CMAKE_SOURCE_DIR}/app
     ${CMAKE_BINARY_DIR}/app)
 
+# The Layouts::Storage singleton over temp .latte KConfig fixtures: the
+# view() / updateView() serialization pair, containment enumeration, clone
+# and subcontainment handling, the errors/warnings scanners and template
+# export/import; carries its own main() so the XDG homes point at a temp dir
+# before QGuiApplication.
+ecm_add_test(storagetest.cpp
+    TEST_NAME storagetest
+    LINK_LIBRARIES lattedock-core Qt6::Test
+)
+set_tests_properties(storagetest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_include_directories(storagetest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app
+    ${CMAKE_BINARY_DIR}/app)
+
 # The app/data value-type layer: tables, sentinels, state machines and the
 # serialization round trips the settings dialogs and storage ride on.
 ecm_add_test(datatypestest.cpp

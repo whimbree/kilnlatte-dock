@@ -1,4 +1,4 @@
-67
+68
 abstractlayouttest
 activitiesinfotest
 activitysetalgebratest
@@ -55,6 +55,7 @@ smartlauncheritemtest
 sourceguardtest
 storageidremapapplicationtest
 storageidremappertest
+storagetest
 syncedlaunchersclienttest
 tasksbackendtest
 tooltiptexttest
