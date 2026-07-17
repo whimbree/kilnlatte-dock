@@ -66,7 +66,11 @@ KWINLOG="$RT/kwin.log"
 SOCK=sceneprobe-wl
 
 cleanup() {
-    [ -n "${KWINPID:-}" ] && kill "$KWINPID" 2>/dev/null && wait "$KWINPID" 2>/dev/null
+    # kill the whole process GROUP, not just dbus-run-session: killing the
+    # wrapper pid alone orphans the kwin child often enough that a day of
+    # runs left 315 virtual compositors alive (the setsid below gives the
+    # session its own pgid so the negative-pid kill has a precise target)
+    [ -n "${KWINPID:-}" ] && { kill -- "-$KWINPID" 2>/dev/null || kill "$KWINPID" 2>/dev/null; wait "$KWINPID" 2>/dev/null; }
     # the xdg-desktop-portal the nested bus activates FUSE-mounts $RT/doc;
     # unmount before removing or the rm leaves the mountpoint behind
     fusermount3 -u "$RT/doc" 2>/dev/null || fusermount -u "$RT/doc" 2>/dev/null || true
@@ -80,7 +84,7 @@ trap cleanup EXIT INT TERM
 # open connections to the session Xwayland that never closed. A night of
 # runs saturated the X client limit (254/256, "Maximum number of clients
 # reached") and took down both the desk session's headroom and this gate.
-env -u DISPLAY -u XAUTHORITY \
+setsid env -u DISPLAY -u XAUTHORITY \
   XDG_RUNTIME_DIR="$RT" KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
   dbus-run-session -- kwin_wayland --virtual --width 256 --height 256 \
   --no-lockscreen --socket "$SOCK" >"$KWINLOG" 2>&1 &
@@ -103,7 +107,8 @@ fi
 # the loader's enumeration alone.
 DEV_ENV=()
 [ "$DEV" = "lavapipe" ] && DEV_ENV=(LP_NUM_THREADS=0 VK_ICD_FILENAMES="$ICD")
-env QT_QPA_PLATFORM=wayland WAYLAND_DISPLAY="$SOCK" XDG_RUNTIME_DIR="$RT" \
+env -u DISPLAY -u XAUTHORITY \
+    QT_QPA_PLATFORM=wayland WAYLAND_DISPLAY="$SOCK" XDG_RUNTIME_DIR="$RT" \
     QSG_RHI_BACKEND=vulkan "${DEV_ENV[@]}" VK_LAYER_PATH="$LAYERS" \
     timeout 90 "$@"
 ec=$?
