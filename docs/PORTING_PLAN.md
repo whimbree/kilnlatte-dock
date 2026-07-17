@@ -2325,7 +2325,7 @@ showed how much of the dock can only be driven by a pointer today.
       docs/agent-logs/2026-07-16-captsilver-testability-study.md).
       HARD CONSTRAINT: everything must run in CI under a plain
       VM - no real GPU. Sub-items, in adoption order:
-      - [ ] P1: the sceneprobe visual-regression harness,
+      - [x] P1: the sceneprobe visual-regression harness,
             lavapipe-only (QQuickRenderControl + QRhiTextureRenderTarget
             readback under nested kwin_wayland --virtual; fixed-step
             animation driver; three failure gates; two-parameter
@@ -2334,7 +2334,21 @@ showed how much of the dock can only be driven by a pointer today.
             environment, pin fonts in scenes, write scenes for our own
             defect history (ShadowedItem padding, colorizer stack,
             monochromatic icons, BadgeEffect, MultiEffect permutations).
-            Commits:
+            LANDED 2026-07-16 (scripts/sceneprobe-gate.sh; execution
+            record in docs/agent-logs/2026-07-16-sceneprobe-transplant.md):
+            harness + gate + first scene set (selftests, shadoweditem
+            with the measured static-paddingRect probeExpect, six
+            MultiEffect permutations, badgeeffect), all text-free so no
+            font pinning needed yet; 9 goldens blessed at the strict
+            {0,0} tier after a two-run byte-identical determinism check.
+            Scenes still owed (follow-up, not blockers): parabolic_zoom
+            (needs a pinned/shipped font or text-free redesign), the
+            colorizer ColorOverlay stack, forced-monochromatic icon
+            path, indicator glow. Cross-machine golden verification
+            still owed once a second machine exists.
+            Commits: 1d279ebe5, 16b738537, c821b6278, dc042ace4
+            (plus 151a8c829, a build-check re-exec fix caught while
+            running the gate suite for this item)
       - [ ] P2: the Plasma-6 silent-failure contract pins
             (createApplet QRectF, KPluginMetaData path ctor, knsrc
             KPackageStructure, no-ActionPlugins default, internalAction
