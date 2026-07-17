@@ -54,6 +54,12 @@ public:
     //! path the global shortcut does.
     bool activateEntryForView(Latte::View *view, int index, Qt::Key modifier);
 
+    //! the global-shortcut toggle: leaves keyboard-navigation mode if any
+    //! view is in it, otherwise enters it on the highest priority view
+    //! (same view choice as activateEntry). The per-view D-Bus action goes
+    //! through View::enter/exitKeyboardNavigation directly.
+    void toggleKeyboardNavigation();
+
     ShortcutsPart::ShortcutsTracker *shortcutsTracker() const;
 
 Q_SIGNALS:

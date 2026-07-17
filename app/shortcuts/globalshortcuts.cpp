@@ -105,6 +105,18 @@ void GlobalShortcuts::init()
         m_corona->layoutsManager()->showLatteSettingsDialog(Settings::Dialog::PreferencesPage, true);
     });
 
+    //enter/leave keyboard navigation over the dock items. Meta+Alt+D:
+    //Meta+Alt+P is plasmashell's "focus panel" analog, so the neighboring
+    //D(ock) keeps the muscle memory without colliding with a running
+    //plasmashell registration
+    QAction *keyboardNavigationAction = generalActions->addAction(QStringLiteral("toggle keyboard navigation"));
+    keyboardNavigationAction->setText(i18n("Toggle Keyboard Navigation for Dock/Panel"));
+    KGlobalAccel::setGlobalShortcut(keyboardNavigationAction, QKeySequence(Qt::META | Qt::ALT | Qt::Key_D));
+    connect(keyboardNavigationAction, &QAction::triggered, this, [this]() {
+        m_modifierTracker->cancelMetaPressed();
+        toggleKeyboardNavigation();
+    });
+
     KActionCollection *taskbarActions = new KActionCollection(m_corona);
 
     //activate actions [1-9]
@@ -363,6 +375,40 @@ void GlobalShortcuts::activateEntry(int index, Qt::Key modifier)
             }
         }
     }
+}
+
+void GlobalShortcuts::toggleKeyboardNavigation()
+{
+    QList<Latte::View *> sortedViews = m_corona->layoutsManager()->synchronizer()->sortedCurrentViews();
+
+    //! strict toggle: a second press anywhere leaves the mode, wherever it
+    //! is active - one of the three bulletproof exit paths
+    for (const auto view : sortedViews) {
+        if (view->keyboardNavigationIsActive()) {
+            view->exitKeyboardNavigation();
+            return;
+        }
+    }
+
+    Latte::View *highest{nullptr};
+
+    for (const auto view : sortedViews) {
+        if (view->isPreferredForShortcuts()) {
+            highest = view;
+            break;
+        }
+    }
+
+    if (!highest && !sortedViews.isEmpty()) {
+        highest = sortedViews[0];
+    }
+
+    if (!highest) {
+        qWarning() << "globalshortcuts: keyboard navigation requested but the current layouts have no view";
+        return;
+    }
+
+    highest->enterKeyboardNavigation();
 }
 
 //! update badge for specific view item
