@@ -506,7 +506,13 @@ BackgroundProperties{
 
         readonly property bool busyBackground: root.forcePanelForBusyBackground
                                                && (solidBackground.opacity === 0 || !solidBackground.paintInstantly)
-        readonly property bool coloredView: colorizerManager.mustBeShown && colorizerManager.applyTheme !== themeExtended.defaultTheme
+        //! compared against colorizerManager.plasmaTheme, the manager's null-safe
+        //! stand-in for the Qt5 `theme` global this identity check was written
+        //! against (same object as themeExtended.defaultTheme once the C++ View
+        //! wires the interfaces object, null before that - every sibling site
+        //! guards themeExtended for exactly that window). The identity algebra is
+        //! documented at appliedSchemeIsPlasmaTheme (colorizerdecision.h).
+        readonly property bool coloredView: colorizerManager.mustBeShown && colorizerManager.applyTheme !== colorizerManager.plasmaTheme
 
         backgroundOpacity: {
             if (busyBackground && !forceSolidness) {
