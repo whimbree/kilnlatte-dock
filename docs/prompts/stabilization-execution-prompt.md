@@ -95,19 +95,20 @@ plan item for the recorded decision. Never land replacement icons.)
 7. DONE (automatable half) - Settings audit: named sub-checks clean,
    isScreenUiReady shim (b8a489c84); the desk walk is in the manual
    list.
-8. **OPEN - the accessibility/automation quartet** (Phase 10
-   requirements subsection; requirements, not polish). Standing:
-   b's interface is DESIGNED (docs/dbus-observability-interface.md)
-   and step 1 is LIVE (viewsData + setViewEditMode, merged and
-   live-verified); a+d have their baseline inventory recorded in the
-   plan items (docs/agent-logs/2026-07-16-a11y-surface-inventory.md,
-   P0 gate = the dock window's keyboard-focus mode). Remaining, in
-   order: interface steps 2-4 per the design doc (viewAppletsData +
-   activateTaskAt; trackerData + setViewVisibilityMode; viewTasksData
-   + colorizerData + layoutsData - each step lands with a busctl
-   smoke and converts e2e checks as it goes, which IS item c); then
-   the keyboard focus mode for the dock window; then Accessible.*
-   rollout per the inventory's gap list with qmltest pins; the Orca
+8. **OPEN (b DONE) - the accessibility/automation quartet** (Phase 10
+   requirements subsection; requirements, not polish). Standing after
+   session two: item b's D-Bus interface is COMPLETE (all four steps
+   live, smokes run in the nested vehicle; the activateTaskAt smoke
+   found and fixed the dead-since-the-port shortcuts host,
+   a3d2afc7c - Meta+N badges need a desk re-verify, manual list).
+   Remaining, in order: the keyboard focus mode for the dock window
+   (the P0 gate: view.cpp AcceptingInputStatus + layer-shell
+   OnDemand, a global shortcut to enter, Indexer-driven traversal,
+   Escape leaves - design it together with a D-Bus debug-gate
+   trigger); then Accessible.* rollout per the inventory's gap list
+   with qmltest pins; item c (deterministic e2e conversion) folds
+   scripts/run-e2e.sh plus the nested-vehicle scripts into a
+   maintained tests/e2e suite together with item 9's P4; the Orca
    pass is acceptance and needs my hands at the end.
 9. **OPEN - CaptSilver adoption, remaining waves** (the analysis,
    P1+P2 AND the follow-up scenes are DONE and merged: sceneprobe
