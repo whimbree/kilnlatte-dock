@@ -43,6 +43,20 @@ target_include_directories(layershellmappingtest PRIVATE
     ${CMAKE_SOURCE_DIR}/app
     ${CMAKE_BINARY_DIR}/app)
 
+# Both ScreenPool implementations (Latte core and the Plasma-extended
+# mirror) against seeded [ScreenConnectors] groups; carries its own main()
+# so XDG_CONFIG_HOME points at a temp dir BEFORE QGuiApplication, keeping
+# the plasma pool's hardcoded plasmashellrc off the real desktop config.
+ecm_add_test(screenpooltest.cpp
+    TEST_NAME screenpooltest
+    LINK_LIBRARIES lattedock-core Qt6::Test
+)
+set_tests_properties(screenpooltest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_include_directories(screenpooltest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app
+    ${CMAKE_BINARY_DIR}/app)
+
 ecm_add_test(windowinfowraptest.cpp
     TEST_NAME windowinfowraptest
     LINK_LIBRARIES lattedock-core Qt6::Test
