@@ -111,10 +111,40 @@ find_package(Wayland REQUIRED COMPONENTS Client)
 # Detect whether LayerShellQt::Window::setScreen(QScreen*) exists - added in
 # LayerShellQt 6.6, later removed upstream again. Fall back to plain
 # QWindow::setScreen() when absent (see Phase 4 of docs/PORTING_PLAN.md).
-try_compile(LATTE_LAYERSHELL_HAS_SET_SCREEN
-    SOURCES ${CMAKE_SOURCE_DIR}/cmake/CheckLayerShellSetScreen.cpp
-    LINK_LIBRARIES LayerShellQt::Interface Qt6::Core Qt6::Gui
-)
+#
+# The raw try_compile re-ran on every configure and adopted whatever that
+# run said, so a single configure in a broken environment (system cmake
+# outside the devshell, torn toolchain) could silently flip the define and
+# layer-shell output pinning would vanish without a word. Two defenses:
+# - the only failure accepted as a real "API absent" answer is the
+#   compiler reporting the setScreen member missing; any other probe
+#   failure (missing header, dead compiler, link failure) is an
+#   environment defect and configuration stops loudly.
+# - the answer is cached keyed on LayerShellQt_DIR, so a plain
+#   reconfigure reuses it and re-pinning layer-shell-qt (a new store
+#   path) re-probes automatically.
+if(NOT DEFINED CACHE{LATTE_LAYERSHELL_HAS_SET_SCREEN}
+        OR NOT "$CACHE{LATTE_LAYERSHELL_SET_SCREEN_PROBED_DIR}" STREQUAL "${LayerShellQt_DIR}")
+    try_compile(_latte_layershell_has_setscreen
+        SOURCES ${CMAKE_SOURCE_DIR}/cmake/CheckLayerShellSetScreen.cpp
+        LINK_LIBRARIES LayerShellQt::Interface Qt6::Core Qt6::Gui
+        OUTPUT_VARIABLE _latte_layershell_setscreen_output
+    )
+    if(NOT _latte_layershell_has_setscreen
+            AND NOT _latte_layershell_setscreen_output MATCHES "no member named.*setScreen")
+        message(FATAL_ERROR
+            "The LayerShellQt::Window::setScreen(QScreen*) probe failed for a reason "
+            "other than the member being absent. That is an environment defect - "
+            "most likely a non-devshell toolchain (system cmake outside 'nix develop') "
+            "or a torn dependency set - and proceeding would silently disable "
+            "layer-shell output pinning. Probe output:\n"
+            "${_latte_layershell_setscreen_output}")
+    endif()
+    set(LATTE_LAYERSHELL_HAS_SET_SCREEN ${_latte_layershell_has_setscreen}
+        CACHE INTERNAL "LayerShellQt::Window::setScreen(QScreen*) exists in the found layer-shell-qt")
+    set(LATTE_LAYERSHELL_SET_SCREEN_PROBED_DIR "${LayerShellQt_DIR}"
+        CACHE INTERNAL "LayerShellQt_DIR the setScreen probe last ran against")
+endif()
 if(LATTE_LAYERSHELL_HAS_SET_SCREEN)
     add_definitions(-DLATTE_LAYERSHELL_HAS_SET_SCREEN)
     message(STATUS "LayerShellQt::Window::setScreen(QScreen*): available")
