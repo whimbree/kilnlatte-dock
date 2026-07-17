@@ -477,7 +477,7 @@ blocking.
       Result: only main.cpp's refusal-path comments mention xcb, by
       design; byPassWM found and deliberately NOT removed (next item)
       Commits: (audit finding record, this docs commit)
-- [ ] Follow-up sweep from the PR #1 independent review (non-blocking
+- [x] Follow-up sweep from the PR #1 independent review (non-blocking
       leftovers, isPlatformWayland-SHAPED branches the isPlatformX11
       sweep did not reach): subconfigview.cpp trackedWindowId() still
       falls back to WindowId::fromX11WId on !isPlatformWayland (dead:
@@ -485,7 +485,7 @@ blocking.
       fallback harmlessly), and subwindow.cpp's visible-hack timer
       block re-derives an X11 id on forcedShown. Fold both into the
       wayland-id-only shape
-      Commits:
+      Commits: (hash resolved at merge - wayland-id-sweep branch ed9416a21)
 - [ ] DECISION OWED (mine): the byPassWM layout setting. Found by the
       audit: Qt::BypassWindowManagerHint is X11-only machinery, but
       byPassWM is a Qt5-faithful, user-persisted layout setting with
