@@ -2545,7 +2545,11 @@ showed how much of the dock can only be driven by a pointer today.
       inline-component outside-id reads) are in the ledger. STILL OPEN
       before ticking: the Orca desk pass
       (docs/manual-flake-removal-testing.md "Orca screen-reader
-      pass"), the previews dialog (deferred with the P1 focus rework),
+      pass"), the merge review's one nit (canvas Button.qml wires an
+      undocumented Accessible.onToggleAction duplicating onPressAction
+      - functionally safe, each fire is an independent correct toggle,
+      but the duplicate AT-SPI action surface wants a comment or
+      removal), the previews dialog (deferred with the P1 focus rework),
       per-instance labels on the config pages' template controls (the
       P3 page pass), and C++-side focus-event verification against a
       live AT client.
