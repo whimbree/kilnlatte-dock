@@ -497,6 +497,13 @@ MouseArea {
                         id: configureButton
                         anchors.verticalCenter: parent.verticalCenter
                         icon.name: "configure"
+                        //! screen-reader names (Phase 10 AT-SPI rollout): each
+                        //! handle button reuses its sizing TextMetrics hint -
+                        //! the same single authority the hovered-hint label
+                        //! reads - so Orca and the visual hint always agree.
+                        //! Press works natively (a QQC2 button triggers
+                        //! clicked() on an AT press); only names were missing.
+                        Accessible.name: configureHintMetrics.text
                         onClicked: {
                             tooltip.visible = false;
                             currentApplet.applet.plasmoid.internalAction("configure").trigger();
@@ -553,6 +560,7 @@ MouseArea {
                             id: colorizingButton
                             checkable: true
                             icon.name: "color-picker"
+                            Accessible.name: paintingHintMetrics.text
 
                             onClicked: {
                                 fastLayoutManager.setOption(configurationArea.currentApplet.applet.plasmoid.id, "userBlocksColorizing", !checked);
@@ -563,6 +571,7 @@ MouseArea {
                             id: lockButton
                             checkable: true
                             icon.name: checked ? "lock" : "unlock"
+                            Accessible.name: parabolicHintMetrics.text
 
                             onClicked: {
                                 fastLayoutManager.setOption(configurationArea.currentApplet.applet.plasmoid.id, "lockZoom", checked);
@@ -573,6 +582,7 @@ MouseArea {
                             id: closeButton
                             anchors.verticalCenter: parent.verticalCenter
                             icon.name: "delete"
+                            Accessible.name: removeHintMetrics.text
                             onClicked: {
                                 tooltip.visible = false;
                                 if(currentApplet && currentApplet.applet)

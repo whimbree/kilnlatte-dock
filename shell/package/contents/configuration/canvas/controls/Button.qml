@@ -115,6 +115,31 @@ Item{
         QQC2.ToolTip.text: button.tooltip
         QQC2.ToolTip.visible: hovered && button.tooltip.length > 0
 
+        //! Screen-reader surface (Phase 10 AT-SPI rollout): this invisible
+        //! button is the real click target, so it announces the drawn chip -
+        //! visible text as name, tooltip as description, checked mirroring
+        //! the chip state (every consumer is a toggle). The explicit press
+        //! handler is REQUIRED, not optional: the chip's consumers listen to
+        //! pressedChanged, and Qt's native AT press on a QQC2 button only
+        //! emits clicked() (QQuickAbstractButtonPrivate::accessiblePress-
+        //! Action -> trigger(), verified in the pinned 6.11 sources), which
+        //! nothing here connects. Declaring the handler also suppresses that
+        //! native path (attached handlers win in QAccessibleQuickItem::
+        //! doAction), so the press cycle below runs exactly once.
+        Accessible.name: button.text
+        Accessible.description: button.tooltip
+        Accessible.checkable: true
+        Accessible.checked: button.checked
+        Accessible.onPressAction: {
+            //! the same press-then-release cycle a pointer produces
+            button.pressedChanged(true);
+            button.pressedChanged(false);
+        }
+        Accessible.onToggleAction: {
+            button.pressedChanged(true);
+            button.pressedChanged(false);
+        }
+
         onPressedChanged: button.pressedChanged(pressed)
     }
 }
