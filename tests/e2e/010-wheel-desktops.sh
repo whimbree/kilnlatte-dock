@@ -69,12 +69,19 @@ e2e_dock_start || e2e_fail "dock did not come back after the config flip"
 # (the strip's side margins hit EnvironmentActions; recomputed after every
 # dock start because the centered strip drifts with the clock's text width)
 empty_area_point() {
+    local winx
+    winx="$(e2e_view_window_x "$view")"
     { e2e_json viewsData; e2e_json viewAppletsData u "$view"; } | python3 -c "
 import json, sys
 views, applets = (json.loads(line) for line in sys.stdin)
 view = next(v for v in views if v['containmentId'] == $view)
 ax, ay, aw, ah = view['absoluteGeometry']
-ox = ax - view['localGeometry'][0]
+lx = view['localGeometry'][0]
+#! the surface can drift left of the reported frame (e2e_view_window_x);
+#! both the strip bounds and the applet spans move with it
+ox = ${winx:-ax - lx}
+drift = ox - (ax - lx)
+ax += drift
 spans = sorted((ox + g[0], ox + g[0] + g[2]) for g in (a['geometry'] for a in applets))
 gaps, cursor = [], ax
 for s, e in spans:

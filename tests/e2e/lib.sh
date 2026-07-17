@@ -198,6 +198,25 @@ for v in views:
     return 1
 }
 
+# e2e_view_window_x <containment-id>: the TRUE screen x of a horizontal
+# view's window, from the compositor's window dump. viewsData's
+# absolute/local pair implies the window origin, but the vehicle's bottom
+# dock surface drifts left of it by 20-74px run to run (screenshot-proven:
+# the icons really render shifted; filed as a positioner finding in
+# docs/agent-logs/2026-07-17-e2e-promotion.md), so pointer math corrected
+# by this value hits the icons the compositor actually shows.
+e2e_view_window_x() {
+    local id="$1" edge screenw screenh
+    read -r edge screenw screenh <<< "$(e2e_view_field "$id" '"%s %d %d" % (v["edge"], v["screenGeometry"][2], v["screenGeometry"][3])')"
+    e2e_dumpwins | awk -F'|' -v edge="$edge" -v sw="$screenw" -v sh="$screenh" '
+        $2 ~ /latte-dock/ && $6 == "layer=3" {
+            split($4, g, " "); split(g[1], pos, ","); split(g[2], size, "x");
+            if (size[1] != sw) next
+            if (edge == "bottom" && pos[2] + size[2] == sh) { print pos[1]; exit }
+            if (edge == "top" && pos[2] == 0) { print pos[1]; exit }
+        }'
+}
+
 # e2e_task_center <containment-id> <appId>: the SCREEN center of a task
 # icon, computed arithmetically (tasks applet geometry is view-local;
 # viewsData's absolute/local pair gives the window origin; icons split the
@@ -206,14 +225,18 @@ for v in views:
 # parabolic zoom distorts everything once the pointer is inside the dock -
 # so callers must approach the returned point from OUTSIDE the dock.
 e2e_task_center() {
-    local id="$1" app="$2"
+    local id="$1" app="$2" winx
+    winx="$(e2e_view_window_x "$id")"
     { e2e_json viewsData; e2e_json viewAppletsData u "$id"; e2e_json viewTasksData u "$id"; } | python3 -c "
 import json, sys
 views, applets, tasks = (json.loads(line) for line in sys.stdin)
 view = next(v for v in views if v['containmentId'] == $id)
 ax, ay, aw, ah = view['absoluteGeometry']
 lx, ly = view['localGeometry'][:2]
-ox, oy = ax - lx, ay - ly            # window origin on screen
+# x from the compositor's true window position (see e2e_view_window_x);
+# y from the abs/local pair, which stays consistent for anchored edges
+ox = ${winx:-ax - lx}
+oy = ay - ly
 applet = next(a for a in applets if a['plugin'] == 'org.kde.latte.plasmoid')
 px, py, pw, ph = applet['geometry']
 idx = next(i for i, t in enumerate(tasks) if t['appId'] == '$app')
@@ -223,7 +246,7 @@ if horizontal:
     cx = ox + px + (idx + 0.5) * pw / n
     cy = oy + py + ph / 2
 else:
-    cx = ox + px + pw / 2
+    cx = (ax - lx) + px + pw / 2
     cy = oy + py + (idx + 0.5) * ph / n
 print(int(cx), int(cy))
 "

@@ -63,3 +63,25 @@ and RUN the owed EX-14/15/17 extraction-ledger recipes as e2e recipes.
    010-wheel-desktops works around it and documents it in its header.
    An axis event racing its own surface-enter is also dropped: recipes
    settle the pointer (move outside, move in, wait) before wheeling.
+6. WINDOW-X DRIFT (real, visual, filed as a plan finding): the bottom
+   dock's layer surface sits at x=-20/-44/-74 in some sessions while
+   viewsData's absolute/local pair implies x=0, and the ICONS REALLY
+   RENDER SHIFTED (same-rect screenshot crops from a drifted and a
+   non-drifted run differ by exactly the drift; evidence preserved in
+   the ledger narrative). The drift value changes when the clock text
+   re-measures (minute tick), and the on-demand sidebar's same-sized
+   window drifts independently, which makes the compositor window dump
+   ambiguous as a correction source. Recipes that need exact icon
+   positions calibrate from PIXELS at action time (050 locates the
+   spotify icon's green disc on the icon row); e2e_view_window_x
+   remains as a best-effort correction for coarser targets. Whether
+   the desk session drifts too is an open Phase 8 question - a 20px
+   off-center dock on a 2560 screen would be easy to miss by eye.
+7. Wrong even-slot model under zoomLevel=0: with the zoom disabled the
+   auto-sized bar keeps trailing space inside the tasks applet, so
+   applet-width/task-count no longer matches the rendered pitch. The
+   drag recipe keeps the default zoom instead.
+8. Drag semantics observed live (matches EX-14's decideTasksDragMove):
+   the model reorders WHILE the drag crosses neighbors; the release
+   point's slot decides the final index, so a swap-with-next means
+   releasing at the neighbor's rest center, not past it.
