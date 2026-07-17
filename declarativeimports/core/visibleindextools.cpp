@@ -131,6 +131,28 @@ int VisibleIndexTools::countVisibleItems(const QVariantList &row)
     return VisibleIndex::countVisibleItems(*entries);
 }
 
+int VisibleIndexTools::countVisibleSlots(const QVariantList &row)
+{
+    const auto entries = toRowEntries(row);
+
+    if (!entries) {
+        return 0;
+    }
+
+    return VisibleIndex::countVisibleSlots(*entries);
+}
+
+int VisibleIndexTools::steppedVisibleSlot(const QVariantList &row, int current, int delta)
+{
+    const auto entries = toRowEntries(row);
+
+    if (!entries) {
+        return -1;
+    }
+
+    return VisibleIndex::steppedVisibleSlot(*entries, current, delta).value_or(-1);
+}
+
 bool VisibleIndexTools::edgeItemIsSeparator(const QVariantList &row, int direction)
 {
     const auto entries = toRowEntries(row);

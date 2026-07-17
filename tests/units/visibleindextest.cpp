@@ -93,6 +93,8 @@ private Q_SLOTS:
 
     void firstLastVisibleIndex_boundsSkipInvisible();
     void countVisibleItems_countsEntriesNotSubItems();
+    void countVisibleSlots_expandsSubItemsAndReachesTrailingEmptyApplet();
+    void steppedVisibleSlot_clampsAtEdgesAndRecoversStaleFocus();
 
     void edgeItemIsSeparator_flagsVisibleSeparatorsOutsideBounds();
     void edgeItemIsSeparator_separatorOnlyRow_keepsQt5Asymmetry();
@@ -325,6 +327,56 @@ void VisibleIndexTest::countVisibleItems_countsEntriesNotSubItems()
     //! a multi-item entry is ONE visible entry here - the client twin
     //! counts entries, expansion belongs to countVisibleItemsBefore
     QCOMPARE(countVisibleItems({client(0, 5)}), 1);
+}
+
+void VisibleIndexTest::countVisibleSlots_expandsSubItemsAndReachesTrailingEmptyApplet()
+{
+    //! keyboard focus mode (no Qt5 twin): the slot space must equal the
+    //! entry space Meta+<number> addresses, i.e. the highest visible index
+    //! belongsAtVisibleIndex answers true for
+
+    //! generator world with a 3-task client: 6 plain slots + 3 sub-items
+    QCOMPARE(countVisibleSlots(containmentRow(3)), 9);
+
+    //! plain rows: one slot per visible entry
+    QCOMPARE(countVisibleSlots({plain(0), plain(1), plain(2)}), 3);
+
+    //! separators and hidden items own no slot; a margins separator DOES
+    //! own one (the visibleIndexOf rule: skipped when counting others,
+    //! still owns an index itself)
+    QCOMPARE(countVisibleSlots({plain(0), separator(1), hiddenItem(2), plain(3)}), 2);
+    QCOMPARE(countVisibleSlots({plain(0), marginsSeparator(1)}), 2);
+
+    //! a TRAILING empty multi-item applet owns its exact base slot, which
+    //! sits one past the sub-item sum (the belongsAt exact-match rule);
+    //! a plain sum would make it keyboard-unreachable
+    QCOMPARE(countVisibleSlots({plain(0), plain(1), client(2, 0)}), 3);
+
+    //! nothing visible, nothing owned
+    QCOMPARE(countVisibleSlots({separator(0), hiddenItem(1)}), 0);
+    QCOMPARE(countVisibleSlots({}), 0);
+}
+
+void VisibleIndexTest::steppedVisibleSlot_clampsAtEdgesAndRecoversStaleFocus()
+{
+    const RowEntries row = containmentRow(3); //! 9 slots
+
+    //! plain stepping
+    QCOMPARE(steppedVisibleSlot(row, 4, 1), std::optional<int>(5));
+    QCOMPARE(steppedVisibleSlot(row, 4, -1), std::optional<int>(3));
+
+    //! a dock row does not wrap: both edges clamp
+    QCOMPARE(steppedVisibleSlot(row, 1, -1), std::optional<int>(1));
+    QCOMPARE(steppedVisibleSlot(row, 9, 1), std::optional<int>(9));
+
+    //! stale focus (the row shrank while focused) clamps back onto the
+    //! nearest surviving slot instead of vanishing
+    QCOMPARE(steppedVisibleSlot(row, 42, 1), std::optional<int>(9));
+    QCOMPARE(steppedVisibleSlot(row, 0, 0), std::optional<int>(1));
+
+    //! no slots, no answer
+    QCOMPARE(steppedVisibleSlot({separator(0)}, 1, 1), std::nullopt);
+    QCOMPARE(steppedVisibleSlot({}, 1, 1), std::nullopt);
 }
 
 void VisibleIndexTest::edgeItemIsSeparator_flagsVisibleSeparatorsOutsideBounds()

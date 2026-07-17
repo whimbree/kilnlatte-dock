@@ -176,6 +176,52 @@ inline std::optional<int> lastVisibleIndex(const RowEntries &entries)
     return highest;
 }
 
+//! the highest 1-based visible slot the row answers - the keyboard
+//! traversal's End position, matching the entry space Meta+<number> and
+//! the shortcut badges address (keyboard focus mode, 2026-07-17; no Qt5
+//! twin, upstream had no keyboard traversal). Multi-item applets span
+//! their sub-item counts, and an empty multi-item applet still owns its
+//! exact base slot (the Qt5 exact-match rule belongsAtVisibleIndex
+//! preserves) - which is why this is a max over per-entry upper bounds,
+//! not a plain sub-item sum: a trailing empty tasks applet sits ONE PAST
+//! that sum and would be unreachable otherwise. 0 when nothing owns a
+//! slot.
+inline int countVisibleSlots(const RowEntries &entries)
+{
+    Q_ASSERT(isWellFormedRow(entries));
+
+    int slots = 0;
+
+    for (const RowEntry &entry : entries) {
+        const std::optional<int> base = visibleIndexOf(entries, entry.index);
+
+        if (base) {
+            slots = std::max(slots, *base + std::max(1, entry.subItemCount) - 1);
+        }
+    }
+
+    return slots;
+}
+
+//! keyboard traversal stepping over the slot space 1..countVisibleSlots:
+//! move delta slots from current, clamping at both edges (a dock row does
+//! not wrap); nullopt when the row owns no slots at all. A current
+//! already outside the space is a legitimate state, not a malformed
+//! input - the row shrank while focused (tasks closed) - and clamping
+//! lands the focus on the nearest surviving slot instead of dropping it.
+inline std::optional<int> steppedVisibleSlot(const RowEntries &entries, int current, int delta)
+{
+    Q_ASSERT(isWellFormedRow(entries));
+
+    const int slots = countVisibleSlots(entries);
+
+    if (slots <= 0) {
+        return std::nullopt;
+    }
+
+    return std::clamp(current + delta, 1, slots);
+}
+
 //! how many entries are visible items (the client twin's
 //! visibleItemsCount: entries, not expanded sub-items)
 inline int countVisibleItems(const RowEntries &entries)

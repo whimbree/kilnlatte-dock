@@ -52,6 +52,11 @@ public Q_SLOTS:
     Q_INVOKABLE int firstVisibleIndex(const QVariantList &row);
     Q_INVOKABLE int lastVisibleIndex(const QVariantList &row);
     Q_INVOKABLE int countVisibleItems(const QVariantList &row);
+    //! the keyboard traversal pair (keyboard focus mode): the highest
+    //! 1-based visible slot (0 when none), and edge-clamped stepping over
+    //! that slot space (-1 when the row owns no slots)
+    Q_INVOKABLE int countVisibleSlots(const QVariantList &row);
+    Q_INVOKABLE int steppedVisibleSlot(const QVariantList &row, int current, int delta);
     Q_INVOKABLE bool edgeItemIsSeparator(const QVariantList &row, int direction);
     //! the landing entry of the all-hidden-skipped walk as {index,
     //! isSeparator}, index -1 when the walk resolves to nothing; the
