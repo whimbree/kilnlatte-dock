@@ -40,22 +40,28 @@ third platform must refuse too), with offscreen as the one named
 harness exception; the Xwayland prose came out of the refusal
 message.
 
-PR #1 OPEN: github.com/whimbree/lattecotta-dock/pull/1 (x11-removal
--> master, gates stamped at 715b5a71f, real dock currently RUNNING
-the branch build). Merge is Bree's review call under the new
-workflow; work that overlaps its files (view.cpp - the keyboard
-focus mode especially) waits for the merge, non-overlapping items
-continue on fresh branches off master.
+PR #1 MERGED 2026-07-17 (rebase-merge, post-rebase hashes
+20a3c2506..3f857fbff re-resolved everywhere per the tick-at-merge
+rule). Process notes now standing: PR reviews are LEAN by Bree's
+direction (sonnet, concise diff-read prompt, no independent
+build/ctest - the branch stamp already proves gates; the first
+heavyweight reviewer was stopped mid-run to save tokens, its two
+early leads were real and fixed: stale plugins.qmltypes + stale
+skill/CLAUDE.md wording, commit 6545e05a9 with the import-path trap
+in the body). The lean reviewer's verdict was MERGE with two
+non-blocking leftovers, filed as a Phase 4 follow-up item. Real dock
+runs the merged build. gh CLI: not installed, use `nix run
+nixpkgs#gh --`, auth lives in the keyring and works.
 
 X11 REMOVAL EXECUTED (branch x11-removal, 7 commits + docs; Phase 4
 checklist all ticked except the byPassWM decision item): backend
-removal 1a0a7f9aa, non-wayland refusal 582672d04, ifdef strips
-fca2fd290, runtime isPlatformX11 branches 85c29a825 (~40 sites,
+removal 20a3c2506, non-wayland refusal 1ddb4140f, ifdef strips
+9b41dd3ae, runtime isPlatformX11 branches 24e54b7d8 (~40 sites,
 per-site audit in the body), Effects visual-mask machinery collapse
-5776693a3 (updateMask/forceMaskRedraw/maskCombinedRegion + the
+019c3aed3 (updateMask/forceMaskRedraw/maskCombinedRegion + the
 caller-less subtracted/united region cluster; the mask PROPERTY
 stays - QML reads it and ISHIDDENMASK stamps through it), build
-system d70c754ae (WITH_X11 gone, build-check single-tree: every gate
+system 3f857fbff (WITH_X11 gone, build-check single-tree: every gate
 run ~2x faster). qmllint baseline SHRANK (VisibilityManager.qml
 164->159). NEW DECISION ITEM for me: byPassWM is X11-only machinery
 but a Qt5-faithful persisted setting with config UI - retiring it is

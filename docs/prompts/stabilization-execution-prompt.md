@@ -116,15 +116,15 @@ plan item for the recorded decision. Never land replacement icons.)
 7. DONE (automatable half) - Settings audit: named sub-checks clean,
    isScreenUiReady shim (b8a489c84); the desk walk is in the manual
    list.
-7a. **PR OPEN - X11 removal and cleanup** (added and EXECUTED
-   2026-07-17, session three): all seven Phase 4 checklist items
-   landed on the x11-removal branch, gates green on the branch head
-   (stamped 715b5a71f), nested vehicle + real-dock verification on
-   that build, PR #1 open for my review
-   (github.com/whimbree/lattecotta-dock/pull/1). build-check is
-   single-tree once merged - every gate run ~2x faster. Remaining
-   inside the item after merge: my byPassWM decision (Phase 4 item)
-   and re-checking the plan's hashes if a rebase rewrites them.
+7a. DONE 2026-07-17 - X11 removal and cleanup, MERGED as PR #1
+   (rebase-merge; post-rebase hashes re-resolved in the Phase 4
+   checklist, 20a3c2506..3f857fbff). Independent cold-context review
+   verdict was MERGE with two non-blocking leftovers, both filed in
+   the Phase 4 follow-up item: subconfigview trackedWindowId's
+   !isPlatformWayland fallback and subwindow's visible-hack block -
+   isPlatformWayland-SHAPED branches outside the removal's stated
+   scope. build-check is single-tree now (~2x faster gate runs).
+   Still mine: the byPassWM decision (Phase 4 item).
 8. **OPEN (b DONE) - the accessibility/automation quartet** (Phase 10
    requirements subsection; requirements, not polish). Standing after
    session two: item b's D-Bus interface is COMPLETE (all four steps

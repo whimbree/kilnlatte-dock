@@ -431,13 +431,13 @@ blocking.
 - [x] Remove `XWindowInterface` (app/wm/xwindowinterface.*) and the
       corona's HAVE_X11 interface selection in lattecorona.cpp; the
       Wayland interface becomes the only backend, unconditionally
-      Commits: 1a0a7f9aa
+      Commits: 20a3c2506
 - [x] Refuse to start on any non-wayland platform at the main()
       boundary (added during execution, my direction): default-deny
       with the offscreen QPA as the one named harness exception;
       driven four ways (xcb refuses with the platform named, minimal
       refuses, offscreen passes, wayland is the live dock)
-      Commits: 582672d04
+      Commits: 1ddb4140f
 - [x] Strip the remaining HAVE_X11 conditional sites, deleting the
       X11 arm and unconditionalizing the Wayland arm - audit each
       site so no Wayland behavior secretly rides an #else:
@@ -446,27 +446,27 @@ blocking.
       app/plasma/extended/theme.cpp, app/tools/commontools.cpp,
       app/settings/settingsdialog/settingsdialog.cpp,
       declarativeimports/core/quickwindowsystem.cpp
-      Commits: fca2fd290 (ifdef arms), 85c29a825 (the ~40
+      Commits: 9b41dd3ae (ifdef arms), 24e54b7d8 (the ~40
       permanently-false isPlatformX11 runtime branches, per-site
-      audit in the body), 5776693a3 (Effects visual-mask machinery
+      audit in the body), 019c3aed3 (Effects visual-mask machinery
       collapse - updateMask/forceMaskRedraw/maskCombinedRegion and
       the caller-less subtracted/united region cluster)
 - [x] Remove WITH_X11 from the build system: top-level CMakeLists
       option + X11/XCB find_package calls, app/config-latte.h.cmake
       and declarativeimports/core/config-latte-lib.h.cmake defines,
       app/CMakeLists.txt + app/wm/CMakeLists.txt conditionals
-      Commits: d70c754ae (wm/CMakeLists block in 1a0a7f9aa)
+      Commits: 3f857fbff (wm/CMakeLists block in 20a3c2506)
 - [x] Drop the X11 dependency set from flake.nix buildInputs (libx11,
       libsm, libice, libxcb, libxcb-util, libxrandr) and package.nix;
       kwindowsystem STAYS (KX11Extras was the only X11-path consumer,
       the framework itself is platform-neutral) - update its comment
-      Commits: d70c754ae
+      Commits: 3f857fbff
 - [x] Collapse the both-variants gate discipline: build-check.sh
       builds one tree (drop build-no-x11), gate-all.sh comment,
       CLAUDE.md references ("both WITH_X11 variants" in the C++
       standard-raise process and build notes), docs/TESTING.md if it
       names the variant pair
-      Commits: d70c754ae
+      Commits: 3f857fbff
 - [x] Post-removal audit for textual X11 survivors: KX11Extras,
       QNativeInterface::QX11Application, isPlatformX11-style
       branches, xcb includes, stray WId comments. WindowId's
@@ -477,6 +477,15 @@ blocking.
       Result: only main.cpp's refusal-path comments mention xcb, by
       design; byPassWM found and deliberately NOT removed (next item)
       Commits: (audit finding record, this docs commit)
+- [ ] Follow-up sweep from the PR #1 independent review (non-blocking
+      leftovers, isPlatformWayland-SHAPED branches the isPlatformX11
+      sweep did not reach): subconfigview.cpp trackedWindowId() still
+      falls back to WindowId::fromX11WId on !isPlatformWayland (dead:
+      main() refuses those platforms; offscreen harness runs take the
+      fallback harmlessly), and subwindow.cpp's visible-hack timer
+      block re-derives an X11 id on forcedShown. Fold both into the
+      wayland-id-only shape
+      Commits:
 - [ ] DECISION OWED (mine): the byPassWM layout setting. Found by the
       audit: Qt::BypassWindowManagerHint is X11-only machinery, but
       byPassWM is a Qt5-faithful, user-persisted layout setting with
@@ -485,7 +494,7 @@ blocking.
       page change, which is a product decision, not an audit sweep -
       per the Qt5-faithful rule it stays until I decide. The
       visibilitymanager's bypasswm-on-X11 frame-extents fold already
-      landed (85c29a825); what remains is the property chain, the
+      landed (24e54b7d8); what remains is the property chain, the
       setting and the UI
       Commits:
 - [x] README + docs register update (timeless: "Wayland-only,
