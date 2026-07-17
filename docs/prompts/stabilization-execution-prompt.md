@@ -167,8 +167,23 @@ plan item for the recorded decision. Never land replacement icons.)
     (mostly desk work, see the manual list), Phases 2/3 mechanical
     tail, and the remaining Phase 8 code threads (shutdown/latency/
     lock-unlock/stranding) which are armed and fire naturally.
-11. **OPEN - comprehensive CaptSilver attribution audit and fix** (my
-    direction, 2026-07-17). David Goree
+11. **DONE 2026-07-17 (code half; PR + review owed) - comprehensive
+    CaptSilver attribution audit and fix.** Executed on branch
+    captsilver-attribution-audit as the three commits below (f2658c6d6
+    SPDX, 90b6d52e9 citations, da933136d README). Pass 3's full-tree scan
+    found more than the four Pass-1 files the external review named: the
+    activitysetalgebra header (structurally his), iconsourceclassifier,
+    panelbackgroundscan, windowtrackingpredicates, extraviewhints, and the
+    five sceneprobe files were all missing his SPDX line - 14 DERIVED files
+    total. backend.{h,cpp} deliberately gets NO line (Eike Hein's code,
+    only capt's vendoring decision followed). The verification pass is
+    clean: every DERIVED file carries his line; the five that reference him
+    without one are divergence/contrast notes (capt bugs we avoided) and
+    the colortools data tags, all correctly exempt. Ledger:
+    docs/agent-logs/2026-07-17-captsilver-attribution-audit.md. REMAINING:
+    open the PR, lean independent review, merge. Original task spec kept
+    below for the record.
+    David Goree
     (github.com/CaptSilver/latte-dock-qt6, author email
     davidgoree2003@gmail.com) is owed SPDX-FileCopyrightText credit on
     every file that derives from his work. The CLAUDE.md citation

@@ -1,7 +1,38 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-17 (stabilization-execution session three, complete).
+Last updated 2026-07-17 (stabilization item 11: CaptSilver attribution audit).
+
+## 2026-07-17 SESSION FOUR: CaptSilver attribution audit (item 11)
+
+Drove the stabilization prompt's one remaining OPEN code-side thread,
+item 11 (comprehensive CaptSilver attribution audit). Everything else on
+the open list needs Bree's hands (Orca, cross-machine goldens, desk
+checks) and is not code work. Branch captsilver-attribution-audit off
+master 8bb23ee04, three commits:
+- f2658c6d6 SPDX lines on 14 DERIVED files. Pass 3's full-tree scan found
+  more than the four the external review named: activitysetalgebra.h
+  (capt's namespace + signatures verbatim), iconsourceclassifier,
+  panelbackgroundscan, windowtrackingpredicates, extraviewhints, and all
+  five sceneprobe files. backend.{h,cpp} deliberately gets none (Eike
+  Hein's code; only capt's vendoring decision was followed).
+- 90b6d52e9 expanded every "capt" shorthand to full David Goree /
+  latte-dock-qt6 / URL / per-file commit / source path / what-taken; the
+  plan doc's Posture paragraph now defines "capt" once for the whole file.
+- da933136d README credit split out for David Goree with the concrete
+  contributions (sceneprobe harness, TESTING.md model, seven EX units,
+  transplanted suites).
+Verification pass clean: every DERIVED file has his line; the five that
+name him without one are divergence/contrast notes (capt bugs we avoided:
+WindowsGoBelow->LayerBottom, unresolved ShadowedItem) plus the colortools
+data tags - all correctly exempt. Ledger
+docs/agent-logs/2026-07-17-captsilver-attribution-audit.md. gate-all run
+for the stamp (comment/SPDX/doc-only, no code moved). REMAINING: push
+branch, open PR, lean independent Sonnet review, ff-merge.
+
+Note: master carried a pre-existing uncommitted CLAUDE.md edit (a
+"Current status" meta-comment removal) from before this session - left
+untouched, not part of this PR.
 
 ## 2026-07-17 POST-CLOSE ADDENDUM (master at e089d3d6d)
 
