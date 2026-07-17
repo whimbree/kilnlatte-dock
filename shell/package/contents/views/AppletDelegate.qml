@@ -19,6 +19,13 @@ import org.kde.draganddrop 2.0
 Item {
     id: delegate
 
+    //! required-properties mode: the view fills these directly, and bare
+    //! context-injected role reads are OFF once any required property
+    //! exists - so every role read below goes through `model` (a root
+    //! property, resolvable by the qmllint ratchet) or `delegate.index`
+    required property var model
+    required property int index
+
     readonly property real badgeHeightRatio: 1.3
     readonly property string pluginName: model.pluginName
     readonly property bool pendingUninstall: pendingUninstallTimer.applets.indexOf(pluginName) > -1
@@ -27,14 +34,34 @@ Item {
     width: list.cellWidth
     height: list.cellHeight
 
+    //! Screen-reader surface (Phase 10 AT-SPI rollout): the whole card is
+    //! one button that adds the widget - name and description straight
+    //! from the model fields the card draws, the press action forwarding
+    //! to the same addWidget() body the tap runs. Accessible.focused
+    //! follows the grid's current item, the same highlight the keyboard
+    //! moves. Pinned offscreen by tests/qml/tst_addwidgetsaccessible.qml.
+    Accessible.role: Accessible.Button
+    Accessible.name: model.name
+    Accessible.description: model.description
+    Accessible.focusable: true
+    Accessible.focused: delegate.GridView.isCurrentItem === true
+    Accessible.onPressAction: delegate.addWidget()
+
+    //! adds this widget to the dock - the one body shared by the tap
+    //! handler and the screen-reader press action
+    function addWidget() {
+        widgetExplorer.addApplet(delegate.pluginName);
+        main.scheduleRunningCountRefresh();
+    }
+
     HoverHandler {
-        onHoveredChanged: if (hovered) delegate.GridView.view.currentIndex = index
+        onHoveredChanged: if (hovered) delegate.GridView.view.currentIndex = delegate.index
     }
 
     DragArea {
         anchors.fill: parent
         supportedActions: Qt.MoveAction | Qt.LinkAction
-        delegateImage: decoration
+        delegateImage: delegate.model.decoration
         enabled: !delegate.pendingUninstall
         mimeData {
             source: parent
@@ -55,10 +82,7 @@ Item {
         TapHandler {
             id: tapHandler
             enabled: !delegate.pendingUninstall
-            onTapped: {
-                widgetExplorer.addApplet(pluginName);
-                main.scheduleRunningCountRefresh();
-            }
+            onTapped: delegate.addWidget()
         }
 
         ColumnLayout {
@@ -143,7 +167,7 @@ Item {
 
                     onHoveredChanged: {
                         if (hovered) {
-                            delegate.GridView.view.currentIndex = index
+                            delegate.GridView.view.currentIndex = delegate.index
                         }
                     }
 
@@ -179,7 +203,7 @@ Item {
 
                     onHoveredChanged: {
                         if (hovered) {
-                            delegate.GridView.view.currentIndex = index
+                            delegate.GridView.view.currentIndex = delegate.index
                         }
                     }
 
