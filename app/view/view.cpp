@@ -58,6 +58,7 @@
 #include <PlasmaQuick/AppletQuickItem>
 
 #define BLOCKHIDINGDRAGTYPE "View::ContainsDrag()"
+#define BLOCKHIDINGKEYBOARDNAVIGATIONTYPE "View::KeyboardNavigation()"
 #define BLOCKHIDINGNEEDSATTENTIONTYPE "View::Containment::NeedsAttentionState()"
 #define BLOCKHIDINGREQUESTSINPUTTYPE "View::Containment::RequestsInputState()"
 
@@ -109,6 +110,17 @@ View::View(Plasma::Corona *corona, QScreen *targetScreen, bool byPassX11WM)
     m_releaseGrabTimer.setInterval(400);
     m_releaseGrabTimer.setSingleShot(true);
     connect(&m_releaseGrabTimer, &QTimer::timeout, this, &View::releaseGrab);
+
+    //! leaving keyboard navigation must be bulletproof: whenever the window
+    //! loses keyboard focus for ANY reason (another window activated, an
+    //! activated task taking focus, the compositor pulling focus), the mode
+    //! exits and the window returns to focus-refusing - a dock stuck
+    //! accepting focus breaks every fullscreen application
+    connect(this, &QWindow::activeChanged, this, [this]() {
+        if (m_keyboardNavigationIsActive && !isActive()) {
+            exitKeyboardNavigation();
+        }
+    });
 
     connect(m_interface, &ViewPart::ContainmentInterface::hasExpandedAppletChanged, this, &View::updateTransientWindowsTracking);
 
@@ -772,39 +784,103 @@ void View::updateAbsoluteGeometry(bool bypassChecks)
     }
 }
 
+//! Fix for #443236, setFlags(...) needs to run for every status but
+//! initViewFlags() must be called afterwards because setFlags(...) used to
+//! break the Dock window default behavior
+void View::applyKeyboardFocusPolicy(bool takesFocus)
+{
+    namespace LS = Latte::WindowSystem::LayerShell;
+
+    if (takesFocus) {
+        setFlags(flags() & ~Qt::WindowDoesNotAcceptFocus);
+    } else {
+        setFlags(flags() | Qt::WindowDoesNotAcceptFocus);
+    }
+
+    m_visibility->initViewFlags();
+
+    if (m_layerShellConfigured) {
+        LS::setFocusPolicy(this, takesFocus);
+    }
+}
+
 void View::statusChanged(Plasma::Types::ItemStatus status)
 {
     if (!containment()) {
         return;
     }
 
-    //! Fix for #443236, following setFlags(...) need to be added at all three cases
-    //! but initViewFlags() should be called afterwards because setFlags(...) breaks
-    //! the Dock window default behavior under x11
-    namespace LS = Latte::WindowSystem::LayerShell;
+    //! keyboard-navigation mode keeps the window focusable through any
+    //! containment status flap; its own three exit paths (Escape, the
+    //! global shortcut, focus loss) are the only ways the window returns
+    //! to focus-refusing while the mode is on
+    const bool takesFocus = (status == Plasma::Types::AcceptingInputStatus) || m_keyboardNavigationIsActive;
 
     if (status == Plasma::Types::NeedsAttentionStatus || status == Plasma::Types::RequiresAttentionStatus) {
         m_visibility->addBlockHidingEvent(BLOCKHIDINGNEEDSATTENTIONTYPE);
-        setFlags(flags() | Qt::WindowDoesNotAcceptFocus);
-        m_visibility->initViewFlags();
-        if (m_layerShellConfigured) {
-            LS::setFocusPolicy(this, false);
-        }
-    } else if (status == Plasma::Types::AcceptingInputStatus) {
-        m_visibility->removeBlockHidingEvent(BLOCKHIDINGNEEDSATTENTIONTYPE);
-        setFlags(flags() & ~Qt::WindowDoesNotAcceptFocus);
-        m_visibility->initViewFlags();
-        if (m_layerShellConfigured) {
-            LS::setFocusPolicy(this, true);
-        }
     } else {
-        updateTransientWindowsTracking();
-        m_visibility->removeBlockHidingEvent(BLOCKHIDINGNEEDSATTENTIONTYPE);
-        setFlags(flags() | Qt::WindowDoesNotAcceptFocus);
-        m_visibility->initViewFlags();
-        if (m_layerShellConfigured) {
-            LS::setFocusPolicy(this, false);
+        if (status != Plasma::Types::AcceptingInputStatus) {
+            updateTransientWindowsTracking();
         }
+
+        m_visibility->removeBlockHidingEvent(BLOCKHIDINGNEEDSATTENTIONTYPE);
+    }
+
+    applyKeyboardFocusPolicy(takesFocus);
+}
+
+bool View::keyboardNavigationIsActive() const
+{
+    return m_keyboardNavigationIsActive;
+}
+
+void View::enterKeyboardNavigation()
+{
+    if (m_keyboardNavigationIsActive) {
+        return;
+    }
+
+    if (!m_visibility) {
+        //! reachable from outside (D-Bus/global shortcut) before the view
+        //! has its containment wired; refuse loudly instead of crashing
+        qWarning() << "view: keyboard navigation requested before the view is ready, refusing";
+        return;
+    }
+
+    m_keyboardNavigationIsActive = true;
+
+    //! also reveals an auto-hidden dock (hidingIsBlockedChanged emits
+    //! mustBeShown), the same mechanism the Meta press-and-hold path uses
+    m_visibility->addBlockHidingEvent(BLOCKHIDINGKEYBOARDNAVIGATIONTYPE);
+
+    applyKeyboardFocusPolicy(true);
+    requestActivate();
+
+    Q_EMIT keyboardNavigationIsActiveChanged();
+}
+
+void View::exitKeyboardNavigation()
+{
+    if (!m_keyboardNavigationIsActive) {
+        return;
+    }
+
+    m_keyboardNavigationIsActive = false;
+    m_visibility->removeBlockHidingEvent(BLOCKHIDINGKEYBOARDNAVIGATIONTYPE);
+
+    //! back to the stance the containment status dictates; that is
+    //! focus-refusing unless something explicitly holds AcceptingInputStatus
+    applyKeyboardFocusPolicy(containment() && containment()->status() == Plasma::Types::AcceptingInputStatus);
+
+    Q_EMIT keyboardNavigationIsActiveChanged();
+}
+
+void View::toggleKeyboardNavigation()
+{
+    if (m_keyboardNavigationIsActive) {
+        exitKeyboardNavigation();
+    } else {
+        enterKeyboardNavigation();
     }
 }
 

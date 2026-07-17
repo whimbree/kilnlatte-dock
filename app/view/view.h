@@ -71,6 +71,7 @@ class View : public PlasmaQuick::ContainmentView
 
     Q_PROPERTY(bool inEditMode READ inEditMode NOTIFY inEditModeChanged)
     Q_PROPERTY(bool isPreferredForShortcuts READ isPreferredForShortcuts WRITE setIsPreferredForShortcuts NOTIFY isPreferredForShortcutsChanged)
+    Q_PROPERTY(bool keyboardNavigationIsActive READ keyboardNavigationIsActive NOTIFY keyboardNavigationIsActiveChanged)
     Q_PROPERTY(bool onPrimary READ onPrimary WRITE setOnPrimary NOTIFY onPrimaryChanged)
     Q_PROPERTY(bool screenEdgeMarginEnabled READ screenEdgeMarginEnabled WRITE setScreenEdgeMarginEnabled NOTIFY screenEdgeMarginEnabledChanged)
 
@@ -154,6 +155,16 @@ public:
 
     virtual bool isPreferredForShortcuts() const;
     void setIsPreferredForShortcuts(bool preferred);
+
+    //! keyboard navigation mode: the window temporarily takes keyboard
+    //! focus (layer-shell OnDemand) so the containment QML can traverse
+    //! and activate dock items from the keyboard. Continuation feature -
+    //! upstream Qt5 Latte had no such mode; with the mode off the window
+    //! stays focus-refusing exactly as before.
+    bool keyboardNavigationIsActive() const;
+    Q_INVOKABLE void enterKeyboardNavigation();
+    Q_INVOKABLE void exitKeyboardNavigation();
+    Q_INVOKABLE void toggleKeyboardNavigation();
 
     bool inSettingsAdvancedMode() const;
 
@@ -317,6 +328,7 @@ Q_SIGNALS:
     void inSettingsAdvancedModeChanged();
     void interfacesGraphicObjChanged();
     void isPreferredForShortcutsChanged();
+    void keyboardNavigationIsActiveChanged();
     void isTouchingBottomViewAndIsBusyChanged();
     void isTouchingTopViewAndIsBusyChanged();
     void layoutChanged();
@@ -384,6 +396,11 @@ private:
     void reanchorLayerShell();
     void updateAppletContainsMethod();
 
+    //! apply the window's keyboard-focus stance (Qt flags + layer-shell
+    //! keyboard interactivity) computed from the containment status and
+    //! the keyboard-navigation mode; the single writer for both knobs
+    void applyKeyboardFocusPolicy(bool takesFocus);
+
     void setContainsDrag(bool contains);
 
 private:
@@ -396,6 +413,7 @@ private:
     bool m_containsMouse{false};
     bool m_inDelete{false};
     bool m_isPreferredForShortcuts{false};
+    bool m_keyboardNavigationIsActive{false};
     bool m_onPrimary{true};
     bool m_screenEdgeMarginEnabled{false};
 
