@@ -136,6 +136,22 @@ Adopt latte-dock-qt6's three-piece shape, adapted rather than copied:
   pointer recipes WORSE (a freshly restarted surface is even less
   settled), so the suite keeps the shared-dock shape.
 
+  `parabolic-hover-preview` additionally re-glides onto the target icon
+  until the preview dialog maps (root-caused 2026-07-17, ledger
+  docs/agent-logs/2026-07-17-preview-recipe-flake.md). The preview trigger
+  is the task MouseArea's `onEntered`, and the parabolic layer only emits
+  it while the dock is at REST - `hoverEnabled` gates off during the zoom
+  animation (Qt5-faithful: mid-animation hover jitter is intentionally
+  ignored). A single synthetic glide crosses the icon boundary at a moment
+  that races that animation, so `onEntered` fires on only ~60% of attempts,
+  and once the warped pointer rests inside the icon no further crossing
+  re-fires it, so the dialog never maps. This is a synthetic-injection
+  artifact, not a dock defect - a real, continuously-moving mouse re-nudges
+  and previews are reliable live. The recipe mirrors that: it repeats the
+  glide gesture (up to 8 tries, breaking as soon as the dialog maps) while
+  keeping the assertion honest - a genuine layer=6 dialog must map. Proven
+  12/12 back-to-back after the fix; ~60% single-shot before it.
+
 Enum/handler completeness tests (Phase 6: every UI-offered enum value
 must have a handled branch, verified per enum/handler pair) are part of
 the headless harness's job, not a separate mechanism.
