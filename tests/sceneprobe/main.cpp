@@ -12,6 +12,9 @@
 //  - The validation layer's presence is verified before instance creation:
 //    QVulkanInstance drops unsupported layers SILENTLY, which would turn the
 //    whole validation gate into a no-op on a machine without the layer.
+//  - Missing goldens are tier-aware: a hard failure on lavapipe (the CI
+//    tier), a loud golden-compare-skipped notice on opt-in devices (dgpu),
+//    so a desktop GPU run is useful without a blessed dgpu set.
 #include <QGuiApplication>
 #include <QAnimationDriver>
 #include <QScopeGuard>
@@ -247,9 +250,22 @@ int main(int argc, char **argv)
             QImage ref(refPath);
             if (ref.isNull()) {
                 frame.save(stem + QStringLiteral(".actual.png"));
-                std::fprintf(stderr, "OUTPUT FAIL: no reference for %s (%s) - run the gate with --bless to create it\n",
-                             qPrintable(QFileInfo(scenePath).fileName()), qPrintable(device));
-                g_outputError = true;
+                if (device == QLatin1String("lavapipe")) {
+                    // the CI tier: a missing golden is a hard failure, or a
+                    // deleted golden would silently gut the compare
+                    std::fprintf(stderr, "OUTPUT FAIL: no reference for %s (%s) - run the gate with --bless to create it\n",
+                                 qPrintable(QFileInfo(scenePath).fileName()), qPrintable(device));
+                    g_outputError = true;
+                } else {
+                    // Opt-in devices (dgpu) are exploratory: their golden
+                    // sets are blessed separately if ever, and a desktop GPU
+                    // run must be useful without a blessing ceremony. The
+                    // absence is reported loudly (never skipped in silence);
+                    // the shader/validation/blank/probeExpect gates still
+                    // verdict this run.
+                    std::fprintf(stderr, "NOTE: no goldens blessed for device '%s' (%s) - golden compare skipped, all other gates still apply\n",
+                                 qPrintable(device), qPrintable(QFileInfo(scenePath).fileName()));
+                }
             } else {
                 LatteProbe::CompareTolerance tol = (device == QLatin1String("lavapipe"))
                     ? LatteProbe::CompareTolerance{0, 0.0}

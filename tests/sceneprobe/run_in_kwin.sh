@@ -15,21 +15,49 @@
 # inherits the caller's env, no generated session script needed), then tears
 # kwin down. Exit code is the command's own.
 #
-# Lavapipe-ONLY, by the adoption plan's hard constraint (pure CPU, VM-safe):
-# the upstream harness's dgpu device mode and its hardware-pinning env are
-# deliberately not ported. SCENEPROBE_DEVICE stays as the golden-set name
-# ("lavapipe" is the only value); anything else is refused loudly.
+# Device dispatch, SCENEPROBE_DEVICE (this is the ONE dispatch point;
+# golden filenames carry the device name so the sets stay independent):
+#   lavapipe (default) - Mesa software Vulkan from the flake pin,
+#       LP_NUM_THREADS=0 for bit-reproducibility. The only tier CI gates
+#       on: pure CPU, VM-safe, and the only device the gate script uses.
+#   dgpu - the host's real Vulkan driver, opt-in. A DOCUMENTED optional
+#       extra as of 2026-07-16 (direction change recorded in
+#       docs/agent-logs/2026-07-16-sceneprobe-followup-scenes.md; the
+#       adoption plan's "undocumented local extra" line is superseded on
+#       this point): the harness must also WORK with a GPU but never
+#       REQUIRE one - CI/microvm stay lavapipe-only. VK_ICD_FILENAMES is
+#       left unset so the loader enumerates the host's ICDs
+#       (/run/opengl-driver on NixOS); on multi-GPU boxes export
+#       MESA_VK_DEVICE_SELECT yourself (the upstream harness hardcoded
+#       its own card's 1002:7550 here - a hardware pin that does not
+#       belong in the repo). dgpu goldens are blessed separately if ever;
+#       a missing dgpu golden set is reported loudly by the probe while
+#       the shader/validation/blank gates still verdict.
 #
-# ICD and validation layer come from the flake pin (devShell exports
-# LATTE_VULKAN_LAVAPIPE_ICD and LATTE_VK_LAYER_PATH), never from the host's
-# /run/opengl-driver - goldens must be blessed against the exact Mesa CI runs.
+# The validation layer comes from the flake pin in BOTH modes (devShell
+# exports LATTE_VK_LAYER_PATH); the lavapipe ICD from the pin too, never
+# the host's /run/opengl-driver - lavapipe goldens must be blessed against
+# the exact Mesa CI runs.
 set -u
 
 DEV="${SCENEPROBE_DEVICE:-lavapipe}"
-[ "$DEV" = "lavapipe" ] || { echo "unsupported SCENEPROBE_DEVICE '$DEV': this harness is lavapipe-only (pure-CPU constraint)" >&2; exit 2; }
-
-ICD="${LATTE_VULKAN_LAVAPIPE_ICD:-}"
-[ -n "$ICD" ] && [ -f "$ICD" ] || { echo "lavapipe ICD not found (LATTE_VULKAN_LAVAPIPE_ICD unset or missing; run inside the flake devShell)" >&2; exit 2; }
+case "$DEV" in
+  lavapipe)
+    ICD="${LATTE_VULKAN_LAVAPIPE_ICD:-}"
+    [ -n "$ICD" ] && [ -f "$ICD" ] || { echo "lavapipe ICD not found (LATTE_VULKAN_LAVAPIPE_ICD unset or missing; run inside the flake devShell)" >&2; exit 2; }
+    ;;
+  dgpu)
+    # no ICD forced: the loader enumerates the host's drivers; refuse
+    # loudly if that enumeration could only find lavapipe-from-the-pin
+    # semantics (nothing to check here portably - the probe prints the
+    # selected device name, read it)
+    ICD=""
+    ;;
+  *)
+    echo "unsupported SCENEPROBE_DEVICE '$DEV': lavapipe (default, CI tier) or dgpu (opt-in host GPU)" >&2
+    exit 2
+    ;;
+esac
 LAYERS="${LATTE_VK_LAYER_PATH:-}"
 [ -n "$LAYERS" ] && [ -d "$LAYERS" ] || { echo "validation layer manifests not found (LATTE_VK_LAYER_PATH unset or missing; run inside the flake devShell)" >&2; exit 2; }
 
@@ -63,10 +91,13 @@ if [ ! -S "$RT/$SOCK" ]; then
 fi
 
 # LP_NUM_THREADS=0 disables llvmpipe's threaded rasterizer, which is what
-# makes lavapipe output bit-reproducible (the {0,0} golden tier depends on it).
+# makes lavapipe output bit-reproducible (the {0,0} golden tier depends on
+# it). Both it and the forced ICD are lavapipe-only: the dgpu mode leaves
+# the loader's enumeration alone.
+DEV_ENV=()
+[ "$DEV" = "lavapipe" ] && DEV_ENV=(LP_NUM_THREADS=0 VK_ICD_FILENAMES="$ICD")
 env QT_QPA_PLATFORM=wayland WAYLAND_DISPLAY="$SOCK" XDG_RUNTIME_DIR="$RT" \
-    QSG_RHI_BACKEND=vulkan LP_NUM_THREADS=0 \
-    VK_ICD_FILENAMES="$ICD" VK_LAYER_PATH="$LAYERS" \
+    QSG_RHI_BACKEND=vulkan "${DEV_ENV[@]}" VK_LAYER_PATH="$LAYERS" \
     timeout 90 "$@"
 ec=$?
 
