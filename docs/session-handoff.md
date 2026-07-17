@@ -6,9 +6,28 @@ PHASE 8 IS OPEN - read its section in docs/PORTING_PLAN.md first; every item
 is current there, several sections below are now RESOLVED and kept only as
 archaeology.
 
-## 2026-07-16: stabilization execution session (running record)
+## 2026-07-16: stabilization execution session TWO (running record)
 
-Driving docs/prompts/stabilization-execution-prompt.md top to bottom.
+Driving docs/prompts/stabilization-execution-prompt.md over the open
+items (8, 9 remainder, 10). Session start: fixed session one's plan
+drift (2bba6cb8b - P2 checkbox was never ticked, and the plan/design
+doc carried the agents' pre-rebase hashes; master hashes now recorded,
+agent logs got mapping notes; merge protocol lesson: resolve hashes
+AFTER the rebase, at tick time). FOUR worktree agents dispatched in
+parallel (ledgers in docs/agent-logs/, 2026-07-16-*): D-Bus
+observability steps 2-4 (dbus-steps-2-4), CaptSilver P3 behavioral
+tests (p3-behavioral-tests), sceneprobe follow-up scenes
+(sceneprobe-followup-scenes), layershell try_compile guard + WindowId
+newtype (layershell-guard-windowid). Merge serially with full gates
+as they finish; busctl smokes for the D-Bus steps run live at merge.
+Orchestrator meanwhile works the extraction-ledger live-verification
+tail on the throwaway profile. scripts/run-e2e.sh found UNTRACKED
+from session one - fold into the e2e-conversion work (quartet item c)
+when the D-Bus steps merge.
+
+## 2026-07-16: stabilization execution session ONE (record)
+
+Drove docs/prompts/stabilization-execution-prompt.md top to bottom.
 
 SESSION CLOSE: all three worktree branches merged serially with full
 gates and pushed; final master state: 54 ctest entries, ratchet OK,
