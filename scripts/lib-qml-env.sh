@@ -43,8 +43,19 @@ qml_env_setup() {
         done
     done
 
-    # the staged Latte modules win over everything
-    imports+=(-import "$stage/lib/qml")
+    # the staged Latte modules win over everything, so this import goes last.
+    # KDE_INSTALL_QMLDIR (where cmake --install drops org.kde.latte.*) follows
+    # the distro's Qt6 qml layout - nixpkgs lib/qml, Arch/Fedora/Debian
+    # lib/qt6/qml - and the stage does not exist yet when this runs
+    # (qml_env_stage installs later), so the filesystem cannot be probed for
+    # it. The build emits the authoritative configure-time value to
+    # latte-qmldir.txt; read it, defaulting to lib/qml only if the file is
+    # somehow absent. Without this, scenes importing org.kde.latte.* fail
+    # "module not installed" on any distro whose QMLDIR is not lib/qml.
+    local qmldir=""
+    [[ -f "$build/latte-qmldir.txt" ]] && read -r qmldir < "$build/latte-qmldir.txt"
+    [[ -n "$qmldir" ]] || qmldir="lib/qml"
+    imports+=(-import "$stage/$qmldir")
 }
 
 # Undo qml_env_stage's manifest displacement. Global state instead of

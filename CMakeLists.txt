@@ -32,6 +32,15 @@ find_package(ECM ${KF6_MIN_VERSION} REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 
 include(KDEInstallDirs)
+
+# The headless QML gates (scripts/lib-qml-env.sh) stage the built modules to a
+# throwaway prefix and must add the staged qml subdir to the import path
+# BEFORE that prefix is installed, so they cannot probe the filesystem for it.
+# KDE_INSTALL_QMLDIR is the authoritative subdir but varies by distro Qt6
+# layout (lib/qml on nixpkgs, lib/qt6/qml on Arch/Fedora/Debian) and is empty
+# in the CMake cache; emit its configure-time value where the harness reads it.
+file(WRITE "${CMAKE_BINARY_DIR}/latte-qmldir.txt" "${KDE_INSTALL_QMLDIR}\n")
+
 include(CheckIncludeFiles)
 include(CMakePackageConfigHelpers)
 include(ECMOptionalAddSubdirectory)
