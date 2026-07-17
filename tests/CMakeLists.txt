@@ -180,6 +180,18 @@ target_include_directories(visualhostwindowtest PRIVATE
     ${CMAKE_SOURCE_DIR}/app
     ${CMAKE_BINARY_DIR}/app)
 
+# Source guards for the two one-token fixes with no headless behavioral
+# repro (sidebar state assignment, layouts-controller delegation); pure
+# source scan against REPO_ROOT.
+ecm_add_test(sourceguardtest.cpp
+    TEST_NAME sourceguardtest
+    LINK_LIBRARIES Qt6::Test
+)
+set_tests_properties(sourceguardtest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_compile_definitions(sourceguardtest PRIVATE
+    REPO_ROOT="${CMAKE_SOURCE_DIR}")
+
 # The two settings table models (export-template applets, screens dialog):
 # population, check-state toggling, defaults and the checkedScreens()
 # active-screen exclusion that gates the Screens dialog removal.
