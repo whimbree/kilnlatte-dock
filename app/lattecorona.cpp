@@ -48,9 +48,6 @@
 #include "wm/abstractwindowinterface.h"
 #include "wm/schemecolors.h"
 #include "wm/waylandinterface.h"
-#if HAVE_X11
-#include "wm/xwindowinterface.h"
-#endif
 #include "wm/tracker/lastactivewindow.h"
 #include "wm/tracker/schemes.h"
 #include "wm/tracker/windowstracker.h"
@@ -118,19 +115,16 @@ Corona::Corona(bool defaultLayoutOnStartup, QString layoutNameOnStartUp, QString
     //! windows can inherit their view's screen (see eventFilter)
     qApp->installEventFilter(this);
 
-    //! create the window manager
-    if (KWindowSystem::isPlatformWayland()) {
-        m_wm = new WindowSystem::WaylandInterface(this);
-    } else {
-#if HAVE_X11
-        m_wm = new WindowSystem::XWindowInterface(this);
-#else
-        //! best-effort X11 support was disabled at build time; the wayland
-        //! interface degrades to no-ops without a wayland registry
-        qWarning() << "Latte was built without X11 support (WITH_X11=OFF) but is not running under wayland; window tracking will not work";
-        m_wm = new WindowSystem::WaylandInterface(this);
-#endif
+    //! create the window manager: the layer-shell wayland backend is the only
+    //! one (the X11 backend was removed 2026-07-17 - KDE ships Plasma 6.8
+    //! Wayland-exclusive, see the Phase 4 decision record in the porting
+    //! plan). Off a wayland session (e.g. offscreen harness runs) the
+    //! interface degrades to no-ops without a wayland registry - warn loudly
+    //! rather than pretending tracking works.
+    if (!KWindowSystem::isPlatformWayland()) {
+        qWarning() << "Latte is not running under wayland; window tracking will not work";
     }
+    m_wm = new WindowSystem::WaylandInterface(this);
 
     setupWaylandIntegration();
 
