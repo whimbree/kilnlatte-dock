@@ -3546,6 +3546,19 @@ Features beyond even Latte git master, appropriate under the
 maintained-continuation framing. None of these start before their
 prerequisites in the phases above are done.
 
+- [ ] MULTI-DISTRO CI MATRIX (v0.12.0 release pre-req, planned
+      2026-07-17) - take the headless nested-kwin/lavapipe sceneprobe +
+      tests/e2e harness to Arch/Fedora/Ubuntu-family Plasma 6 containers
+      with per-distro golden validation (graduated rigor: bit-exact on
+      the NixOS pin, bless-frozen on stable distros, invariant+tolerance
+      on rolling). Green across the matrix gates the v0.12.0 tag (first
+      tagged continuation release; upstream stopped at v0.10.8, tree is
+      at 0.10.77). Full architecture, phased A-E checklist and open
+      decisions in docs/multi-distro-ci-plan.md. Cross-ARCH (aarch64)
+      golden verification (item 9) is PARKED there with its findings -
+      the width-knob crashes lavapipe, and a local aarch64 guest needs
+      binfmt or a real ARM box; the distro matrix is the higher-value
+      portability signal. Commits:
 - [x] Resizable applet popups with per-applet persistence and reset
       (requested 2026-07-14; PREREQUISITE: the popup mis-sizing fix in
       the stabilization list - the feature sits on the corrected

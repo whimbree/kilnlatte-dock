@@ -1,7 +1,36 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-17 (stabilization item 11: CaptSilver attribution audit).
+Last updated 2026-07-17 (multi-distro CI plan + item 11 attribution).
+
+## 2026-07-17 NEW DIRECTION: multi-distro CI matrix for v0.12.0
+
+Planned, not started. The next big initiative (Bree's call): take the
+existing headless harness (nested kwin_wayland + lavapipe sceneprobe,
+tests/e2e nested-vehicle recipes) to Arch/Fedora/Ubuntu-family Plasma 6
+CONTAINERS with per-distro golden validation, as a fully automated
+GitHub Actions matrix. Green across the matrix is the release gate for
+v0.12.0 (first tagged continuation release; upstream stopped at v0.10.8,
+tree is at CMakeLists VERSION 0.10.77; no GitHub Actions exist yet, only
+the inherited .kde-ci.yml). Full architecture + phased A-E checklist +
+six open DECISIONs in docs/multi-distro-ci-plan.md; pointer bullet in
+PORTING_PLAN's Continuation-features section. podman AND docker are on
+the host, so Phase A (containerize + build per distro) can prototype
+locally right now.
+
+Key design call banked: cross-environment rendering is NOT bit-exact, so
+goldens use graduated rigor per tier - bit-exact on the NixOS pin,
+bless-frozen on pinned-tag stable distros, invariant+tolerance on rolling
+(Arch). The probe already supports all three (imagecompare.h
+checkInvariants + CompareTolerance; per-scene probeTolerance).
+
+CROSS-ARCH (aarch64) golden verification is PARKED (findings in the plan
+doc): forcing LP_NATIVE_VECTOR_WIDTH=128 crashes lavapipe on this x86
+build (never set it), a local aarch64 guest needs 264 local aarch64
+builds (blocked without binfmt or a real ARM box), and cross-arch won't
+bit-match x86 anyway. The distro matrix is the higher-value path.
+
+## 2026-07-17 SESSION FOUR: CaptSilver attribution audit (item 11)
 
 ## 2026-07-17 SESSION FOUR: CaptSilver attribution audit (item 11)
 
