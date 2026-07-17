@@ -171,10 +171,43 @@ produced).
   Q_DECLARE_METATYPE is future-proofing, not a runtime dependency.
   Both WITH_X11 variants compile; full ctest 55/55.
 
-### Gate results
+### Gate results (all green, run on this branch after the flip)
 
-(filled at the end)
+- full ctest: 55/55 passed (includes the new windowidtest and the
+  EX-23 windowtrackingpredicatestest / windowinfowraptest safety net).
+- scripts/coverage-ratchet.sh: OK (55 ctest entries, 29 unit headers
+  paired; baseline bumped 54 -> 55 with windowidtest in the entry list
+  and app/wm/windowid.h in app-subtree-units.list).
+- scripts/qmllint-gate.sh: OK (233 files, 155 finding files, 6025
+  curated warnings, baseline matched - no QML touched by this pass).
+- scripts/build-check.sh --fresh: OK - both WITH_X11 variants wiped,
+  reconfigured (the Part 1 probe guard ran fresh in both) and rebuilt,
+  ctest re-run green inside it.
 
-### Final commit list
+### Final commit list (branch-local hashes; the merge will rebase them)
 
-(filled at the end)
+- c94c9de6f build: stop the layer-shell setScreen probe from silently
+  flipping on a broken configure (Part 1)
+- 612045025 fix(wm): X11 window-id parses check the ok flag instead of
+  silently acting on window 0
+- 352b32b39 refactor(view): record the stale numeric premise behind
+  the wayland trackedWindowId re-resolve
+- 3fcd3be9e feat(wm): WindowId newtype with checked X11 parse, pinned
+  by a unit test
+- 215b79847 port(wm): flip WindowId from the QByteArray alias to the
+  newtype
+- (this ledger finalization commit)
+
+### Owed at merge time
+
+- Live wayland session pass over the wm surface: active-window
+  tracking, dodge/tracking behavior, color scheme following, and the
+  subwindow/config-view uuid re-resolution after a reshow (the
+  trackedWindowId lazy-resolve notes above). Headless gates cannot
+  drive KWayland.
+- Decision point recorded, not taken: tightening the three
+  trackedWindowId() re-resolves to isEmpty() once latteWindowAdded
+  coverage for skip-taskbar subwindows is verified live.
+- docs/PORTING_PLAN.md tick for the WindowId item (left to the
+  orchestrator per the worktree footprint rules), and a Phase 4-ish
+  note for the probe guard if wanted.
