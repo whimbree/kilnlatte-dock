@@ -149,11 +149,7 @@ void PrimaryConfigView::setOnActivities(QStringList activities)
 void PrimaryConfigView::requestActivate()
 {
     if (m_latteView && m_latteView->visibility()) {
-        if (KWindowSystem::isPlatformX11()) {
-            m_latteView->visibility()->setViewOnFrontLayer();
-        } else if (KWindowSystem::isPlatformWayland()) {
-            m_corona->wm()->requestActivate(m_latteView->positioner()->trackedWindowId());
-        }
+        m_corona->wm()->requestActivate(m_latteView->positioner()->trackedWindowId());
     }
 
     if (m_secConfigView) {

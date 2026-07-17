@@ -641,10 +641,6 @@ void View::showConfigurationInterface(Plasma::Applet *applet)
     } else if (m_appletConfigView) {
         if (m_appletConfigView->applet() == applet) {
             m_appletConfigView->show();
-
-            if (KWindowSystem::isPlatformX11()) {
-                m_appletConfigView->requestActivate();
-            }
             return;
         } else {
             m_appletConfigView->hide();
@@ -757,15 +753,6 @@ void View::updateAbsoluteGeometry(bool bypassChecks)
         } else if (location() == Plasma::Types::RightEdge) {
             absGeometry.moveLeft(screenGeometry().right() - currentScreenEdgeMargin - m_normalThickness);
         }
-    }
-
-    if (KWindowSystem::isPlatformX11() && devicePixelRatio() != 1.0) {
-        //!Fix for X11 Global Scale, I dont think this could be pixel perfect accurate
-        auto factor = devicePixelRatio();
-        absGeometry = QRect(qRound(absGeometry.x() * factor),
-                            qRound(absGeometry.y() * factor),
-                            qRound(absGeometry.width() * factor),
-                            qRound(absGeometry.height() * factor));
     }
 
     if (m_absoluteGeometry == absGeometry && !bypassChecks) {
@@ -1280,14 +1267,7 @@ void View::applyActivitiesToWindows()
         }
 
         if (m_appletConfigView) {
-            Latte::WindowSystem::WindowId appletconfigviewid;
-
-            if (KWindowSystem::isPlatformX11()) {
-                appletconfigviewid = WindowSystem::WindowId::fromX11WId(m_appletConfigView->winId());
-            } else {
-                appletconfigviewid = m_corona->wm()->winIdFor("latte-dock", m_appletConfigView->title());
-            }
-
+            const Latte::WindowSystem::WindowId appletconfigviewid = m_corona->wm()->winIdFor("latte-dock", m_appletConfigView->title());
             m_positioner->setWindowOnActivities(appletconfigviewid, runningActivities);
         }
 

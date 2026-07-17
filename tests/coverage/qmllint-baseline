@@ -103,7 +103,7 @@
 8	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/layouts/loaders/Tasks.qml
 7	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/layouts/ParabolicEdgeSpacer.qml
 32	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/Upgrader.qml
-164	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/VisibilityManager.qml
+159	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/VisibilityManager.qml
 3	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/config/config.qml
 42	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/abilities/launchers/Syncer.qml
 5	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/AppletAbilities.qml

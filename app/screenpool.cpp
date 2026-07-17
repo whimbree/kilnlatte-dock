@@ -81,10 +81,6 @@ void ScreenPool::load()
         onScreenAdded(screen);
     }
 
-    if (KWindowSystem::isPlatformX11()) {
-        connect(qGuiApp, &QGuiApplication::primaryScreenChanged, this, &ScreenPool::primaryScreenChanged, Qt::UniqueConnection);
-    }
-
     connect(m_primaryWatcher, &PrimaryOutputWatcher::primaryOutputNameChanged, this, &ScreenPool::onPrimaryOutputNameChanged, Qt::UniqueConnection);
 }
 

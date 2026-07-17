@@ -41,12 +41,8 @@ SubConfigView::SubConfigView(Latte::View *view, const QString &title, const bool
     //! SurfaceCreated platform event; a layer surface must be configured
     //! before the window is first shown, so initParentView() does it.
 
-    if (KWindowSystem::isPlatformX11()) {
-        m_corona->wm()->registerIgnoredWindow(WindowSystem::WindowId::fromX11WId(winId()));
-    } else {
-        connect(this, &QWindow::windowTitleChanged, this, &SubConfigView::updateWaylandId);
-        connect(m_corona->wm(), &WindowSystem::AbstractWindowInterface::latteWindowAdded, this, &SubConfigView::updateWaylandId);
-    }
+    connect(this, &QWindow::windowTitleChanged, this, &SubConfigView::updateWaylandId);
+    connect(m_corona->wm(), &WindowSystem::AbstractWindowInterface::latteWindowAdded, this, &SubConfigView::updateWaylandId);
 
     m_validTitle = title;
     setTitle(m_validTitle);
@@ -68,14 +64,6 @@ SubConfigView::SubConfigView(Latte::View *view, const QString &title, const bool
         }
 
         setScreen(m_latteView->screen());
-
-        if (KWindowSystem::isPlatformX11()) {
-            if (m_isNormalWindow) {
-                setFlags(wFlags());
-                m_corona->wm()->setViewExtraFlags(this, false, Latte::Types::NormalWindow);
-            }
-        }
-
         syncGeometry();
     });
 
@@ -128,7 +116,7 @@ SubConfigView::~SubConfigView()
 
     m_corona->dialogShadows()->removeWindow(this);
 
-    m_corona->wm()->unregisterIgnoredWindow(KWindowSystem::isPlatformX11() ? WindowSystem::WindowId::fromX11WId(winId()) : m_waylandWindowId);
+    m_corona->wm()->unregisterIgnoredWindow(m_waylandWindowId);
 
     for (const auto &var : connections) {
         QObject::disconnect(var);

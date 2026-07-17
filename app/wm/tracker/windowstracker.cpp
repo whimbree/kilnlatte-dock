@@ -700,30 +700,12 @@ bool Windows::isActiveInViewScreen(Latte::View *view, const WindowInfoWrap &winf
 {
     auto screenGeometry = m_views[view]->screenGeometry();
 
-    if (KWindowSystem::isPlatformX11() && view->devicePixelRatio() != 1.0) {
-        //!Fix for X11 Global Scale, I dont think this could be pixel perfect accurate
-        auto factor = view->devicePixelRatio();
-        screenGeometry = QRect(qRound(screenGeometry.x() * factor),
-                               qRound(screenGeometry.y() * factor),
-                               qRound(screenGeometry.width() * factor),
-                               qRound(screenGeometry.height() * factor));
-    }
-
     return WindowTrackingPredicates::isActiveInViewScreen(winfo, screenGeometry);
 }
 
 bool Windows::isMaximizedInViewScreen(Latte::View *view, const WindowInfoWrap &winfo)
 {
     auto screenGeometry = m_views[view]->screenGeometry();
-
-    if (KWindowSystem::isPlatformX11() && view->devicePixelRatio() != 1.0) {
-        //!Fix for X11 Global Scale, I dont think this could be pixel perfect accurate
-        auto factor = view->devicePixelRatio();
-        screenGeometry = QRect(qRound(screenGeometry.x() * factor),
-                               qRound(screenGeometry.y() * factor),
-                               qRound(screenGeometry.width() * factor),
-                               qRound(screenGeometry.height() * factor));
-    }
 
     //! updated implementation to identify the screen that the maximized window is present
     //! in order to avoid: https://bugs.kde.org/show_bug.cgi?id=397700
@@ -745,15 +727,6 @@ bool Windows::isTouchingViewEdge(Latte::View *view, const QRect &windowgeometry)
     bool inViewLengthBoundaries{false};
 
     QRect screenGeometry = view->screenGeometry();
-
-    if (KWindowSystem::isPlatformX11() && view->devicePixelRatio() != 1.0) {
-        //!Fix for X11 Global Scale, I dont think this could be pixel perfect accurate
-        auto factor = view->devicePixelRatio();
-        screenGeometry = QRect(qRound(screenGeometry.x() * factor),
-                               qRound(screenGeometry.y() * factor),
-                               qRound(screenGeometry.width() * factor),
-                               qRound(screenGeometry.height() * factor));
-    }
 
     bool inCurrentScreen{screenGeometry.contains(windowgeometry.topLeft()) || screenGeometry.contains(windowgeometry.bottomRight())};
 

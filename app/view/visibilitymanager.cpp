@@ -217,9 +217,6 @@ void VisibilityManager::setViewOnFrontLayer()
 {
     m_wm->setViewExtraFlags(m_latteView, true);
     setIsBelowLayer(false);
-    if (KWindowSystem::isPlatformX11()) {
-        m_latteView->raise();
-    }
 }
 
 void VisibilityManager::setMode(Latte::Types::Visibility mode)
@@ -460,54 +457,9 @@ bool VisibilityManager::canSetStrut() const
         return false;
     }
 
-    if (!KWindowSystem::isPlatformX11() || m_wm->isKWinRunning()) {
-        // we always trust wayland and kwin to provide proper struts
-        return true;
-    }
-
-    if (qGuiApp->screens().count() < 2) {
-        return true;
-    }
-
-    /*Alternative DEs*/
-
-    const QRect thisScreen = m_latteView->screen()->geometry();
-
-    // Extended struts against a screen edge near to another screen are really harmful, so windows maximized under the panel is a lesser pain
-    // TODO: force "windows can cover" in those cases?
-    for (QScreen *screen : qGuiApp->screens()) {
-        if (!screen || m_latteView->screen() == screen) {
-            continue;
-        }
-
-        const QRect otherScreen = screen->geometry();
-
-        switch (m_latteView->location()) {
-        case Plasma::Types::TopEdge:
-            if (otherScreen.bottom() <= thisScreen.top()) {
-                return false;
-            }
-            break;
-        case Plasma::Types::BottomEdge:
-            if (otherScreen.top() >= thisScreen.bottom()) {
-                return false;
-            }
-            break;
-        case Plasma::Types::RightEdge:
-            if (otherScreen.left() >= thisScreen.right()) {
-                return false;
-            }
-            break;
-        case Plasma::Types::LeftEdge:
-            if (otherScreen.right() <= thisScreen.left()) {
-                return false;
-            }
-            break;
-        default:
-            return false;
-        }
-    }
-
+    // we always trust the wayland compositor to provide proper struts (the
+    // deleted arm below this line was X11-on-non-KWin defensiveness: extended
+    // struts near a shared screen edge harm the neighboring screen there)
     return true;
 }
 
@@ -702,11 +654,6 @@ void VisibilityManager::publishFrameExtents(bool forceUpdate)
         m_frameExtentsLocation = m_latteView->location();
         m_frameExtentsHeadThicknessGap = m_latteView->headThicknessGap();
 
-        if (KWindowSystem::isPlatformX11() && m_latteView->devicePixelRatio()!=1.0) {
-            //!Fix for X11 Global Scale
-            m_frameExtentsHeadThicknessGap = qRound(m_frameExtentsHeadThicknessGap * m_latteView->devicePixelRatio());
-        }
-
         QMargins frameExtents(0, 0, 0, 0);
 
         if (m_latteView->location() == Plasma::Types::LeftEdge) {
@@ -719,16 +666,14 @@ void VisibilityManager::publishFrameExtents(bool forceUpdate)
             frameExtents.setTop(m_frameExtentsHeadThicknessGap);
         }
 
-        bool bypasswm{m_latteView->byPassWM() && KWindowSystem::isPlatformX11()};
+        qDebug() << " -> Frame Extents :: " << m_frameExtentsLocation << " __ " << " extents :: " << frameExtents;
 
-        qDebug() << " -> Frame Extents :: " << m_frameExtentsLocation << " __ " << " extents :: " << frameExtents << " bypasswm :: " << bypasswm;
-
-        if (!frameExtents.isNull() && !m_latteView->behaveAsPlasmaPanel() && !bypasswm) {
+        if (!frameExtents.isNull() && !m_latteView->behaveAsPlasmaPanel()) {
             //! When a view returns its frame extents to zero then that triggers a compositor
             //! strange behavior that moves/hides the view totally and freezes entire Latte
             //! this is why we have blocked that setting
             m_wm->setFrameExtents(m_latteView, frameExtents);
-        } else if (m_latteView->behaveAsPlasmaPanel() || bypasswm) {
+        } else if (m_latteView->behaveAsPlasmaPanel()) {
             QMargins panelExtents(0, 0, 0, 0);
             m_wm->setFrameExtents(m_latteView, panelExtents);
             Q_EMIT frameExtentsCleared();
@@ -798,20 +743,6 @@ void VisibilityManager::updateGhostWindowState()
         } else {
             m_wm->setActiveEdge(m_edgeGhostWindow, false);
         }
-    }
-}
-
-void VisibilityManager::hide()
-{
-    if (KWindowSystem::isPlatformX11()) {
-        m_latteView->setVisible(false);
-    }
-}
-
-void VisibilityManager::show()
-{
-    if (KWindowSystem::isPlatformX11()) {
-        m_latteView->setVisible(true);
     }
 }
 

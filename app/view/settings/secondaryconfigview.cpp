@@ -68,9 +68,6 @@ void SecondaryConfigView::init()
     setSource(source);
     syncGeometry();
 
-    if (m_parent && KWindowSystem::isPlatformX11()) {
-        m_parent->requestActivate();
-    }
 }
 
 QRect SecondaryConfigView::geometryWhenVisible() const
@@ -178,11 +175,6 @@ void SecondaryConfigView::syncGeometry()
         setPosition(position);
     }
 
-    //! after placement request to activate the main config window in order to avoid
-    //! rare cases of closing settings window from secondaryConfigView->focusOutEvent
-    if (m_parent && KWindowSystem::isPlatformX11()) {
-        m_parent->requestActivate();
-    }
 }
 
 void SecondaryConfigView::showEvent(QShowEvent *ev)

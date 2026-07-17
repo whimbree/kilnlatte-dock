@@ -57,19 +57,8 @@ Positioner::Positioner(Latte::View *parent)
     m_corona = qobject_cast<Latte::Corona *>(m_view->corona());
 
     if (m_corona) {
-        if (KWindowSystem::isPlatformX11()) {
-            m_trackedWindowId = WindowSystem::WindowId::fromX11WId(m_view->winId());
-            m_corona->wm()->registerIgnoredWindow(m_trackedWindowId);
-
-            connect(m_view, &Latte::View::forcedShown, this, [&]() {
-                m_corona->wm()->unregisterIgnoredWindow(m_trackedWindowId);
-                m_trackedWindowId = WindowSystem::WindowId::fromX11WId(m_view->winId());
-                m_corona->wm()->registerIgnoredWindow(m_trackedWindowId);
-            });
-        } else {
-            connect(m_view, &QWindow::windowTitleChanged, this, &Positioner::updateWaylandId);
-            connect(m_corona->wm(), &WindowSystem::AbstractWindowInterface::latteWindowAdded, this, &Positioner::updateWaylandId);
-        }
+        connect(m_view, &QWindow::windowTitleChanged, this, &Positioner::updateWaylandId);
+        connect(m_corona->wm(), &WindowSystem::AbstractWindowInterface::latteWindowAdded, this, &Positioner::updateWaylandId);
 
         connect(m_corona->layoutsManager(), &Layouts::Manager::currentLayoutIsSwitching, this, &Positioner::onCurrentLayoutIsSwitching);
         /////
