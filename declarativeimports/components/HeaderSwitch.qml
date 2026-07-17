@@ -92,6 +92,10 @@ Item {
             QQC2.ToolTip.text: item.tooltip
             QQC2.ToolTip.visible: hovered && item.tooltip.length > 0
             opacity: 0
+            //! pruned from the screen-reader tree: the switch ghost below
+            //! carries the checkbox semantics for the whole header, and an
+            //! unnamed twin here would announce the same control twice
+            Accessible.ignored: true
             onPressedChanged: {
                 if (pressed) {
                     item.pressed();
@@ -106,13 +110,34 @@ Item {
         anchors.right: row.right
         checked: item.checked
         enabled: item.enabled
+        //! visual only: the ghost button covering it takes every press, so
+        //! IT carries the accessible checkbox and this switch is pruned
+        Accessible.ignored: true
 
         PlasmaComponents.Button {
             //tooltip ghost
+            id: switchToggleGhost
+            objectName: "switchToggleGhost"
             anchors.fill: parent
             QQC2.ToolTip.text: item.tooltip
             QQC2.ToolTip.visible: hovered && item.tooltip.length > 0
             opacity: 0
+
+            //! Screen-reader surface (Phase 10 AT-SPI rollout): the ghost
+            //! is the element that really takes the press, so it announces
+            //! as the header's checkbox - name from the visible header
+            //! text, checked mirroring the switch - and its press/toggle
+            //! actions raise the SAME item.pressed() signal the mouse path
+            //! raises through onPressedChanged. Pinned offscreen by
+            //! tests/qml/tst_accessiblecontrols.qml.
+            Accessible.role: Accessible.CheckBox
+            Accessible.name: item.text
+            Accessible.description: item.tooltip
+            Accessible.checkable: true
+            Accessible.checked: item.checked
+            Accessible.onPressAction: item.pressed()
+            Accessible.onToggleAction: item.pressed()
+
             onPressedChanged: {
                 if (pressed) {
                     item.pressed();

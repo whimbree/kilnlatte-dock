@@ -71,6 +71,13 @@ Rectangle {
         QQC2.ToolTip.text: buttonToolTip
         QQC2.ToolTip.visible: hovered && buttonToolTip !== ""
 
+        //! screen-reader surface (Phase 10 AT-SPI rollout): the visible
+        //! label and its tooltip; explicit because the checkable variant
+        //! sets text to a single space (the overlaid Label draws instead),
+        //! which would otherwise BE the accessible name
+        Accessible.name: root.buttonText
+        Accessible.description: root.buttonToolTip
+
         onClicked: {
             if (buttonIsTriggeringMenu) {
                 //! hiding combobox is triggered by default behavior
@@ -123,6 +130,11 @@ Rectangle {
         hideSelectedItemIcon: true
 
         minimumPopUpWidth: Math.max(comboBoxMinimumPopUpWidth, root.width)
+
+        //! the combobox half shares the chip's visible label: its own
+        //! display text is hidden, so without this it announces as an
+        //! unnamed combobox
+        Accessible.name: root.buttonText
 
         onIconClicked: (index) => root.iconClicked(index);
     }
