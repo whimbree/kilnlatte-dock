@@ -1163,6 +1163,26 @@ wallpaper stacking across the dock and CanvasConfigView surfaces).
 PHASE OPENED 2026-07-11 (go given), starting from live crashes on a
 multi-view, multi-monitor setup.
 
+- [ ] Bottom-dock layer surface drifts left of its reported geometry
+      (filed 2026-07-17 from the e2e promotion unit, evidence in
+      docs/agent-logs/2026-07-17-e2e-promotion.md finding 6). In the
+      nested vehicle the bottom dock's window sits at x=-20/-44/-74
+      while viewsData's absolute/local pair implies x=0, and the icons
+      REALLY render shifted (same-rect screenshot crops differ by
+      exactly the drift) - so absoluteGeometry, struts and input
+      regions are self-consistent with each other but not with what
+      the compositor shows. The drift re-anchors when the clock text
+      re-measures (minute tick) and the on-demand sidebar's same-sized
+      window drifts independently. Root-cause in the positioner/
+      layer-shell sizing (margins vs surface size for centered
+      maxLength<100 docks is the suspect area); FIRST check whether
+      the desk session drifts too - a 20px off-center dock on a 2560
+      screen is easy to miss by eye, and if it does, this is a
+      user-facing placement bug, not a vehicle artifact. The e2e
+      recipes compensate (pixel calibration in 050, e2e_view_window_x
+      elsewhere); remove the compensation notes when this is fixed.
+      Commits:
+
 - [x] Render-thread crash whenever an overflowing dock relayouts (enter
       edit mode, add a widget, right-click an applet in edit mode - all
       one backtrace: buildRenderLists SEGV during QSGRhiLayer::grab).
@@ -2713,13 +2733,28 @@ showed how much of the dock can only be driven by a pointer today.
             Commits: f8bf1444c..b16a730b2 on p3b-transplants
             (17 commits: 13 test + 4 fix; worktree hashes - re-pin
             at merge time if rebased)
-      - [ ] P4: e2e pixel assertions (latte-imgdiff + KWin ScreenShot2
+      - [x] P4: e2e pixel assertions (latte-imgdiff + KWin ScreenShot2
             before/after under nested kwin, D-Bus-driven, seeded HOME);
             fakepointer keeps covering live pointer-delivery tests.
             GUI-CI-candidate tests already banked: widget-explorer
             drag-add, AlternativesHelper swap, settings-window
             cold-open geometry loop.
-            Commits:
+            LANDED 2026-07-17 (the e2e promotion unit; execution record
+            in docs/agent-logs/2026-07-17-e2e-promotion.md): the nested
+            vehicle is the maintained DEFAULT mode of
+            scripts/run-e2e.sh (1600x1000 kwin_wayland --virtual, one
+            private bus for kwin + dock + probes, throwaway config
+            copy, --live escape hatch; kwin bring-up shared with the
+            sceneprobe gate via scripts/lib-nested-kwin.sh).
+            tests/e2e/lib.sh carries the recipe helpers incl.
+            ScreenShot2 raw-over-fd capture; 040 is the first pixel
+            assertion (eye-verified golden + latte-imgdiff). Suite at
+            promotion: 9/9 recipes green in one vehicle run (smoke,
+            EX-15 wheel trio, EX-17 preview text, EX-14 drag-reorder,
+            plus the three pre-existing recipes now vehicle-capable).
+            Commits: ffd1db8c6..27caf1202 on the e2e-promotion branch
+            (11 commits; re-record post-rebase hashes at merge per the
+            landing rule)
       Commits:
 - [x] SYNC PASS 2026-07-14 (record; hashes updated in CLAUDE.md):
       latte-dock-ng through 456154efb (10 commits): FOLDED

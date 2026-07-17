@@ -214,9 +214,12 @@ Per-unit specs (section C), in rank order:
   - [x] executed: LANDED 7ff96532 lineage (rebased; see the spec Commits
     line). Merge evidence: 45/45 ctest green post-rebase incl. the
     16-slot truth-table suite with both consumers' accept sets side by
-    side; core plugins.qmltypes re-dumped for the union. The six
-    drag/drop live recipes stay on the live desk list (file-url drops
-    may genuinely need a real mouse).
+    side; core plugins.qmltypes re-dumped for the union. Live recipe 1
+    (drag-reorder) PASSED 2026-07-17 as the repeatable e2e recipe
+    tests/e2e/050-drag-reorder-launchers.sh (order flip on D-Bus +
+    config + across a restart; the EX-14.md note carries the pinned
+    live-reorder semantic). Recipes 2-6 (file-url drops, widget
+    explorer) stay on the live desk list (real drag sources needed).
 - [x] EX-15 WheelAccumulator - wheel delta accumulation/threshold semantics
   - [x] executed: LANDED 8b23ea47 lineage (rebased; see the spec Commits
     line). Merge evidence: 41/41 ctest green post-rebase incl. the 22
@@ -229,9 +232,16 @@ Per-unit specs (section C), in rank order:
     landing exactly on 100/30 from 51 arithmetic-checks the step). Audio badge verified
     live later the same evening: two detents on the spotify stream
     badge stepped the pactl sink-input 74% to 84% (one 5% plasma-pa
-    step per detent), one down-detent to 79%. The task-cycle wheel is
-    covered by EX-16 group-cycle run (same taskScrollAction path); the
-    desktops-wheel recipe remains on the live desk list.
+    step per detent), one down-detent to 79%. 2026-07-17: the remaining
+    checks are repeatable e2e recipes, all PASS in the nested vehicle -
+    desktops wheel (tests/e2e/010-wheel-desktops.sh, one adjacent
+    switch per detent both directions), task-cycle wheel
+    (020-wheel-task-cycle.sh, A -> B -> A over a two-window group) and
+    the ruler wheel (030-wheel-ruler-maxlength.sh, exactly +-6 per
+    detent, config-verified per detent). Only the audio-badge check
+    stays desk-bound as a repeatable recipe (no pipewire in the
+    vehicle; the one-time live pass above stands, and the desk-owed
+    note is in docs/manual-flake-removal-testing.md).
 - [x] EX-16 GroupWindowCycler - next/previous/minimize target selection
   - [x] executed: LANDED 80525a85 lineage (rebased; see the spec Commits
     line). Merge evidence: the 24-case shipped-QML pinning suite and the
@@ -249,6 +259,9 @@ Per-unit specs (section C), in rank order:
     with a temporary second desktop ("Kiln Test") the moved window's
     subtext read "On Kiln Test" - the desktop-id fix resolves real names
     where the Qt5 index math rendered "On " with a dangling comma.
+    2026-07-17: both checks are now the repeatable e2e recipe
+    tests/e2e/040-preview-tooltip-text.sh (nested vehicle, eye-verified
+    pixel golden; PASS, pixel-exact across independent runs).
 - [x] EX-18 LengthOffsetClamp - maxLength/offset mutual clamp (dedup)
   - [x] executed: LANDED c2524734 lineage (rebased; see the spec Commits
     line). Merge evidence: 43/43 ctest green post-rebase; the rebase

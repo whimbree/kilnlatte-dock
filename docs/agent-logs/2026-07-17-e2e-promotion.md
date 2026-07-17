@@ -1,5 +1,30 @@
 # 2026-07-17 e2e promotion - running ledger
 
+## FINAL STATE (unit complete)
+
+Suite: scripts/run-e2e.sh, nested vehicle DEFAULT (--live escape
+hatch), 9 recipes, 9/9 GREEN in one continuous vehicle run:
+000-smoke, 010-wheel-desktops (EX-15 r2), 020-wheel-task-cycle
+(EX-15 r3), 030-wheel-ruler-maxlength (EX-15 r4),
+040-preview-tooltip-text (EX-17, pixel golden), 050-drag-reorder-
+launchers (EX-14 r1), duplicate-view-idremap, parabolic-hover-preview,
+settings-window-onscreen (kglobalaccel path works nested - KWin
+provides org.kde.kglobalaccel on the vehicle bus).
+
+Defects found: NONE in the dock's own behavior - every failing recipe
+traced to either the vehicle's input-delivery quirks (findings 5),
+harness assumptions (findings 2-4, 7) or KConfig default-deletion
+semantics (030's commit). One REAL finding filed for Phase 8
+root-cause: the window-x drift (finding 6) - the dock genuinely
+renders shifted from its reported geometry in the vehicle; whether
+the desk drifts too is a desk-owed check in
+docs/manual-flake-removal-testing.md, alongside the audio-badge
+repeatable recipe (no pipewire in the vehicle) and the desk-side
+consecutive-desktops-wheel cross-check.
+
+Gates at close: full nested suite 9/9; sceneprobe gate 13/13 after
+the shared-lib extraction; full ctest green (see closing commit).
+
 Branch: e2e-promotion (worktree /tmp/latte-wt-e2e).
 Task: promote the nested-compositor vehicle (session-two proof, see
 session-handoff "NESTED-MATRIX VEHICLE PROVEN") into the maintained

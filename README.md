@@ -96,11 +96,12 @@ phases, one commit-traceable checklist item per task. The coarse picture:
       ratchet, coverage ratchet, scene-render gate) are pure shell over
       cmake/ctest and CI-portable by design; the hosted pipeline itself
       is not stood up yet
-- [ ] Automated end-to-end GUI testing: the nested-compositor vehicle is
-      proven (the staged dock, pointer injection and a real client window
-      all run isolated from the live session, asserted over D-Bus) - the
-      visibility-mode matrix already runs on it; promoting it into a
-      maintained e2e suite is the open half
+- [x] Automated end-to-end GUI testing: a maintained recipe suite runs
+      desk-independently inside a nested compositor - the staged dock,
+      pointer injection, real client windows and KWin screenshots all
+      isolated from the live session - asserting over the D-Bus surface
+      first and over pixel goldens only where pixels are the thing under
+      test (hover previews, drag reorder, wheel routing, lifecycle)
 - [ ] Distro packaging beyond NixOS (no PPA/COPR/AUR yet; the classic
       CMake install works everywhere the dependencies exist)
 - [ ] Accessibility: keyboard navigation for every interactive surface,

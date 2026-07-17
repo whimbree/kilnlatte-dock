@@ -229,3 +229,28 @@ busctl on the a11y bus) shows the raw tree.
       pages carry roles but not per-instance labels yet (P3 page
       pass); Return in the widget explorer grid is the keyboard
       item's Keys wiring, not this rollout's.
+## E2E promotion additions (2026-07-17, desk-owed because the vehicle cannot host them)
+
+- [ ] **Audio-badge wheel as a REPEATABLE check** (EX-15 recipe 1).
+      Verified live once (2026-07-16: spotify stream, pactl 74->84->79,
+      one 5% plasma-pa step per detent), but the nested vehicle has no
+      pipewire so no audio-stream task can exist there and the check
+      cannot join tests/e2e/. Re-run at the desk whenever the wheel or
+      audio-stream code moves: `fakepointer scroll <x> <y> <detents>
+      <gap>` over a playing task's audio badge; one volume step per
+      detent, reversal needs full travel.
+- [ ] **Desk-side consecutive desktops-wheel** (010's vehicle
+      limitation cross-check). In the vehicle, kwin stops delivering
+      wheel to the dock after a desktop switch (not a dock defect -
+      instrumented, see docs/agent-logs/2026-07-17-e2e-promotion.md).
+      On the desk, flip scrollAction=Desktops on the throwaway and
+      verify several wheel switches IN A ROW work with a real mouse;
+      if they die after the first switch there too, the vehicle
+      finding graduates into a real bug.
+- [ ] **Dock placement drift check on the desk** (the Phase 8 drift
+      item filed 2026-07-17). Measure once whether the desk dock's
+      surface x matches viewsData's implied origin: run
+      `scripts/tools/dumpwins.sh`, compare the bottom dock window's x
+      against absoluteGeometry-localGeometry, and watch it across a
+      clock minute tick. In the vehicle they disagree by 20-74px and
+      the icons really shift.

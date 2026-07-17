@@ -92,9 +92,19 @@ Adopt latte-dock-qt6's three-piece shape, adapted rather than copied:
 - **Coverage ratchet** - fails the build check on regression below the
   recorded baseline. Baseline gets recorded once the harness produces
   its first honest number; ratchet thresholds only ever move up.
-- **e2e harness** - real widget add/remove driven through KWin D-Bus
-  with screenshot capture against a live dock. Needs a runnable,
-  reasonably complete dock; lands in Phase 10 as planned.
+- **e2e harness** - `scripts/run-e2e.sh` runs the `tests/e2e/*.sh`
+  recipes against the staged dock. The default mode is DESK-INDEPENDENT:
+  a nested `kwin_wayland --virtual` vehicle with one private D-Bus
+  session shared by kwin, the dock and every probe, a throwaway config
+  copy, fakepointer injection and KWin ScreenShot2 capture (pixel
+  assertions via `latte-imgdiff` against eye-verified goldens in
+  `tests/e2e/goldens/`); `--live` runs against the real session for
+  recipes that genuinely need it (`# e2e-mode:` markers select). The
+  kwin bring-up/teardown is shared with the sceneprobe gate
+  (`scripts/lib-nested-kwin.sh`); recipe helpers live in
+  `tests/e2e/lib.sh`. Assertions are D-Bus state first (lifecycleState,
+  viewsData and friends); pixels only where pixels are the thing under
+  test.
 
 Enum/handler completeness tests (Phase 6: every UI-offered enum value
 must have a handled branch, verified per enum/handler pair) are part of
