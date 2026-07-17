@@ -9,6 +9,7 @@
 #include "commontools.h"
 
 // Qt
+#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QQuickItem>
@@ -31,10 +32,28 @@ QString rectToString(const QRect &rect)
 
 QRect stringToRect(const QString &str)
 {
-    QStringList parts = str.split(" ");
-    QStringList pos = parts[0].split(",");
-    QStringList size = parts[1].split("x");
-    return QRect(pos[0].toInt(), pos[1].toInt(), size[0].toInt(), size[1].toInt());
+    //! boundary refusal, not a guard over a bug: the string arrives from
+    //! persisted screen data (Data::Screen::init), which lives in
+    //! user-editable config - a hand-corrupted entry must be refused loudly,
+    //! never index out of range or smuggle zeros in as geometry
+    const QStringList parts = str.split(" ");
+    const QStringList pos = parts.count() == 2 ? parts[0].split(",") : QStringList();
+    const QStringList size = parts.count() == 2 ? parts[1].split("x") : QStringList();
+
+    if (pos.count() != 2 || size.count() != 2) {
+        qWarning() << "stringToRect: malformed rect string, refusing:" << str;
+        return QRect();
+    }
+
+    bool xOk{false}, yOk{false}, wOk{false}, hOk{false};
+    const QRect result(pos[0].toInt(&xOk), pos[1].toInt(&yOk), size[0].toInt(&wOk), size[1].toInt(&hOk));
+
+    if (!xOk || !yOk || !wOk || !hOk) {
+        qWarning() << "stringToRect: non-numeric rect component, refusing:" << str;
+        return QRect();
+    }
+
+    return result;
 }
 
 QString standardPath(QString subPath, bool localfirst)
