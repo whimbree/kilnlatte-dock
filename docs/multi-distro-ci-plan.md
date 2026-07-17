@@ -211,8 +211,18 @@ pass on every distro regardless of tier.
       (qt6-base-private-devel) Arch bundles in qt6-base. F2 feed: the ledger
       records the Tumbleweed-vs-Fedora divergences the single .spec must
       bridge (ECM name, qt6 private-devel name qt6-base-private-devel vs
-      qt6-qtbase-private-devel, kwin6 vs kwin, %cmake macro set). Remaining:
-      fedora/neon/gentoo/void layers. Commits: d68ad64c0, 3eaa21261, a14c6efef
+      qt6-qtbase-private-devel, kwin6 vs kwin, %cmake macro set). FEDORA DONE
+      (ci/containers/Containerfile.fedora, same deps-only pattern). Fedora
+      name deltas resolved by repoquery on fedora:43: kf6-plasma-devel ->
+      libplasma-devel; qqc2-desktop-style -> kf6-qqc2-desktop-style;
+      kpipewire-devel / plasma5support-devel (no kf6- prefix); kwin_wayland
+      lives in the `kwin` package; lavapipe is mesa-vulkan-drivers; fonts are
+      google-noto-sans-fonts. Two Fedora packaging SPLITS added as build deps
+      (Arch/nix bundle them): qt6-qtbase-private-devel (Qt6::GuiPrivate for
+      the sceneprobe) and libasan/libubsan (the sanitized unit tests link
+      -fsanitize). Full dep-name resolution in
+      docs/agent-logs/2026-07-17-fedora-leg.md. Remaining: neon/gentoo/void
+      layers. Commits: d68ad64c0, 3eaa21261, a14c6efef, 2b2469b5e
 - [~] A2 Clean cmake build of the port in each container locally (podman
       is on the host - prototype here, no CI yet). Record per-distro
       build quirks. ARCH DONE: builds clean (565/565) against Arch's Qt
@@ -251,9 +261,19 @@ pass on every distro regardless of tier.
       Phase B, plus a Tumbleweed trap under it - the Qt6 QML tooling
       (qmllint/qmlcachegen/qmlimportscanner) is not on PATH here (under
       /usr/lib64/qt6/bin + /usr/libexec/qt6; only qmllint6 in /usr/bin), so
-      the gate scripts' bare-name lookup misses. Flagged for B2. Remaining
-      distros TBD.
-      Commits: 00400f16c, d68ad64c0, 3fb8f899d, 3eaa21261, a14c6efef
+      the gate scripts' bare-name lookup misses. Flagged for B2. FEDORA DONE:
+      builds clean (565/565, identical target count) against Fedora's Qt
+      6.10.3 / KF6 6.28.0 / libplasma 6.7.2; 78/82 offscreen ctest pass
+      (beats Arch's 74/82 because the image ENV sets LATTE_QML_MODULE_PATH,
+      so the QML-loading unit tests resolve their modules). The 4 failures
+      are all the QML SCRIPT-GATE ctests (qmlcompile/qmlinteraction/qmllint/
+      qmlcontracts) - harness-env, same class as Arch: on Fedora
+      qmltestrunner/qmllint live under /usr/lib64/qt6/bin (installed but off
+      the default PATH) -> a B2 PATH note. No SOURCE fix was needed to build;
+      the two Fedora blockers were missing build DEPS (qt6-qtbase-private-
+      devel, libasan/libubsan), resolved in the Containerfile, not tree
+      defects. Remaining distros TBD.
+      Commits: 00400f16c, d68ad64c0, 3fb8f899d, 3eaa21261, a14c6efef, 2b2469b5e
 - [~] A3 Pin the exact base image tags that meet the Plasma 6.5 floor;
       document the floor check per distro. Arch is rolling (archlinux:
       latest for the prototype; archive-snapshot pin TBD). DEBIAN DONE:
@@ -266,8 +286,15 @@ pass on every distro regardless of tier.
       6.11.1 / KF6 6.28.0 / Plasma+kwin 6.7.3, well past the >=6.5/>=6.6
       floor. Tumbleweed is rolling (opensuse/tumbleweed:latest for the
       prototype; an OBS/download.o.o archived-repo snapshot pin is TBD,
-      same open item as Arch). Remaining distros TBD.
-      Commits: 3eaa21261, a14c6efef
+      same open item as Arch). FEDORA PINNED:
+      registry.fedoraproject.org/fedora:43. Floor check (in-container dnf +
+      rpm -q, 2026-07-17): libplasma 6.7.2 / plasma-workspace 6.7.2 /
+      plasma-activities 6.7.2 / layer-shell-qt 6.7.2 / kf6-kcoreaddons
+      6.28.0 / qt6-qtbase 6.10.3 - all meet Qt>=6.6, KF6>=6.5,
+      libplasma>=6.5. fedora:42 ships Plasma 6.3.x (below floor), so 43 is
+      the earliest qualifying Fedora stable; did NOT use ng's fedora:44 /
+      USTC-mirror lines. Remaining: neon/gentoo/void tags.
+      Commits: 3eaa21261, a14c6efef, 2b2469b5e
 
 ### Phase B - headless gates in-container
 - [~] B1 Get nested kwin_wayland + lavapipe running in each container
@@ -285,7 +312,12 @@ pass on every distro regardless of tier.
       case a future package adds the cap. OPENSUSE TUMBLEWEED DONE: nested
       kwin_wayland (from kwin6) comes up headless in podman; the SAME
       cap_sys_nice=ep trap applies and the image strips it (libcap-progs
-      provides setcap). Commits: 79a8008f0, 3eaa21261, a14c6efef
+      provides setcap). FEDORA DONE: nested kwin_wayland comes up headless in
+      podman and drives all 13 sceneprobe scenes. Same cap_sys_nice=ep quirk
+      (Fedora's kwin package) - same setcap -r fix. No Fedora-specific
+      validation-layer suppressions needed: the existing vk-suppressions.txt
+      covers Fedora's Mesa (LLVM 21.1.8) warnings.
+      Commits: 79a8008f0, 3eaa21261, a14c6efef, 2b2469b5e
 - [~] B2 Run the behavioral e2e recipes in-container; make them a hard
       pass on each distro. GATE STAGE PRODUCTIONIZED (branch
       multi-distro-ci-b2-gate): ci/build-and-gate.sh's gate stage is
@@ -374,7 +406,22 @@ pass on every distro regardless of tier.
       at this Mesa version (recorded, not relied on - Phase C still owns the
       rolling-drift axis). The QMLDIR emit (18aac31b0) carries it: build/
       latte-qmldir.txt came out lib64/qt6/qml and the staged org.kde.latte.*
-      modules resolved. Commits: 18aac31b0, 79a8008f0, 3eaa21261, a14c6efef
+      modules resolved. FEDORA DONE (invariant+tolerance tier, as
+      predicted): all 13 scenes RENDER (non-blank, correct regions/colors,
+      checkInvariants passes) through nested kwin on lavapipe in the
+      fedora:43 container. NOT bit-exact against the nix goldens - Fedora
+      ships Mesa on LLVM 21.1.8 (vs nix/Arch's LLVM 22.x), so 5 of 13 scenes
+      differ by max Δ=2 (a single LSB per channel): 8 bit-exact PASS, and
+      applet_colorizer/indicator_glow/multieffect_degenerate/shadoweditem
+      (0.01-1.27% px, Δ=1) + multieffect_blur (93.3% px but Δ=2, the
+      rounding spread across a gradient) differ. A CompareTolerance{2,
+      >=0.95} passes all 13; the pinned tag could alternatively carry a
+      bless-frozen fedora bit-exact golden - both are Phase C (C1/C2), not
+      wired here. This is the first concrete proof of the graduated-rigor
+      model's premise: bit-exactness is a per-Mesa/LLVM accident, so Fedora
+      needs the tolerance tier. Detail:
+      docs/agent-logs/2026-07-17-fedora-leg.md.
+      Commits: 18aac31b0, 79a8008f0, 3eaa21261, a14c6efef, 2b2469b5e
 
 ### Phase C - per-distro golden tiers
 - [ ] C1 Extend the sceneprobe device/tier axis to per-distro naming
