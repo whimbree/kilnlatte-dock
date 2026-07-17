@@ -173,3 +173,9 @@ Every file of their harness read in full:
 - 151a8c829 fix: build-check must re-exec unless the PINNED cmake is in
   PATH
 - (this log + porting-plan tick: the docs commit following these)
+
+## Post-merge note (orchestrator)
+
+The serial merge rebased this branch onto master, so the hashes above
+are the worktree's, not master's. Landed as: e0d5dcce9, e9f9d7734,
+2c3547a18, c5372aba4, 27668839a (same subjects, same order).

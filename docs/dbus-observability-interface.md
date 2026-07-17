@@ -147,7 +147,8 @@ the in-process KConfigPropertyMap caches).
 
 1. viewsData (unblocks most e2e conversions and the stranding
    diagnosis) + setViewEditMode.
-   LANDED 2026-07-16 (455ec42ac, 138364d7f, bc7582cd3, 0b5e2d9f7):
+   LANDED 2026-07-16 (fdfdf5b00, 07e91e456, dd3046c03, 77a9586cc -
+   post-rebase master hashes):
    serializer in app/dbusreports.h/.cpp, pure layer pinned by
    tests/units/dbusreportstest.cpp; enter wires through
    View::showSettingsWindow (the Edit Dock ensemble, enter-only),

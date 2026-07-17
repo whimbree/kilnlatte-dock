@@ -2254,8 +2254,9 @@ showed how much of the dock can only be driven by a pointer today.
       View::showSettingsWindow, exit via
       PrimaryConfigView::hideConfigWindow - the Edit Dock and
       close-button paths). Steps 2-4 remain.
-      Commits: 9d183984e, f7561df37 (seeds); 455ec42ac, 138364d7f,
-      bc7582cd3, 0b5e2d9f7 (step 1)
+      Commits: 9d183984e, f7561df37 (seeds); fdfdf5b00, 07e91e456,
+      dd3046c03, 77a9586cc (step 1; the worktree merge rebased the
+      hashes the agent log records)
 - [ ] Convert nondeterministic e2e tests to deterministic ones: every
       screenshot-compare or sleep-and-hope check that is really about
       STATE moves to a deterministic D-Bus-driven or offscreen-qmltest
@@ -2346,15 +2347,23 @@ showed how much of the dock can only be driven by a pointer today.
             colorizer ColorOverlay stack, forced-monochromatic icon
             path, indicator glow. Cross-machine golden verification
             still owed once a second machine exists.
-            Commits: 1d279ebe5, 16b738537, c821b6278, dc042ace4
-            (plus 151a8c829, a build-check re-exec fix caught while
-            running the gate suite for this item)
-      - [ ] P2: the Plasma-6 silent-failure contract pins
+            Commits: e0d5dcce9, e9f9d7734, 2c3547a18, c5372aba4
+            (plus 27668839a, a build-check re-exec fix caught while
+            running the gate suite for this item; the worktree merge
+            rebased the hashes the agent log records)
+      - [x] P2: the Plasma-6 silent-failure contract pins
             (createApplet QRectF, KPluginMetaData path ctor, knsrc
             KPackageStructure, no-ActionPlugins default, internalAction
             handle, Binding.restoreMode zoom collapse) - each verified
             against Qt5 semantics first.
-            Commits:
+            LANDED 2026-07-16 (verdicts, negative tests and the live
+            createApplet bug it caught are in
+            docs/agent-logs/2026-07-16-p2-contract-transplants.md;
+            one live "Show Alternatives" sanity pass remains in
+            docs/manual-flake-removal-testing.md).
+            Commits: 5925b167f, 7fc338cd5, 9ee6f7ad5, 22e6bb63d,
+            885c1318e, 53839863b, 9f1672434, b21825ed4 (the worktree
+            merge rebased the hashes the agent log records)
       - [ ] P3: behavioral tests over lattedock-core (screenpool,
             visibility-reveal, abstractlayout, activitiesinfo,
             syncedlaunchers client demotion, lastactivewindow, the

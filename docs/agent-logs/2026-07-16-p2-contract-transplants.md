@@ -241,3 +241,10 @@ path or IN_NIX_SHELL), not for any cmake.
    pinned)
 6. appletzoomsizetest: ADOPTED as tst_bindingrestorecontracts.qml;
    bindingrestoremodetest: EXTENDED-GATE (qml-effect-rules.sh rule 2)
+
+## Post-merge note (orchestrator)
+
+The serial merge rebased this branch onto master, so the hashes above
+are the worktree's, not master's. Landed as: 5925b167f, 7fc338cd5,
+9ee6f7ad5, 22e6bb63d, 885c1318e, 53839863b, 9f1672434, b21825ed4
+(same subjects, same order).

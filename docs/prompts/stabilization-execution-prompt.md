@@ -126,7 +126,7 @@ plan item for the recorded decision. Never land replacement icons.)
     radius), known-bug-list sweep (mostly desk work, see manual
     list), extraction-ledger live-verification recipes not yet run,
     Phases 2/3 mechanical tail. Also two small hardening finds from
-    the agent runs: build-check's toolchain guard landed (151a8c829
+    the agent runs: build-check's toolchain guard landed (27668839a
     lineage) but the unguarded LATTE_LAYERSHELL_HAS_SET_SCREEN
     try_compile still re-probes every configure and can silently
     flip the define after one broken-env run - guard it or make it
