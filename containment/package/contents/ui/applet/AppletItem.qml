@@ -329,6 +329,21 @@ Item {
                                               && appletItem.shortcuts.unifiedGlobalShortcuts
                                               && !_communicator.positionShortcutsAreSupported
                                               && appletItem.indexer && appletItem.indexer.visibleIndex(appletItem.index) === appletItem.shortcuts.keyboardFocusedEntryIndex
+    //! Screen-reader surface (Phase 10 AT-SPI rollout): a plain applet
+    //! container acts as a button whose press toggles the applet's popup -
+    //! toggleExpanded(), the same body Meta+<number> entry activation
+    //! runs. Pruned from the tree: containers whose applet manages its own
+    //! sub-items (the tasks plasmoid - each task announces itself) and
+    //! non-interactive fillers. Accessible.focused mirrors the keyboard
+    //! focus mode's focused entry, so screen readers follow the
+    //! Meta+Alt+D traversal.
+    Accessible.ignored: !applet || isSeparator || isSpacer || isHidden || isInternalViewSplitter || communicator.indexerIsSupported
+    Accessible.role: Accessible.Button
+    Accessible.name: applet && applet.plasmoid ? applet.plasmoid.title : ""
+    Accessible.focusable: true
+    Accessible.focused: isKeyboardFocused
+    Accessible.onPressAction: appletItem.toggleExpanded()
+
     //! whether this item has live ParabolicArea slots; the parabolic
     //! ability's row builder maps items without one to DeadStop (a live
     //! scale stack dies at them - EX-02 in docs/QML_EXTRACTION_PLAN.md)
@@ -444,6 +459,21 @@ Item {
     //// END :: Animate Applet when a new applet is dragged in the view
 
     /// BEGIN functions
+    //! Toggles this applet's popup through the view's extended interface -
+    //! the one activation body shared by Meta+<number> entry activation,
+    //! the keyboard focus mode's Enter, neutral-area clicks and the
+    //! screen-reader press action, so they can never diverge.
+    function toggleExpanded() {
+        if (!applet || !root.latteView) {
+            //! legitimate transient states, not defects: the applet is not
+            //! attached yet during load, and the view reference drops
+            //! during teardown - nothing to toggle in either
+            return;
+        }
+
+        root.latteView.extendedInterface.toggleAppletExpanded(applet.plasmoid.id);
+    }
+
     function activateAppletForNeutralAreas(mouse){
         //if the event is at the active indicator or spacers area then try to expand the applet,
         //unfortunately for other applets there is no other way to activate them yet
@@ -461,7 +491,7 @@ Item {
 
         if (appletItemContainsMouse && !wrapperContainsMouse && appletNeutralAreaEnabled) {
             //console.log("PASSED");
-            latteView.extendedInterface.toggleAppletExpanded(applet.plasmoid.id);
+            appletItem.toggleExpanded();
         } else {
             //console.log("REJECTED");
         }
@@ -636,7 +666,7 @@ Item {
             var visibleIndex = appletItem.indexer.visibleIndex(appletItem.index);
 
             if (visibleIndex === entryIndex && !communicator.positionShortcutsAreSupported) {
-                latteView.extendedInterface.toggleAppletExpanded(applet.plasmoid.id);
+                appletItem.toggleExpanded();
             }
         }
 
@@ -648,7 +678,7 @@ Item {
             var visibleIndex = appletItem.indexer.visibleIndex(appletItem.index);
 
             if (visibleIndex === entryIndex && !communicator.positionShortcutsAreSupported) {
-                latteView.extendedInterface.toggleAppletExpanded(applet.plasmoid.id);
+                appletItem.toggleExpanded();
             }
         }
     }
