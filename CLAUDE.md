@@ -104,42 +104,9 @@ stale checkboxes."
   get reworded at the pre-PR history cleanup, not amended now.
 - No em-dashes, no AI-sounding marketing-style phrasing in docs, commit
   messages, or code comments - write plainly, like a programmer.
-- EVERY major feature lands as its own GitHub PR (my direction,
-  2026-07-17, reinforced after several features were reviewed but
-  ff-merged locally without opening a PR - that shortcut is banned).
-  A major feature is any code landing beyond a docs tick or a
-  one-line fix: a new subsystem, a harness, a defect fix with its
-  test, a transplant wave, a phase's worth of work. The flow is:
-  branch off master -> push to origin (whimbree/lattecotta-dock) ->
-  open a real PR (`gh pr create`, installed via `nix run nixpkgs#gh
-  --`) -> independent review (below) -> merge via the PR. Do not
-  local-ff-and-push a feature straight to master; the PR is the
-  reviewable unit and the record.
-- Merge mechanics: the bisectable small-commit discipline lives INSIDE
-  the branch - never squash-merge, it destroys the bisection tool.
-  Prefer a local `git merge --ff-only` of the reviewed branch then a
-  master push (sha-preserving, the PR auto-closes as merged) over
-  GitHub's rebase-merge, which REWRITES every commit sha and forces a
-  re-resolution of every plan/handoff hash the branch just filed (the
-  2bba6cb8b lesson, re-paid on PR #1). gate-all.sh green on the branch
-  head before the PR opens and again at merge if master moved (the
-  pre-push hook enforces the stamp on every code push, any branch).
-  Push the branch after each landed, verified chunk. Plan checkboxes
-  get their final hashes at merge time if a rebase rewrote them.
-- Every PR gets an INDEPENDENT review before merge (my direction,
-  2026-07-17): a fresh subagent with cold context reviews the full
-  diff read-only against this file's standards - commit bodies checked
-  against their own claims, deleted "dead" arms verified actually dead,
-  removed API grepped tree-wide for surviving callers. Keep the review
-  LEAN (my direction, 2026-07-17, to conserve tokens): a Sonnet
-  subagent, a concise prompt scoped to the diff's real risks, NO
-  independent rebuild or ctest run - the branch's own gate stamp
-  already proves the gates, so the review is diff-reading only.
-  Verdict is MERGE / MERGE AFTER FIXES / DO NOT MERGE with concrete
-  findings; blockers get root-caused and fixed on the branch before
-  merge, non-blocking nits get filed as plan items. The author-session
-  merges only on a MERGE verdict - authoring and approving inside one
-  context is not review.
+- Every major feature lands as its own GitHub PR with an independent
+  review - the full contract is its own subsection below (### PR
+  workflow and independent review).
 - Gate verdicts are EXIT CODES, never scraped log text. Run
   scripts/gate-all.sh after the final commit and before any push of code;
   it stamps the validated HEAD and the committed pre-push hook
@@ -165,6 +132,48 @@ stale checkboxes."
   documents - update them as direction changes or new information comes
   in (e.g. from watching the reference forks' ongoing work) rather than
   treating either as fixed once written.
+
+### PR workflow and independent review
+
+(My direction, 2026-07-17, after several features were reviewed but
+ff-merged locally without ever opening a PR - that shortcut is banned.)
+
+EVERY major feature lands as its own GitHub PR. A major feature is any
+code landing beyond a docs tick or a one-line fix: a new subsystem, a
+harness, a defect fix with its test, a transplant wave, a phase's worth
+of work. The flow is: branch off master -> push to origin
+(whimbree/lattecotta-dock) -> open a real PR (`gh pr create`, installed
+via `nix run nixpkgs#gh --`) -> independent review (below) -> merge via
+the PR. Do not local-ff-and-push a feature straight to master; the PR
+is the reviewable unit and the record.
+
+Merge mechanics: the bisectable small-commit discipline lives INSIDE
+the branch - never squash-merge, it destroys the bisection tool. Prefer
+a local `git merge --ff-only` of the reviewed branch then a master push
+(sha-preserving, the PR auto-closes as merged) over GitHub's
+rebase-merge, which REWRITES every commit sha and forces a
+re-resolution of every plan/handoff hash the branch just filed (the
+2bba6cb8b lesson, re-paid on PR #1). gate-all.sh green on the branch
+head before the PR opens and again at merge if master moved (the
+pre-push hook enforces the stamp on every code push, any branch). Push
+the branch after each landed, verified chunk. Plan checkboxes get their
+final hashes at merge time if a rebase rewrote them. Never append a
+"Generated with Claude Code" or any tool-attribution footer to a PR
+body (same ban as commit trailers).
+
+Every PR gets an INDEPENDENT review before merge: a fresh subagent with
+cold context reviews the full diff read-only against this file's
+standards - commit bodies checked against their own claims, deleted
+"dead" arms verified actually dead, removed API grepped tree-wide for
+surviving callers. Keep the review LEAN (to conserve tokens): a Sonnet
+subagent, a concise prompt scoped to the diff's real risks, NO
+independent rebuild or ctest run and NO repeat-count verification - the
+branch's own gate stamp already proves the gates (one gate-all is the
+verdict), so the review is diff-reading only. Verdict is MERGE / MERGE
+AFTER FIXES / DO NOT MERGE with concrete findings; blockers get
+root-caused and fixed on the branch before merge, non-blocking nits get
+filed as plan items. The author-session merges only on a MERGE verdict -
+authoring and approving inside one context is not review.
 
 ### Commit shape and definition of done
 
