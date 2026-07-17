@@ -14,9 +14,9 @@ v0.12.0 (first tagged continuation release; upstream stopped at v0.10.8,
 tree is at CMakeLists VERSION 0.10.77; no GitHub Actions exist yet, only
 the inherited .kde-ci.yml). Full architecture + phased A-E checklist +
 six open DECISIONs in docs/multi-distro-ci-plan.md; pointer bullet in
-PORTING_PLAN's Continuation-features section. podman AND docker are on
-the host, so Phase A (containerize + build per distro) can prototype
-locally right now.
+PORTING_PLAN's Continuation-features section. podman (the project's
+container runtime, not docker) is on the host, so Phase A (containerize +
+build per distro) can prototype locally right now.
 
 Key design call banked: cross-environment rendering is NOT bit-exact, so
 goldens use graduated rigor per tier - bit-exact on the NixOS pin,
