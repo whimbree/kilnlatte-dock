@@ -9,6 +9,11 @@
 
 // local
 #include <coretypes.h>
+//! the containment plugin's enum home, included relatively: the theme and
+//! window color modes colorizerData() names live there (a header-only
+//! Q_GADGET, no moc linkage), and naming the REAL enums keeps -Wswitch
+//! honest here like every other enum-name mapping in this file
+#include "../containment/plugin/types.h"
 
 // Qt
 #include <QJsonArray>
@@ -53,6 +58,28 @@ struct TrackerRecord {
     bool existsWindowMaximized{false};
     bool lastActiveWindowPresent{false};
     QString lastActiveWindowAppName;
+};
+
+//! One view's colorizer decision facts as colorizerData() reports them
+//! (docs/dbus-observability-interface.md, step 4). The doc's prose mapped
+//! onto the state that exists: "mode" is the containment's
+//! themeColors/windowColors settings, the decision in force is
+//! mustBeShown/applyingWindowColors off the colorizer Manager item, and
+//! the measured bucket is backgroundIsBusy plus
+//! currentBackgroundBrightness (-1000 is the Manager's own "unmeasured"
+//! sentinel). Per-applet colorfulness exemption is viewAppletsData's
+//! colorizingBlocked, not a per-view fact.
+struct ColorizerRecord {
+    uint containmentId{0};
+    bool enabled{false};
+    Containment::Types::ThemeColorsGroup themeColors{Containment::Types::PlasmaThemeColors};
+    Containment::Types::WindowColorsGroup windowColors{Containment::Types::NoneWindowColors};
+    bool colorizerPresent{false};
+    bool mustBeShown{false};
+    bool applyingWindowColors{false};
+    bool backgroundIsBusy{false};
+    double currentBackgroundBrightness{-1000};
+    QString scheme;
 };
 
 //! One task item of a view's tasks plasmoid as viewTasksData() reports it
@@ -177,6 +204,65 @@ inline QString visibilityModeName(Types::Visibility mode)
     Q_UNREACHABLE();
 }
 
+inline QString themeColorsModeName(Containment::Types::ThemeColorsGroup mode)
+{
+    switch (mode) {
+    case Containment::Types::PlasmaThemeColors: return QStringLiteral("plasma");
+    case Containment::Types::ReverseThemeColors: return QStringLiteral("reverse");
+    case Containment::Types::SmartThemeColors: return QStringLiteral("smart");
+    case Containment::Types::DarkThemeColors: return QStringLiteral("dark");
+    case Containment::Types::LightThemeColors: return QStringLiteral("light");
+    case Containment::Types::LayoutThemeColors: return QStringLiteral("layout");
+    }
+
+    Q_UNREACHABLE();
+}
+
+inline QString windowColorsModeName(Containment::Types::WindowColorsGroup mode)
+{
+    switch (mode) {
+    case Containment::Types::NoneWindowColors: return QStringLiteral("none");
+    case Containment::Types::ActiveWindowColors: return QStringLiteral("active");
+    case Containment::Types::TouchingWindowColors: return QStringLiteral("touching");
+    }
+
+    Q_UNREACHABLE();
+}
+
+//! Config-value validation for the two color-mode ints: they arrive from
+//! the containment CONFIG (user-editable on disk), so an out-of-range int
+//! is outside input to refuse at the boundary, never to cast blindly into
+//! a switch whose fallthrough is Q_UNREACHABLE.
+
+inline std::optional<Containment::Types::ThemeColorsGroup> themeColorsFromConfigValue(int value)
+{
+    constexpr std::array modes{Containment::Types::PlasmaThemeColors, Containment::Types::ReverseThemeColors,
+                               Containment::Types::SmartThemeColors, Containment::Types::DarkThemeColors,
+                               Containment::Types::LightThemeColors, Containment::Types::LayoutThemeColors};
+
+    for (const auto mode : modes) {
+        if (static_cast<int>(mode) == value) {
+            return mode;
+        }
+    }
+
+    return std::nullopt;
+}
+
+inline std::optional<Containment::Types::WindowColorsGroup> windowColorsFromConfigValue(int value)
+{
+    constexpr std::array modes{Containment::Types::NoneWindowColors, Containment::Types::ActiveWindowColors,
+                               Containment::Types::TouchingWindowColors};
+
+    for (const auto mode : modes) {
+        if (static_cast<int>(mode) == value) {
+            return mode;
+        }
+    }
+
+    return std::nullopt;
+}
+
 //! the inverse of visibilityModeName, implemented by searching that
 //! function's own output so the two directions can never drift apart;
 //! nullopt for a name no mode serializes to
@@ -263,6 +349,28 @@ inline QString serializeAppletRecords(const QList<AppletRecord> &records)
     }
 
     return QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact));
+}
+
+inline QJsonObject serializeColorizerRecord(const ColorizerRecord &record)
+{
+    QJsonObject json;
+    json[QStringLiteral("containmentId")] = static_cast<qint64>(record.containmentId);
+    json[QStringLiteral("enabled")] = record.enabled;
+    json[QStringLiteral("themeColorsMode")] = themeColorsModeName(record.themeColors);
+    json[QStringLiteral("windowColorsMode")] = windowColorsModeName(record.windowColors);
+    json[QStringLiteral("colorizerPresent")] = record.colorizerPresent;
+    json[QStringLiteral("mustBeShown")] = record.mustBeShown;
+    json[QStringLiteral("applyingWindowColors")] = record.applyingWindowColors;
+    json[QStringLiteral("backgroundIsBusy")] = record.backgroundIsBusy;
+    json[QStringLiteral("currentBackgroundBrightness")] = record.currentBackgroundBrightness;
+    json[QStringLiteral("scheme")] = record.scheme;
+
+    return json;
+}
+
+inline QString serializeColorizerData(const ColorizerRecord &record)
+{
+    return QString::fromUtf8(QJsonDocument(serializeColorizerRecord(record)).toJson(QJsonDocument::Compact));
 }
 
 inline QJsonObject serializeTaskRecord(const TaskRecord &record)
@@ -363,6 +471,10 @@ QString collectTrackerData(const Latte::View *view);
 //! serialize one live view's latte-tasks items for the viewTasksData()
 //! D-Bus read
 QString collectTasksData(const Latte::View *view);
+
+//! serialize one live view's colorizer facts for the colorizerData()
+//! D-Bus read
+QString collectColorizerData(const Latte::View *view);
 
 }
 }

@@ -215,6 +215,14 @@ public:
     //! (legitimate state, not warned).
     QString viewTasksData(const uint &containmentId);
 
+    //! D-Bus state readback (observability-first): one view's colorizer
+    //! facts (configured color modes, the decision in force, the measured
+    //! background bucket, the published scheme basename) as one compact
+    //! JSON object, documented in docs/dbus-observability-interface.md.
+    //! "{}" means no view exists for that containment id (warned in the
+    //! log).
+    QString colorizerData(const uint &containmentId);
+
 public Q_SLOTS:
     void aboutApplication();
     void activateLauncherMenu();

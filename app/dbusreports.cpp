@@ -18,6 +18,7 @@
 
 // Qt
 #include <QAbstractItemModel>
+#include <QFileInfo>
 #include <QMetaMethod>
 #include <QQuickItem>
 #include <QUrl>
@@ -163,6 +164,21 @@ QString collectTrackerData(const Latte::View *view)
 }
 
 namespace {
+
+//! a QML-side property read with drift detection: reading a name the
+//! object no longer declares is a code defect (the QML was renamed under
+//! the report), said loudly instead of decaying to a default silently
+QVariant readLiveProperty(const QObject *object, const char *name)
+{
+    const QVariant value = object->property(name);
+
+    if (!value.isValid()) {
+        qWarning() << "dbusreports: object" << object << "no longer exposes property" << name
+                   << "- the D-Bus report and the QML drifted apart";
+    }
+
+    return value;
+}
 
 //! the task-model roles viewTasksData() reads, resolved BY NAME from
 //! roleNames() at collect time so no libtaskmanager header is compiled in;
@@ -315,6 +331,70 @@ QString collectTasksData(const Latte::View *view)
     //! that IS the state (viewAppletsData's plugin list tells the two
     //! empty answers apart), so no warning here
     return serializeTaskRecords(records);
+}
+
+QString collectColorizerData(const Latte::View *view)
+{
+    Q_ASSERT(view);
+    Q_ASSERT(view->containment());
+
+    auto containmentRoot = PlasmaQuick::AppletQuickItem::itemForApplet(view->containment());
+
+    if (!containmentRoot) {
+        //! the containment's QML root is where themeColors/windowColors
+        //! live; without it (startup-transient) there is nothing truthful
+        //! to report yet
+        qWarning() << "dbusreports: containment" << view->containment()->id()
+                   << "has no quick item yet; colorizerData cannot be read";
+        return QStringLiteral("{}");
+    }
+
+    ColorizerRecord record;
+    record.containmentId = view->containment()->id();
+    record.enabled = readLiveProperty(containmentRoot, "colorizerEnabled").toBool();
+
+    //! the two mode ints come from the containment CONFIG (user-editable
+    //! on disk), so out-of-range values are refused loudly here at the
+    //! boundary and the record keeps its default mode name - the warning
+    //! carries the actual bad value
+    const int themeColorsValue = readLiveProperty(containmentRoot, "themeColors").toInt();
+    const auto themeColors = themeColorsFromConfigValue(themeColorsValue);
+
+    if (themeColors) {
+        record.themeColors = *themeColors;
+    } else {
+        qWarning() << "dbusreports: containment" << record.containmentId
+                   << "config carries unknown themeColors value" << themeColorsValue;
+    }
+
+    const int windowColorsValue = readLiveProperty(containmentRoot, "windowColors").toInt();
+    const auto windowColors = windowColorsFromConfigValue(windowColorsValue);
+
+    if (windowColors) {
+        record.windowColors = *windowColors;
+    } else {
+        qWarning() << "dbusreports: containment" << record.containmentId
+                   << "config carries unknown windowColors value" << windowColorsValue;
+    }
+
+    //! the colorizer Manager item binds to View::colorizer from
+    //! BindingsExternal.qml after QML load - a legitimately absent
+    //! optional; colorizerPresent reports it and the dependent fields
+    //! keep record defaults
+    auto colorizer = view->colorizer();
+    record.colorizerPresent = (colorizer != nullptr);
+
+    if (colorizer) {
+        record.mustBeShown = readLiveProperty(colorizer, "mustBeShown").toBool();
+        record.applyingWindowColors = readLiveProperty(colorizer, "applyingWindowColors").toBool();
+        record.backgroundIsBusy = readLiveProperty(colorizer, "backgroundIsBusy").toBool();
+        record.currentBackgroundBrightness = readLiveProperty(colorizer, "currentBackgroundBrightness").toDouble();
+        //! basename per the interface doc; the decider's named kdeglobals
+        //! fallback has no path and passes through unchanged
+        record.scheme = QFileInfo(readLiveProperty(colorizer, "scheme").toString()).fileName();
+    }
+
+    return serializeColorizerData(record);
 }
 
 QString collectViewsData(const QList<Latte::View *> &views, bool inConfigureAppletsMode)

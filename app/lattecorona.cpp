@@ -1369,6 +1369,18 @@ QString Corona::viewTasksData(const uint &containmentId)
     return DbusReports::collectTasksData(view);
 }
 
+QString Corona::colorizerData(const uint &containmentId)
+{
+    auto view = m_layoutsManager->synchronizer()->viewForContainment(containmentId);
+
+    if (!view) {
+        qWarning() << "corona: colorizerData queried for containment" << containmentId << "which has no view";
+        return QStringLiteral("{}");
+    }
+
+    return DbusReports::collectColorizerData(view);
+}
+
 QString Corona::viewsData()
 {
     return DbusReports::collectViewsData(m_layoutsManager->synchronizer()->currentViews(),
