@@ -1,4 +1,4 @@
-70
+71
 abstractlayouttest
 activitiesinfotest
 activitysetalgebratest
@@ -21,6 +21,7 @@ editmodehandleactiontest
 extraviewhintstest
 filldistributortest
 iconsourceclassifiertest
+importerlogictest
 importerregressiontest
 indicatorfactoryremovaltest
 indicatormetadatatest

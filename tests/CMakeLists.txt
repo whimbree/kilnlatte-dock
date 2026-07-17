@@ -13,6 +13,21 @@ add_subdirectory(units)
 # the render gate itself is scripts/sceneprobe-gate.sh (needs nested kwin).
 add_subdirectory(sceneprobe)
 
+# Importer's static parser/path helpers over throwaway XDG dirs: fileVersion
+# archive classification, nameOfConfigFile (pins the Qt6 remove end-wrap
+# fix), layout paths/enumeration, standard-path ordering and the
+# multiple-layouts status round trip. uniqueLayoutName lives in
+# importerregressiontest.
+ecm_add_test(importerlogictest.cpp
+    TEST_NAME importerlogictest
+    LINK_LIBRARIES lattedock-core Qt6::Test
+)
+set_tests_properties(importerlogictest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_include_directories(importerlogictest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app
+    ${CMAKE_BINARY_DIR}/app)
+
 ecm_add_test(importerregressiontest.cpp
     TEST_NAME importerregressiontest
     LINK_LIBRARIES lattedock-core Qt6::Test
