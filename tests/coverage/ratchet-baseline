@@ -1,4 +1,4 @@
-79
+80
 abstractlayouttest
 activitiesinfotest
 activitysetalgebratest
@@ -70,6 +70,7 @@ tasksbackendtest
 tooltiptexttest
 universalsettingstest
 userconfiguringcontracttest
+viewmodelstest
 visibilityrevealtest
 visibleindextest
 visualhostwindowtest

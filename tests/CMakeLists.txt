@@ -327,6 +327,19 @@ target_include_directories(layoutmanagertest PRIVATE
     ${CMAKE_SOURCE_DIR}/containment
     ${CMAKE_BINARY_DIR}/containment)
 
+# The view-side TasksModel (ordered plasmoid list QML reads as "tasks") and
+# the indicator capability Info record: range/count signal discipline and
+# guarded setters over bare AppletQuickItems.
+ecm_add_test(viewmodelstest.cpp
+    TEST_NAME viewmodelstest
+    LINK_LIBRARIES lattedock-core Qt6::Test
+)
+set_tests_properties(viewmodelstest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_include_directories(viewmodelstest PRIVATE
+    ${CMAKE_SOURCE_DIR}/app
+    ${CMAKE_BINARY_DIR}/app)
+
 ecm_add_test(visualhostwindowtest.cpp
     TEST_NAME visualhostwindowtest
     LINK_LIBRARIES lattedock-core Qt6::Test
