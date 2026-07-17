@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2021 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -157,12 +158,15 @@ View::operator QString() const
     result +=" : ";
     result += isActive ? "Active" : "Inactive";
     result +=" : ";
-    if (m_state==OriginFromLayout && isMoveOrigin) {
+    //! the combined check must come first: either single-flag branch also
+    //! matches when both flags are set, which made this branch dead code
+    //! and hid the both-directions marker
+    if (m_state==OriginFromLayout && isMoveOrigin && isMoveDestination) {
+        result += " ↑↓ ";
+    } else if (m_state==OriginFromLayout && isMoveOrigin) {
         result += " ↑ ";
     } else if (m_state==OriginFromLayout && isMoveDestination) {
         result += " ↓ ";
-    } else if (m_state==OriginFromLayout && isMoveOrigin && isMoveDestination) {
-        result += " ↑↓ ";
     } else {
         result += " - ";
     }
@@ -181,7 +185,10 @@ View::operator QString() const
 
     result += " : ";
     if (isCloned()) {
-        result += ("Cloned from:"+ isClonedFrom);
+        //! this was `"Cloned from:" + isClonedFrom`: const char* plus int is
+        //! POINTER arithmetic, printing a garbage suffix of the literal (and
+        //! undefined behavior once the id exceeds the literal's length)
+        result += QStringLiteral("Cloned from:") + QString::number(isClonedFrom);
     } else {
         result += "Original";
     }
@@ -194,8 +201,10 @@ View::operator QString() const
     } else if (screensGroup == Latte::Types::AllSecondaryScreensGroup) {
         result += "All Secondary Screens";
     }
+    //! the single-screen branch above already printed Primary/Explicit; an
+    //! unconditional second append here doubled it ("PrimaryPrimary") and
+    //! stamped a stray Primary/Explicit onto the multi-screen groups
 
-    result += onPrimary ? "Primary" : "Explicit";
     result += " : ";
     result += QString::number(screen);
     result += " : ";
