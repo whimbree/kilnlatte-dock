@@ -88,7 +88,11 @@ stale checkboxes."
   editBackgroundOpacity to panelTransparency); read the Qt5 source
   before accepting a fork's version of any behavior.
 - Never add Co-Authored-By or other AI attribution to commits (global
-  preference, not specific to this repo).
+  preference, not specific to this repo). This extends to PR bodies:
+  never append a "Generated with Claude Code" line (or any tool-
+  attribution footer) to a pull request description, even if a harness
+  default suggests it (my direction, 2026-07-17 - it was stripped from
+  PRs #2 and #3 after the fact).
 - Everything committed is written in the author's voice: commit
   messages, docs, and code comments never say "the user", "the owner",
   "user-reported" or "user-verified" as if reports arrive from a third
