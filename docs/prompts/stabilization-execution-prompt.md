@@ -73,28 +73,21 @@ listed so a re-run knows not to redo them.
 choice, through and beyond the Lattecotta package rename - see that
 plan item for the recorded decision. Never land replacement icons.)
 
-0. **OPEN, FIRST, BLOCKS EVERYTHING - the re-pin** (Phase 11 item;
-   incident record in the handoff's 2026-07-17 entry). The machine
-   was rebuilt on 2026-07-16 and again before this session (assume a
-   reboot happened; verify with `readlink /run/current-system`). Do,
-   in order: (a) read the CURRENT system nixpkgs revision off the
-   generation and re-pin flake.nix/flake.lock to exactly it - never
-   to the incident entry's hash, which may already be stale; (b) full
-   rebuild, both WITH_X11 variants, full ctest; (c) sceneprobe golden
-   re-bless is EXPECTED (Mesa moved) - two-run byte-identical
-   determinism check before blessing, per the standing rule, and
-   inspect the actual/expected diffs before trusting big deltas;
-   (d) verify the nested vehicle end to end (the proto recipe in the
-   handoff); (e) add the lockstep guard to gate-all.sh: compare the
-   running system generation's nixpkgs revision against the flake
-   pin and FAIL FAST with a re-pin message on mismatch, so this
-   incident class dies in one obvious line instead of a night of
-   bisection; (f) restart the real dock on the fresh build
-   (scripts/start-dock.sh) and confirm lifecycleState + viewsData
-   settle; (g) only then resume the numbered items below. If the
-   dock is not running at session start (post-reboot autostart still
-   points at the packaged NG binary - my open decision), bring it up
-   as part of (f), not before the rebuild.
+0. DONE 2026-07-17 (session three) - the re-pin. Executed exactly as
+   specified; the Phase 11 plan item carries the full record and
+   hashes (c147fbbdb + four follow-ups). Notable deltas from the
+   expectations written here: the system had moved AGAIN past the
+   incident entry's hash (753cc8a, read off the live generation as
+   instructed); the sceneprobe re-bless proved UNNECESSARY (13/13
+   bit-exact against committed goldens on the new Mesa - one new
+   Qt-RHI validation VUID suppressed instead); the libplasma
+   6.6.5->6.7.3 bump changed askDestroy's containment-type guard and
+   the contract test caught it (repinned, machinery unaffected by
+   construction); and the module-autostarted PACKAGED dock exposed a
+   restart-sweep gap (wrapper comm ".latte-dock-wra" never matched -
+   fixed, verified live twice). Lockstep guard lives in gate-all.sh
+   (exit 4 on pin/system mismatch). The 04:00 nixos-upgrade.timer
+   drift story stays my open decision (manual list).
 
 1. DONE - Session shutdown/logout teardown (525f556c6, e02d1bcde,
    9d183984e). One real logout/login check remains in
@@ -118,6 +111,20 @@ plan item for the recorded decision. Never land replacement icons.)
 7. DONE (automatable half) - Settings audit: named sub-checks clean,
    isScreenUiReady shim (b8a489c84); the desk walk is in the manual
    list.
+7a. **OPEN - X11 removal and cleanup** (added 2026-07-17 at my
+   direction; Phase 4's X11 removal checklist has the itemized
+   steps and the recorded rationale - KDE ships Plasma 6.8
+   Wayland-exclusive in October 2026, the 6.7 X11 session is
+   supported only into early 2027, and this backend was never
+   live-tested). Land it EARLY in the session order: dropping the
+   WITH_X11=OFF second build halves every subsequent build-check
+   run. Order inside the item: strip HAVE_X11 source sites first
+   (small bisectable commits, each builds), then the build-system
+   removal (CMake option + config headers + flake/package deps +
+   build-check single-variant collapse) as one build(...) commit,
+   then the textual-survivors audit and the docs/README register
+   pass. The gates line above changes with it: "both WITH_X11
+   variants build" becomes a single-tree build-check.
 8. **OPEN (b DONE) - the accessibility/automation quartet** (Phase 10
    requirements subsection; requirements, not polish). Standing after
    session two: item b's D-Bus interface is COMPLETE (all four steps

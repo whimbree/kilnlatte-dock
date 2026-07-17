@@ -55,8 +55,9 @@ forks' full port-work ranges (406 commits in latte-dock-ng, 194 in
 latte-dock-qt6), cross-referenced against live testing of both. 13
 phases (0-12): build environment/testing ground rules -> build system
 -> mechanical Qt6 conversion -> KF6 migration -> window-system
-backends (Wayland primary, X11 best-effort: must compile, never
-blocks, author runs Wayland only) ->
+backends (Wayland-only; X11 removal decided 2026-07-17 - KDE ships
+Plasma 6.8 Wayland-exclusive in October 2026, the Phase 4 section
+has the full rationale and removal checklist) ->
 QML controls/rendering -> task manager -> widget
 management/drag-drop/edit-mode -> layout/shutdown/multi-screen ->
 theming polish -> stabilization -> Nix packaging -> upstream prep.

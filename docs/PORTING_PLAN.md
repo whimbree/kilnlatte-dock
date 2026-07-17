@@ -83,6 +83,11 @@ the full context; this list is the map, not the territory):
 9. Phase 10: the e2e GUI harness (microvm CI with compositor-level
    pointer driving) - the local gates are CI-portable by design, the
    hosted pipeline is not stood up.
+8a. Phase 4: X11 removal (decided 2026-07-17, checklist in the Phase 4
+    section): KDE ships Wayland-only from Plasma 6.8 (October 2026)
+    and supports the 6.7 X11 session only into early 2027, so the
+    never-live-tested X11 backend is dead weight; removing it also
+    halves every build-check run.
 9a. Phase 10: the accessibility/automation quartet (added 2026-07-16,
     see the Phase 10 requirements subsection): keyboard navigation
     for everything, D-Bus exposure for e2e testability, converting
@@ -389,18 +394,80 @@ belongs in a later phase instead.
       KDE style and needs no include-path tricks; proven by the whole
       port building on nixpkgs from day one
 
-### Phase 4: Window-system backends (Wayland primary, X11 best-effort)
+### Phase 4: Window-system backends (Wayland-only; X11 removed 2026-07-17)
 
-Scope decision (revised from the original Wayland-only plan, on
-explicit decision): Wayland is the primary target and the only
-one verified live - the author does not run X11. X11 stays as a
-best-effort port: it must keep compiling under `HAVE_X11=ON`, gets
-the mechanical Qt6/KF6 migration done properly (there is real
-upstream-mergeable value here - upstream never dropped X11, both
-community forks did), but X11-specific breakage is tracked as a known
-issue, never a milestone blocker, and no phase waits on X11 behavior
-being right. Opportunistic smoke tests (Xephyr/nested session) are
-welcome but not required.
+Scope decision, third revision (2026-07-17): X11 support is REMOVED.
+The middle position ("best-effort: must compile, never blocks",
+recorded below for history) is retired. What changed:
+
+- KDE set the end date. "Going all-in on a Wayland future"
+  (blogs.kde.org, 2025-11-26): Plasma 6.7 is the FINAL release with
+  an X11 session; Plasma 6.8 (expected October 2026) ships
+  Wayland-only; the 6.7 X11 session is supported only into early
+  2027. This machine's pinned substrate (Plasma 6.7.3) is already
+  the last X11-session Plasma there will ever be.
+- A dock is a Plasma-session component. When the session itself can
+  only be Wayland, an X11 windowing backend has no user left - it is
+  dead code with a real cost: every gate builds the WITH_X11=OFF
+  variant twice-over, every wm-adjacent reader pays the #ifdef tax,
+  and none of it has ever been live-verified here.
+- The original keep-X11 justification was upstream-mergeable value;
+  the maintained-continuation decision (2026-07-15) already retired
+  upstream mergeability as a planning constraint.
+- Both reference forks removed X11 long ago (latte-dock-qt6's
+  1cef7fe7 confirms theirs).
+- X11 APPLICATIONS are unaffected: they run under Xwayland and reach
+  the tasks model through plasma-window-management like any other
+  window (KDE's announcement makes the same distinction). Nothing in
+  window TRACKING changes; only the X11 windowing BACKEND goes.
+
+Historical scope note (superseded): Wayland was always the primary
+target and the only one verified live; X11 was kept compiling under
+HAVE_X11 as a best-effort port with breakage tracked but never
+blocking.
+
+#### X11 removal checklist (added 2026-07-17)
+
+- [ ] Remove `XWindowInterface` (app/wm/xwindowinterface.*) and the
+      corona's HAVE_X11 interface selection in lattecorona.cpp; the
+      Wayland interface becomes the only backend, unconditionally
+      Commits:
+- [ ] Strip the remaining HAVE_X11 conditional sites, deleting the
+      X11 arm and unconditionalizing the Wayland arm - audit each
+      site so no Wayland behavior secretly rides an #else:
+      app/infoview.cpp, app/primaryoutputwatcher.cpp (the xcb RandR
+      native event filter), app/view/effects.cpp, app/view/view.cpp,
+      app/plasma/extended/theme.cpp, app/tools/commontools.cpp,
+      app/settings/settingsdialog/settingsdialog.cpp,
+      declarativeimports/core/quickwindowsystem.cpp
+      Commits:
+- [ ] Remove WITH_X11 from the build system: top-level CMakeLists
+      option + X11/XCB find_package calls, app/config-latte.h.cmake
+      and declarativeimports/core/config-latte-lib.h.cmake defines,
+      app/CMakeLists.txt + app/wm/CMakeLists.txt conditionals
+      Commits:
+- [ ] Drop the X11 dependency set from flake.nix buildInputs (libx11,
+      libsm, libice, libxcb, libxcb-util, libxrandr) and package.nix;
+      kwindowsystem STAYS (KX11Extras was the only X11-path consumer,
+      the framework itself is platform-neutral) - update its comment
+      Commits:
+- [ ] Collapse the both-variants gate discipline: build-check.sh
+      builds one tree (drop build-no-x11), gate-all.sh comment,
+      CLAUDE.md references ("both WITH_X11 variants" in the C++
+      standard-raise process and build notes), docs/TESTING.md if it
+      names the variant pair
+      Commits:
+- [ ] Post-removal audit for textual X11 survivors: KX11Extras,
+      QNativeInterface::QX11Application, isPlatformX11-style
+      branches, xcb includes, stray WId comments. WindowId's
+      QByteArray design STAYS AS IS (uuid strings on Wayland; the
+      decimal-string X11 arm simply never occurs anymore - the type
+      does not narrow, per the newtype hardening pass)
+      Commits:
+- [ ] README + docs register update (timeless: "Wayland-only,
+      matching Plasma 6.8+'s Wayland-exclusive direction"), CLAUDE.md
+      Plan section phase list wording
+      Commits:
 
 - [x] Keep the `AbstractWindowInterface` split; port
       `XWindowInterface` to Qt6/KF6 mechanically: `QX11Info` ->
@@ -3142,22 +3209,40 @@ showed how much of the dock can only be driven by a pointer today.
 
 ### Phase 11: Nix packaging + Docker build verification
 
-- [ ] RE-PIN after the 2026-07-16 23:33 system rebuild (INCIDENT, blocks
-      all gates - full record in the handoff's 2026-07-17 entry): the
-      machine moved to nixpkgs 26.11.20260711 (e7a3ca8, generation 32)
-      while the flake still pins the old revision, and every new
-      nested kwin_wayland now crashes at QApplication init, taking the
-      sceneprobe gate down. Per the flake's own match-the-desktop
-      doctrine: re-pin flake.nix/flake.lock to the system's revision,
-      full rebuild, both WITH_X11 variants, full ctest, expect a
-      sceneprobe golden RE-BLESS (Mesa moved - two-run byte-identical
-      check first, as always), nested vehicle end-to-end verify, and a
-      real-session dock restart check. Consider rebooting into the new
-      generation first so session and system agree. Also decide the
-      upgrade STORY: if nixos-upgrade.timer did this, every future
-      upgrade re-creates the incident until re-pinning becomes a
-      scripted, gated flow.
-      Commits:
+- [x] RE-PIN after the 2026-07-16 23:33 system rebuild (INCIDENT, blocked
+      all gates - full record in the handoff's 2026-07-17 entry).
+      Executed 2026-07-17: the machine had moved AGAIN by session start
+      (26.11.20260715/753cc8a, not the incident entry's e7a3ca8 -
+      reading the live generation, not the notes, was the right call);
+      re-pinned to exactly it (Plasma 6.6.5->6.7.3, Qt 6.11.0->6.11.1),
+      fresh both-variant rebuild, full ctest (one contract repin owed
+      to libplasma 6.7's askDestroy guard change, its own commit),
+      sceneprobe 13/13 PASS against the COMMITTED goldens - the
+      expected Mesa-move re-bless proved unnecessary, text-free
+      lavapipe scenes render byte-identical on LLVM 21.1.8 (one new
+      Qt-RHI validation VUID suppressed, traced to qrhivulkan.cpp:861).
+      Nested vehicle verified end-to-end on the fresh pin (dock to
+      lifecycleState running, 5 views settled, clean SIGTERM teardown
+      trail, all over the private bus). Real dock restarted on the
+      fresh build, 2 views settled == the 2 latte containments in the
+      on-disk layout. gate-all.sh gained the pin-vs-system lockstep
+      guard (exit 4 + re-pin recipe on mismatch, loud skip off-NixOS).
+      The upgrade STORY stays Bree's open decision (manual list):
+      nixos-upgrade.timer at 04:00 re-creates the drift daily; the
+      guard makes it loud, the re-pin flow stays manual.
+      Commits: c147fbbdb (re-pin), 24dc3ee39 (askDestroy contract
+      repin), 250096280 (VUID suppression), fa2721d2f (lockstep
+      guard), 70e1ae9aa (restart-staged packaged-wrapper sweep)
+- [x] restart-staged.sh must kill the PACKAGED dock too (found live at
+      the re-pin's real-dock restart, first login with
+      programs.latte-dock.autostart=true): the module-autostarted
+      package is a wrapQtAppsHook wrapper whose process comm is
+      ".latte-dock-wra" (kernel 15-char truncation of
+      .latte-dock-wrapped), so the pgrep/pkill -x latte-dock sweep
+      never matched it, it kept the KDBusService unique name, and the
+      staged dock exited silently while busctl answered from the old
+      binary. Sweep now covers both comm shapes; verified live twice.
+      Commits: 70e1ae9aa
 
 Directly reusable knowledge from this session, not new research -
 confirmed transferable today when the same include-path fix was

@@ -1,7 +1,53 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-16 (stabilization-execution session, in progress).
+Last updated 2026-07-17 (stabilization-execution session three, in progress).
+
+## 2026-07-17: stabilization execution session THREE (running record)
+
+Item 0 (the re-pin) first, per the incident entry below. System state
+found at session start: /run/current-system runs nixpkgs
+26.11.20260715.753cc8a (NOT the incident entry's e7a3ca8 - the machine
+was rebuilt again, as the entry predicted); full rev
+753cc8a3a87467296ddd1fa93f0cc3e81120ee46 confirmed as the root nixpkgs
+node of /persist/etc/nixos/flake.lock. Re-pinned flake.nix + lock to
+exactly that; the new pin carries Plasma 6.7.3 / Qt 6.11.1 (was 6.6.5 /
+6.11.0 - a real minor-version bump, so the expected sceneprobe re-bless
+has a mechanism: Mesa AND the whole KDE stack moved). Throwaway layout
+state preserved before the --fresh wipe (scratchpad _runconfig-backup;
+restore build/_runconfig from it after the rebuild). Lockstep guard
+added to gate-all.sh (compares flake.lock's nixpkgs rev against
+/run/current-system's store-name suffix, exit 4 + re-pin recipe on
+mismatch; probed positive and negative standalone).
+
+NEW DIRECTION from Bree this session: X11 support is REMOVED, folded
+into the stabilization order as item 7a. Researched timelines first:
+KDE's "Going all-in on a Wayland future" (blogs.kde.org, 2025-11-26) -
+Plasma 6.7 is the final X11-session release, 6.8 (October 2026) is
+Wayland-exclusive, 6.7 X11 supported only into early 2027. Phase 4's
+section in docs/PORTING_PLAN.md carries the recorded decision + the
+7-item removal checklist; the stabilization prompt has the execution
+order (source sites first, build system second, audit + docs last).
+
+ITEM 0 COMPLETE (all hashes in the Phase 11 plan item): re-pin
+c147fbbdb, askDestroy contract repin 24dc3ee39 (libplasma 6.7 widened
+the containment-type guard to containment()!=q - parking machinery
+survives by construction, idempotence analysis in the commit body),
+VUID-12384 suppression 250096280 (Qt RHI qrhivulkan.cpp:861 device
+layers, new validation layers flag it), lockstep guard fa2721d2f,
+restart-staged packaged-wrapper sweep fix 70e1ae9aa (the
+module-autostarted package's comm is ".latte-dock-wra" - the old -x
+latte-dock sweep left it holding the KDBusService name and the staged
+dock exited silently; caught at the first post-autostart restart).
+Sceneprobe 13/13 against COMMITTED goldens - no re-bless needed,
+lavapipe stayed byte-identical across the Mesa/LLVM move. Nested
+vehicle verified end-to-end on the fresh pin (running + 5 views
+settled + clean SIGTERM trail over the private bus). Real dock on the
+staged fresh build, 2 views settled == the on-disk layout's 2 latte
+containments (the historical "6 views" notes described an older
+layout era). Gates were re-run through gate-all after the final
+commit; stamp caught up to HEAD and pushed WITH the pre-push hook
+(no --no-verify needed anymore).
 PHASE 8 IS OPEN - read its section in docs/PORTING_PLAN.md first; every item
 is current there, several sections below are now RESOLVED and kept only as
 archaeology.
