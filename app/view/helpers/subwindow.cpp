@@ -109,12 +109,7 @@ SubWindow::SubWindow(Latte::View *view, QString debugType) :
 
     setupWaylandIntegration();
 
-    if (KWindowSystem::isPlatformX11()) {
-        m_trackedWindowId = WindowSystem::WindowId::fromX11WId(winId());
-        m_corona->wm()->registerIgnoredWindow(m_trackedWindowId);
-    } else {
-        connect(m_corona->wm(), &WindowSystem::AbstractWindowInterface::latteWindowAdded, this, &SubWindow::updateWaylandId);
-    }
+    connect(m_corona->wm(), &WindowSystem::AbstractWindowInterface::latteWindowAdded, this, &SubWindow::updateWaylandId);
 
     setScreen(m_latteView->screen());
     show();
@@ -125,7 +120,7 @@ SubWindow::~SubWindow()
 {
     m_inDelete = true;
 
-    m_corona->wm()->unregisterIgnoredWindow(KWindowSystem::isPlatformX11() ? WindowSystem::WindowId::fromX11WId(winId()) : m_trackedWindowId);
+    m_corona->wm()->unregisterIgnoredWindow(m_trackedWindowId);
 
     m_latteView = nullptr;
 

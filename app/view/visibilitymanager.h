@@ -136,8 +136,6 @@ public:
     void toggleHiddenState();
 
 public Q_SLOTS:
-    Q_INVOKABLE void hide();
-    Q_INVOKABLE void show();
 
     Q_INVOKABLE void setViewOnBackLayer();
     Q_INVOKABLE void setViewOnFrontLayer();

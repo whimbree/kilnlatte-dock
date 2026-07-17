@@ -159,13 +159,6 @@ Item{
         }
     }
 
-    Connections{
-        target: themeExtended ? themeExtended : null
-        function onThemeChanged() {
-            latteView.effects.forceMaskRedraw();
-        }
-    }
-
     Connections {
         target: LatteCore.WindowSystem
         function onCompositingActiveChanged() {
@@ -274,7 +267,6 @@ Item{
     }
 
     function sendSlidingOutAnimationEnded() : void {
-        latteView.visibility.hide();
         latteView.visibility.isHidden = true;
 
         if (debug.maskEnabled) {
@@ -407,11 +399,6 @@ Item{
                 }
 
                 latteView.visibility.isHidden = true;
-
-                if (root.behaveAsPlasmaPanel && latteView.positioner.slideOffset !== 0) {
-                    //! hide real panels when they slide-out
-                    latteView.visibility.hide();
-                }
             }
         }
 
@@ -475,7 +462,6 @@ Item{
         }
 
         onStarted: {
-            latteView.visibility.show();
             manager.updateInputGeometry();
 
             if (debug.maskEnabled) {

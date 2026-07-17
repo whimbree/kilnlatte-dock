@@ -74,9 +74,6 @@ void CanvasConfigView::init()
     connectRootObject();
     syncGeometry();
 
-    if (m_parent && KWindowSystem::isPlatformX11()) {
-        m_parent->requestActivate();
-    }
 }
 
 QRect CanvasConfigView::geometryWhenVisible() const
@@ -165,11 +162,6 @@ void CanvasConfigView::syncGeometry()
 
     updateInputRegion();
 
-    //! after placement request to activate the main config window in order to avoid
-    //! rare cases of closing settings window from secondaryConfigView->focusOutEvent
-    if (m_parent && KWindowSystem::isPlatformX11()) {
-        m_parent->requestActivate();
-    }
 }
 
 void CanvasConfigView::updateInputRegion()

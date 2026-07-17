@@ -651,6 +651,6 @@ inline void detectPlatform(int argc, char **argv)
         qputenv("QT_QPA_PLATFORM", "wayland");
     }
     //! an x11 session gets no platform hint: Qt resolves xcb on its own and
-    //! the isPlatformX11() boundary check after QApplication refuses with the
+    //! the non-wayland boundary check after QApplication refuses with the
     //! real message - selecting xcb here would read as supporting it
 }

@@ -146,15 +146,6 @@ bool AbstractWindowInterface::isFullScreenWindow(const QRect &wGeometry) const
     for (const auto scr : qGuiApp->screens()) {
         auto screenGeometry = scr->geometry();
 
-        if (KWindowSystem::isPlatformX11() && scr->devicePixelRatio() != 1.0) {
-            //!Fix for X11 Global Scale, I dont think this could be pixel perfect accurate
-            auto factor = scr->devicePixelRatio();
-            screenGeometry = QRect(qRound(screenGeometry.x() * factor),
-                                   qRound(screenGeometry.y() * factor),
-                                   qRound(screenGeometry.width() * factor),
-                                   qRound(screenGeometry.height() * factor));
-        }
-
 
         if (wGeometry == screenGeometry) {
             return true;
@@ -175,15 +166,6 @@ bool AbstractWindowInterface::isPlasmaPanel(const QRect &wGeometry) const
 
     for (const auto scr : qGuiApp->screens()) {
         auto screenGeometry = scr->geometry();
-
-        if (KWindowSystem::isPlatformX11() && scr->devicePixelRatio() != 1.0) {
-            //!Fix for X11 Global Scale, I dont think this could be pixel perfect accurate
-            auto factor = scr->devicePixelRatio();
-            screenGeometry = QRect(qRound(screenGeometry.x() * factor),
-                                   qRound(screenGeometry.y() * factor),
-                                   qRound(screenGeometry.width() * factor),
-                                   qRound(screenGeometry.height() * factor));
-        }
 
         if (screenGeometry.contains(wGeometry.center())) {
             if (wGeometry.y() == screenGeometry.y() || wGeometry.bottom() == screenGeometry.bottom()) {
@@ -219,15 +201,6 @@ bool AbstractWindowInterface::isSidepanel(const QRect &wGeometry) const
 
     for (const auto scr : qGuiApp->screens()) {
         auto curScrGeometry = scr->geometry();
-
-        if (KWindowSystem::isPlatformX11() && scr->devicePixelRatio() != 1.0) {
-            //!Fix for X11 Global Scale, I dont think this could be pixel perfect accurate
-            auto factor = scr->devicePixelRatio();
-            curScrGeometry = QRect(qRound(curScrGeometry.x() * factor),
-                                   qRound(curScrGeometry.y() * factor),
-                                   qRound(curScrGeometry.width() * factor),
-                                   qRound(curScrGeometry.height() * factor));
-        }
 
         if (curScrGeometry.contains(wGeometry.center())) {
             screenGeometry = curScrGeometry;
