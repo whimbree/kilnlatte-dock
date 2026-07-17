@@ -68,6 +68,7 @@
 #include <Plasma/Applet>
 #include <Plasma/Containment>
 #include <Plasma/Corona>
+#include <Plasma/plasma_version.h>
 
 //! Corona's one pure virtual is screenGeometry(); everything else works
 //! offscreen as-is
@@ -223,13 +224,23 @@ void AskDestroySignalOrderingTest::containmentTypeAppletRemovedImmediatelyAndAga
     QCOMPARE(destroyedChangedSpy.count(), 1);
     QCOMPARE(destroyedChangedSpy.at(0).at(0).toBool(), true);
 
-    //! the 6.7 contract: containment-type applets now get the SAME immediate
-    //! emit and applets() prune as plain applets (the 6.6.5 !isContainment()
+    //! The immediate-emit + applets()-prune half of the contract SPLIT at
+    //! libplasma 6.7, so pin whichever the SUBSTRATE actually ships. The
+    //! project floor is Plasma 6.5 (CMakeLists PLASMA_MIN_VERSION), and the
+    //! deb-family legs run below 6.7 (Debian testing ships libplasma 6.6.5),
+    //! so hardcoding only the 6.7 shape turned this into a version-skew
+    //! failure off the 6.7.3 dev pin (caught live in the Debian container).
+    //! Latte's parking is idempotent in both directions and survives either
+    //! ordering by construction, so the two branches keep this a real
+    //! contract check on every supported substrate instead of a false red.
+#if PLASMA_VERSION >= ((6 << 16) | (7 << 8) | 0)
+    //! 6.7+ contract: containment-type applets now get the SAME immediate
+    //! emit and applets() prune as plain applets (the pre-6.7 !isContainment()
     //! guard became `containment() != q`); removeAppletItem runs here with
     //! destroyed()==true and must park idempotently, not double-handle
     QVERIFY2(removedSpy.count() == 1, "containment-type applets must get appletRemoved IMMEDIATELY since libplasma 6.7 "
                                        "(guard widened to containment() != q) - a count of 0 means the substrate reverted "
-                                       "to the 6.6.5 !isContainment() behavior and the parking timeline moved again");
+                                       "to the pre-6.7 !isContainment() behavior and the parking timeline moved again");
     QVERIFY2(!host->applets().contains(tray), "since 6.7 askDestroy prunes containment-type applets from Containment::applets() "
                                               "immediately, same as plain applets");
     QVERIFY(!alive.isNull());
@@ -240,6 +251,24 @@ void AskDestroySignalOrderingTest::containmentTypeAppletRemovedImmediatelyAndAga
     delete tray;
     QVERIFY2(removedSpy.count() == 2, "appletRemoved must fire again at the containment-type applet's object death; "
                                        "removeAppletItem finalizes nothing before this");
+#else
+    //! pre-6.7 contract (Debian testing's libplasma 6.6.5): askDestroy guards
+    //! the immediate emit AND the applets() prune with !isContainment(), so a
+    //! containment-type applet gets NO immediate appletRemoved and stays in
+    //! applets() for the whole undo window - its ONLY appletRemoved arrives at
+    //! object death (the HISTORY block above documents this exact shape)
+    QVERIFY2(removedSpy.count() == 0, "pre-6.7 libplasma gives containment-type applets NO immediate appletRemoved - "
+                                       "askDestroy's emit is guarded !isContainment(); a count of 1 means the substrate "
+                                       "already carries the 6.7 widened guard and PLASMA_VERSION mis-selected this branch");
+    QVERIFY2(host->applets().contains(tray), "pre-6.7 askDestroy leaves containment-type applets in Containment::applets() "
+                                             "for the whole undo window");
+    QVERIFY(!alive.isNull());
+
+    //! object death delivers the single appletRemoved
+    //! (ContainmentPrivate::appletDeleted emits regardless of list membership)
+    delete tray;
+    QVERIFY2(removedSpy.count() == 1, "pre-6.7 the containment-type applet's ONLY appletRemoved arrives at object death");
+#endif
 
     delete host;
 }
