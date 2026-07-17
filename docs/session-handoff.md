@@ -27,8 +27,10 @@ name him without one are divergence/contrast notes (capt bugs we avoided:
 WindowsGoBelow->LayerBottom, unresolved ShadowedItem) plus the colortools
 data tags - all correctly exempt. Ledger
 docs/agent-logs/2026-07-17-captsilver-attribution-audit.md. gate-all run
-for the stamp (comment/SPDX/doc-only, no code moved). REMAINING: push
-branch, open PR, lean independent Sonnet review, ff-merge.
+for the stamp (comment/SPDX/doc-only, no code moved). Opened as PR #7;
+lean independent Sonnet review returned MERGE (no blockers; two cosmetic
+nits, one fixed on-branch as 8949b41e2 + re-gate, one left as internal-log
+prose). REMAINING: ff-merge on the MERGE verdict, master push, prune.
 
 Note: master carried a pre-existing uncommitted CLAUDE.md edit (a
 "Current status" meta-comment removal) from before this session - left

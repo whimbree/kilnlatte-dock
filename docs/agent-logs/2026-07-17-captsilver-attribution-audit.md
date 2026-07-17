@@ -118,7 +118,15 @@ unstaged, not part of this PR.
 
 ## Gates / merge
 
-Comment/SPDX/doc-only change, no compilable code moved. gate-all.sh run
-after the final commit for the stamp (the .cpp/.h touches make it a code
-push in the pre-push hook's eyes). PR + lean independent review per the
-workflow before merge.
+Comment/SPDX/doc-only change, no compilable code moved. gate-all.sh green
+and stamped (the .cpp/.h touches make it a code push in the pre-push
+hook's eyes). Opened as PR #7. Lean independent Sonnet review (cold
+context, diff-read only) returned VERDICT: MERGE, no blockers: cardinal
+rule held (zero SPDX lines removed), all 14 new lines verified as real
+expression derivations (activitysetalgebra.h spot-checked identical
+against capt 941bb7fb), backend.{h,cpp} exclusion confirmed correct, no
+non-comment code changed. Two non-blocking nits: cosmetic orphan
+line-wraps in windowtrackingpredicates.h + extraviewhints.h (fixed on the
+branch, 8949b41e2, re-gated) and bare "capt" in internal session-log
+prose (left - consistent with the repo's internal docs, not a source
+citation). ff-merge on the MERGE verdict per the workflow.
