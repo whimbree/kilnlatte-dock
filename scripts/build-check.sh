@@ -33,10 +33,9 @@ check() {
     cmake --build "$dir"
 }
 
-# Both WITH_X11 variants, always: the author only runs Wayland and an
-# unbuilt #ifdef path rots silently.
-check build -DWITH_X11=ON
-check build-no-x11 -DWITH_X11=OFF
+# One tree: the port is Wayland-only (the WITH_X11 option and its second
+# build variant were removed with the X11 backend, 2026-07-17).
+check build
 
 ctest --test-dir "$repo/build" --output-on-failure
 

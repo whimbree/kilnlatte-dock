@@ -48,7 +48,7 @@ else
     echo "gate-all: lockstep guard skipped: no /run/current-system on this host"
 fi
 
-"$repo/scripts/build-check.sh"        # both WITH_X11 variants + full ctest + coverage ratchet
+"$repo/scripts/build-check.sh"        # full build + full ctest + coverage ratchet
 "$repo/tests/coverage/qmllint-gate.sh"       # baseline only shrinks
 "$repo/scripts/sceneprobe-gate.sh"    # real-pixel scene gate incl. self-test
 
