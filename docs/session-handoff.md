@@ -1,7 +1,25 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-17 (multi-distro CI Phase A - Arch leg proven).
+Last updated 2026-07-17 (multi-distro CI: Arch A/B/B2 proven; orchestrator
+direction set for the rest).
+
+## NEXT SESSION ENTRY POINT (2026-07-17)
+
+Invoke `docs/prompts/multi-distro-ci-orchestrator-prompt.md`. The next
+session drives as an ORCHESTRATOR: it owns the shared scaffold + serial
+merges and FARMS chunks to capable Opus worktree subagents (one distro leg
+/ packaging format / the B2 productionization per agent, batched at the
+4-subagent cap), merging each returned branch serially through gate-all ->
+independent lean Opus review -> ff-merge. First shared piece to land:
+productionize the B2 gate (wire fakepointer+seed+run-e2e into
+ci/build-and-gate.sh, add imagemagick, characterize the full e2e suite) -
+that becomes the reusable gate every new distro leg runs. Then Wave A
+(fedora / opensuse Tumbleweed / debian sid) in parallel, Wave B (neon /
+gentoo / void), then Phases C-G. Arch is the proven template; the four
+portability fixes already landed mean new legs should mostly just build.
+The execution prompt (multi-distro-ci-execution-prompt.md) still holds the
+standing mission/context; the orchestrator prompt changes only HOW.
 
 ## 2026-07-17 multi-distro CI Phase B2: e2e VEHICLE RUNS IN-CONTAINER (branch multi-distro-ci-phase-b2)
 

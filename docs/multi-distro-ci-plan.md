@@ -27,6 +27,27 @@ to v0.12.0 needs that portability evidence, automated, before the tag.
 The matrix is additive: the NixOS pinned tier stays the canonical merge
 gate; the distro matrix is the release/periodic gate.
 
+## Execution model (2026-07-17): orchestrator + Opus swarm
+
+The next-session entry point is `docs/prompts/multi-distro-ci-orchestrator-
+prompt.md` (supersedes the execution prompt for HOW the work is driven; the
+execution prompt still holds the standing mission/context). Direction: the
+remaining work (six more distro legs, golden tiers, CI workflow, release,
+five packaging formats) is highly parallelizable, so the driving session
+acts as an ORCHESTRATOR - it owns the shared scaffold (build-and-gate.sh,
+the Containerfile pattern, the CI skeleton, version/changelog, packaging
+metadata) and the serial-merge steps, and FARMS self-contained chunks to
+capable Opus WORKTREE subagents (one distro leg / packaging format / the
+B2 productionization per agent, batched under the 4-subagent cap). Merges
+stay serial: each returned branch gets its gate-all stamp, then an
+INDEPENDENT lean Opus review (separate cold-context agent, diff-only), then
+ff-merge - never author-and-approve in one context. The heavy lifting that
+made Arch work (the four portability fixes) is done, so new legs should
+mostly build with dep-name changes only; a leg that needs a source fix is
+probably another latent nix-ism to root-cause. Concurrency caution: podman
+and the CPU are shared, so a gate/ctest timeout under concurrent agent load
+is LOAD, not a defect - verify solo before calling a failure.
+
 ## Parked prior art: cross-architecture golden determinism (2026-07-17)
 
 Recorded so the next session does not re-derive it. Before choosing the
