@@ -28,6 +28,7 @@ RUN pacman -Syu --noconfirm --needed \
         kwin wayland wayland-protocols \
         vulkan-headers vulkan-icd-loader vulkan-swrast vulkan-validation-layers \
         noto-fonts dbus libcap rsync perl \
+        python imagemagick konsole \
     && pacman -Scc --noconfirm
 
 # kwin_wayland ships with cap_sys_nice=ep (the EFFECTIVE bit set). Podman's
@@ -43,7 +44,29 @@ RUN setcap -r /usr/bin/kwin_wayland 2>/dev/null || true
 # distro's lavapipe ICD and Vulkan validation layers instead of the nix
 # devShell's. Arch ships lavapipe (vulkan-swrast) and the validation
 # layers under the standard vulkan manifest dirs.
+#
+# LATTE_QML_MODULE_PATH is the distro's framework QML tree (the nix devShell
+# exports the same variable). It is a CONTAINER CONTRACT the gate driver and
+# the reused QML harnesses depend on: scripts/run-e2e.sh and lib-qml-env.sh
+# re-exec into `nix develop` when it is unset, and there is no nix here, so an
+# unset value would detonate the gate rather than run it. Arch installs the
+# framework QML modules under lib/qt6/qml (nixpkgs uses lib/qml).
+#
+# LATTE_FAKEINPUT_PROTOCOL points at the fake-input Wayland protocol XML the
+# e2e fakepointer injector is generated from. Arch ships no
+# plasma-wayland-protocols.pc, so the driver's pkg-config resolution fails and
+# falls back to this path; a distro that ships the .pc lets pkg-config win.
 ENV LATTE_VULKAN_LAVAPIPE_ICD=/usr/share/vulkan/icd.d/lvp_icd.json \
-    LATTE_VK_LAYER_PATH=/usr/share/vulkan/explicit_layer.d
+    LATTE_VK_LAYER_PATH=/usr/share/vulkan/explicit_layer.d \
+    LATTE_QML_MODULE_PATH=/usr/lib/qt6/qml \
+    LATTE_FAKEINPUT_PROTOCOL=/usr/share/plasma-wayland-protocols/fake-input.xml
+
+# Arch installs the unversioned Qt6 tools (qml, qmlscene, ...) under
+# /usr/lib/qt6/bin and only the *6-suffixed variants (qml6) on the default
+# PATH. The e2e keyboard-navigation recipe launches a focus-taker window with
+# the unversioned `qml` runtime (the name the nix devShell provides), so put
+# Qt6's own bin dir on PATH to match. This exposes only Qt's executables, not
+# QML modules or plugins, so it cannot shadow the module trees the dock pins.
+ENV PATH="/usr/lib/qt6/bin:${PATH}"
 
 WORKDIR /src
