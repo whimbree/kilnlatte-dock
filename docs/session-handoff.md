@@ -5,6 +5,30 @@ Last updated 2026-07-17 (stabilization-execution session three, in progress).
 
 ## 2026-07-17: stabilization execution session THREE (running record)
 
+KEYBOARD FOCUS MODE LANDED (branch keyboard-focus-mode, 7 commits,
+worktree hashes 626d63e4d..aedde465c - retick at merge): the
+accessibility quartet's P0 gate plus the owed shortcuts-host pin.
+View::enter/exit/toggleKeyboardNavigation (layer-shell OnDemand,
+three bulletproof exits: Escape / toggle / focus loss via
+activeChanged), Meta+Alt+D kglobalaccel toggle,
+setViewKeyboardNavigation D-Bus action + viewsData keyboardNavigation
+readback (docs triple updated), VisibleIndex slot math
+(countVisibleSlots/steppedVisibleSlot), containment
+KeyboardNavigationHandler traversing the Meta+number entry space with
+activateEntryAtIndex activation and indicator-hover focus highlight +
+position badges. Evidence: tests/e2e/keyboard-navigation-mode.sh 8/8
+in the nested vehicle INCLUDING the focus-loss self-exit;
+shortcutshosttest pins the discovery walk + all four QML signatures
+against the REAL qrc-aliased ability files (negative-tested; found
+and pinned the stale-.qmlc-masks-qrc-drift trap - plan item filed to
+audit the other qrc harnesses). Desk pass owed: real-keyboard
+traversal section in docs/manual-flake-removal-testing.md. Ledger:
+docs/agent-logs/2026-07-17-keyboard-focus-mode.md. Vehicle traps
+re-proven: forgetting dbus-run-session reaches the DESK dock;
+konsole cold-start fakes focus-loss failures (qml window is the
+committed focus-taker); default GL stalls startup (lavapipe env
+required).
+
 Item 0 (the re-pin) first, per the incident entry below. System state
 found at session start: /run/current-system runs nixpkgs
 26.11.20260715.753cc8a (NOT the incident entry's e7a3ca8 - the machine

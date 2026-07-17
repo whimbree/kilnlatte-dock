@@ -103,10 +103,15 @@ phases, one commit-traceable checklist item per task. The coarse picture:
       maintained e2e suite is the open half
 - [ ] Distro packaging beyond NixOS (no PPA/COPR/AUR yet; the classic
       CMake install works everywhere the dependencies exist)
-- [ ] Accessibility: keyboard navigation for every interactive surface
-      (the dock-window focus mode is the gate), Accessible roles/names
-      on every interactive item, and a screen-reader pass with Orca as
-      the acceptance test
+- [ ] Accessibility: keyboard navigation for every interactive surface,
+      Accessible roles/names on every interactive item, and a
+      screen-reader pass with Orca as the acceptance test. The gating
+      piece exists: a keyboard focus mode (Meta+Alt+D or D-Bus) makes
+      the otherwise focus-refusing dock window take keyboard input -
+      arrow-key traversal over the same entry space the Meta+number
+      shortcuts address, Enter activates, the item indicators double as
+      the focus highlight, and Escape or any focus loss returns the
+      window to focus-refusing
 - [ ] Companion applets as sibling repos consumed by flake input: the
       Latte separator applet, then a full Qt 6 port of
       [applet-window-appmenu](https://github.com/psifidotos/applet-window-appmenu)
@@ -116,9 +121,9 @@ phases, one commit-traceable checklist item per task. The coarse picture:
 The high-priority slice of what remains, from the plan's own ordering
 (each item carries its full context in its phase section there):
 
-1. The accessibility quartet's open half: the dock-window keyboard
-   focus mode, Accessible.* rollout across the interactive items, and
-   the Orca acceptance pass
+1. The accessibility quartet's open half: Accessible.* rollout across
+   the interactive items and the Orca acceptance pass, building on the
+   landed keyboard focus mode
 2. Promoting the nested-compositor e2e vehicle into a maintained suite
    (pixel assertions over KWin screenshots compose with the D-Bus
    surface), then the hosted CI pipeline on top of the existing gates

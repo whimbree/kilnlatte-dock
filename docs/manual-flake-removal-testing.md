@@ -135,3 +135,41 @@ inStartup).
       Meta+3 activates entry 3; Meta+Ctrl+3 opens a new instance.
       If badges do not appear, grep the log for "shortcuts host" -
       the discovery now warns loudly instead of dying silently.
+
+## Keyboard focus mode (2026-07-17, needs a real keyboard)
+
+The nested vehicle proved the C++ lifecycle end to end
+(tests/e2e/keyboard-navigation-mode.sh: enter/exit readback, unknown-id
+refusal, focus-loss self-exit); what it cannot drive is real key events
+into the focused window. All of these against the staged dock:
+
+- [ ] **Meta+Alt+D toggle** (plan keyboard item, worktree commit
+      d5c54cbdd). Press once: dock takes focus, position badges appear
+      (the Meta-hold view), the first item lights its indicator hover
+      state. Press again: everything reverts. `viewsData`'s
+      keyboardNavigation is the readback if the visuals are ambiguous.
+- [ ] **Traversal keys** (81e0e0a2d). Arrows step along the row
+      (Up/Left back, Down/Right forward), no wrap at either edge,
+      Home/End jump; the highlight and the badges must always agree
+      with what Enter would activate (they share the shortcut-index
+      match).
+- [ ] **Activation**. Enter/Return/Space on a task = left click
+      semantics (activate/minimize toggle, group cycling); on an
+      expandable applet = popup toggle. Activating a real window must
+      ALSO exit the mode by itself (the window takes focus - watch
+      keyboardNavigation flip false).
+- [ ] **Escape** exits, dock returns focus-refusing (type into the
+      previously focused app to confirm nothing is stuck).
+- [ ] **Auto-hide interplay**. With auto-hide on and the dock hidden,
+      Meta+Alt+D must reveal it (block-hiding mustBeShown) and exit
+      must re-hide it.
+- [ ] **Fullscreen safety, the defect class the exits guard**. Enter
+      the mode, then click into a fullscreen app: the dock must give
+      the keyboard back instantly (mode exits on focus loss). If any
+      app ever stops receiving keys after using the mode, that is the
+      P0 regression - viewsData keyboardNavigation stuck true.
+- [ ] **RTL judgment call** (ledger leftover). The handler does not
+      wire LayoutMirroring: with an RTL layout the arrows keep visual
+      left/right semantics. Decide whether that is correct or arrows
+      should follow reading direction, and record the decision in the
+      plan.

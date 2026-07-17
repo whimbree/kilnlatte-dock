@@ -2384,16 +2384,55 @@ showed how much of the dock can only be driven by a pointer today.
       toggles the active task, the exact Meta+N semantics).
       RE-VERIFY at the desk: Meta+number entry mapping and the
       press-and-hold shortcut badges, both through the now-live host.
-      OWED TEST (explicit, not silent): an offscreen pin that builds
-      the containment graph (the layoutmanagerparkingtest corona
-      recipe) and asserts identifyShortcutsHost finds the host and
-      all four method signatures resolve - the walk shape and the QML
-      signature contract both broke silently once already. Group previews are
+      OWED TEST LANDED 2026-07-17: tests/shortcutshosttest.cpp builds
+      the containment graph through the real itemForApplet() path with
+      the REAL abilities/PositionShortcuts.qml qrc-aliased in, and
+      asserts the discovery walk plus all four invokable signatures
+      through the shipped statics (findShortcutsHost /
+      resolveShortcutsHostMethods, extracted for the pin). Trap found
+      at introduction: the engine's .qmlc disk cache can serve a stale
+      compilation of qrc QML and mask exactly the drift the pin
+      catches - the test disables it; see the follow-up item below.
+      P0 FOCUS MODE LANDED 2026-07-17 (the gate everything else
+      depends on): View::enter/exit/toggleKeyboardNavigation flips the
+      window to layer-shell OnDemand + focus-accepting, with three
+      bulletproof exits (Escape, the shortcut toggle, focus loss via
+      QWindow::activeChanged); Meta+Alt+D kglobalaccel toggle;
+      setViewKeyboardNavigation D-Bus action + viewsData
+      keyboardNavigation readback; QML traversal over the same
+      1-based entry space Meta+<number> addresses (slot math in the
+      VisibleIndex core: countVisibleSlots/steppedVisibleSlot),
+      Enter/Return/Space activate through activateEntryAtIndex (the
+      Meta+N path = the click path), focus highlight through the
+      items' indicator hover state and position badges for
+      orientation. Nested-vehicle evidence:
+      tests/e2e/keyboard-navigation-mode.sh 8/8 ok including the
+      focus-loss self-exit (ledger
+      docs/agent-logs/2026-07-17-keyboard-focus-mode.md). Desk pass
+      owed (real keyboard: Meta+Alt+D, arrows/Home/End, Enter,
+      Escape, badge + highlight visuals) - filed in
+      docs/manual-flake-removal-testing.md.
+      Group previews are
       keyboard-unreachable BY CONSTRUCTION (WindowDoesNotAcceptFocus
       in both modes); edit-mode chrome buttons are hand-rolled
       ghost-button chips; QWidget settings dialogs are already dense
       with QAction shortcuts. Work order per the inventory's gap
       list.
+      Commits: worktree keyboard-focus-mode 626d63e4d (view state
+      machine), d5c54cbdd (Meta+Alt+D), 649b49c86 (D-Bus surface),
+      12d45bbf5 (VisibleIndex slot math), 81e0e0a2d (QML traversal),
+      0f16c908a (owed pin test), aedde465c (e2e drive) - retick with
+      post-rebase hashes at merge
+- [ ] qmlc-cache audit for the qrc QML harnesses (filed 2026-07-17
+      from the shortcutshosttest introduction): qrc URLs carry no
+      timestamp, so the engine's on-disk .qmlc cache can serve a STALE
+      compilation of qrc-embedded QML - a deliberately drifted
+      signature still passed the new pin until the test set
+      QML_DISABLE_DISK_CACHE=1 (negative-tested both ways). Audit the
+      other qrc-riding QML tests (representationswitchtest,
+      layoutmanagerparkingtest) for the same masking and decide
+      whether the flag belongs in latte_add_unit_test/ecm harness
+      environment wholesale.
       Commits:
 - [ ] Observability first - everything instrumentable, D-Bus as the
       primary surface: any subsystem's runtime state must be cheaply
