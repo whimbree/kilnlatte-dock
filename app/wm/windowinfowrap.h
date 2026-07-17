@@ -7,6 +7,9 @@
 #ifndef WINDOWINFOWRAP_H
 #define WINDOWINFOWRAP_H
 
+// local
+#include "windowid.h"
+
 // Qt
 #include <QWindow>
 #include <QIcon>
@@ -15,18 +18,6 @@
 
 namespace Latte {
 namespace WindowSystem {
-
-//! Qt6 removed QVariant's comparison operators, which the old
-//! WindowId = QVariant design relied on for map keys and validity checks.
-//! Ids are byte strings now: wayland carries PlasmaWindow::uuid() directly,
-//! X11 carries the numeric WId as a decimal string, and an empty id is
-//! invalid on both platforms.
-using WindowId = QByteArray;
-
-inline WindowId windowIdFromWId(quint64 wid)
-{
-    return wid ? QByteArray::number(qulonglong(wid)) : QByteArray();
-}
 
 class WindowInfoWrap
 {

@@ -42,7 +42,7 @@ SubConfigView::SubConfigView(Latte::View *view, const QString &title, const bool
     //! before the window is first shown, so initParentView() does it.
 
     if (KWindowSystem::isPlatformX11()) {
-        m_corona->wm()->registerIgnoredWindow(WindowSystem::windowIdFromWId(winId()));
+        m_corona->wm()->registerIgnoredWindow(WindowSystem::WindowId::fromX11WId(winId()));
     } else {
         connect(this, &QWindow::windowTitleChanged, this, &SubConfigView::updateWaylandId);
         connect(m_corona->wm(), &WindowSystem::AbstractWindowInterface::latteWindowAdded, this, &SubConfigView::updateWaylandId);
@@ -128,7 +128,7 @@ SubConfigView::~SubConfigView()
 
     m_corona->dialogShadows()->removeWindow(this);
 
-    m_corona->wm()->unregisterIgnoredWindow(KWindowSystem::isPlatformX11() ? WindowSystem::windowIdFromWId(winId()) : m_waylandWindowId);
+    m_corona->wm()->unregisterIgnoredWindow(KWindowSystem::isPlatformX11() ? WindowSystem::WindowId::fromX11WId(winId()) : m_waylandWindowId);
 
     for (const auto &var : connections) {
         QObject::disconnect(var);
@@ -195,7 +195,7 @@ Latte::WindowSystem::WindowId SubConfigView::trackedWindowId()
         updateWaylandId();
     }
 
-    return !KWindowSystem::isPlatformWayland() ? WindowSystem::windowIdFromWId(winId()) : m_waylandWindowId;
+    return !KWindowSystem::isPlatformWayland() ? WindowSystem::WindowId::fromX11WId(winId()) : m_waylandWindowId;
 }
 
 Latte::Corona *SubConfigView::corona() const
@@ -356,7 +356,7 @@ void SubConfigView::updateWaylandId()
     Latte::WindowSystem::WindowId newId = m_corona->wm()->winIdFor("latte-dock", validTitle());
 
     if (m_waylandWindowId != newId) {
-        if (!m_waylandWindowId.isNull()) {
+        if (!m_waylandWindowId.isEmpty()) {
             m_corona->wm()->unregisterIgnoredWindow(m_waylandWindowId);
         }
 

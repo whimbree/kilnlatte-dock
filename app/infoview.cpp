@@ -56,7 +56,7 @@ InfoView::InfoView(Latte::Corona *corona, QString message, QScreen *screen, QWin
     setFlags(wFlags());
 
     if (KWindowSystem::isPlatformX11()) {
-        m_trackedWindowId = WindowSystem::windowIdFromWId(winId());
+        m_trackedWindowId = WindowSystem::WindowId::fromX11WId(winId());
         m_corona->wm()->registerIgnoredWindow(m_trackedWindowId);
     } else {
         connect(m_corona->wm(), &WindowSystem::AbstractWindowInterface::latteWindowAdded, this, &InfoView::updateWaylandId);
@@ -143,7 +143,7 @@ void InfoView::updateWaylandId()
     Latte::WindowSystem::WindowId newId = m_corona->wm()->winIdFor("latte-dock", validTitle());
 
     if (m_trackedWindowId != newId) {
-        if (!m_trackedWindowId.isNull()) {
+        if (!m_trackedWindowId.isEmpty()) {
             m_corona->wm()->unregisterIgnoredWindow(m_trackedWindowId);
         }
 

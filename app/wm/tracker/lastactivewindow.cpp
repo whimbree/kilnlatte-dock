@@ -397,7 +397,15 @@ void LastActiveWindow::setIcon(QIcon icon)
     Q_EMIT iconChanged();
 }
 
+//! the QML-facing boundary: the winId property ships the raw bytes in a
+//! QVariant (8e8cdf31's decision - Qt6 exposes a QByteArray to QML as an
+//! ArrayBuffer); C++ callers use the typed currentWindowId() instead
 QVariant LastActiveWindow::currentWinId() const
+{
+    return QVariant(m_currentWinId.bytes());
+}
+
+WindowId LastActiveWindow::currentWindowId() const
 {
     return m_currentWinId;
 }

@@ -1302,7 +1302,7 @@ void View::applyActivitiesToWindows()
             Latte::WindowSystem::WindowId appletconfigviewid;
 
             if (KWindowSystem::isPlatformX11()) {
-                appletconfigviewid = WindowSystem::windowIdFromWId(m_appletConfigView->winId());
+                appletconfigviewid = WindowSystem::WindowId::fromX11WId(m_appletConfigView->winId());
             } else {
                 appletconfigviewid = m_corona->wm()->winIdFor("latte-dock", m_appletConfigView->title());
             }

@@ -306,7 +306,7 @@ void AbstractWindowInterface::onVirtualDesktopNavigationWrappingAroundChanged(bo
 //! Register Latte Ignored Windows in order to NOT be tracked
 void AbstractWindowInterface::registerIgnoredWindow(WindowId wid)
 {
-    if (!wid.isNull() && !m_ignoredWindows.contains(wid)) {
+    if (!wid.isEmpty() && !m_ignoredWindows.contains(wid)) {
         m_ignoredWindows.append(wid);
         Q_EMIT windowChanged(wid);
     }
@@ -322,7 +322,7 @@ void AbstractWindowInterface::unregisterIgnoredWindow(WindowId wid)
 
 void AbstractWindowInterface::registerPlasmaIgnoredWindow(WindowId wid)
 {
-    if (!wid.isNull() && !m_plasmaIgnoredWindows.contains(wid)) {
+    if (!wid.isEmpty() && !m_plasmaIgnoredWindows.contains(wid)) {
         m_plasmaIgnoredWindows.append(wid);
         Q_EMIT windowChanged(wid);
     }
@@ -337,7 +337,7 @@ void AbstractWindowInterface::unregisterPlasmaIgnoredWindow(WindowId wid)
 
 void AbstractWindowInterface::registerWhitelistedWindow(WindowId wid)
 {
-    if (!wid.isNull() && !m_whitelistedWindows.contains(wid)) {
+    if (!wid.isEmpty() && !m_whitelistedWindows.contains(wid)) {
         m_whitelistedWindows.append(wid);
         Q_EMIT windowChanged(wid);
     }

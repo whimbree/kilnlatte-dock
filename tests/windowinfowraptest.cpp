@@ -17,6 +17,7 @@
 // Qt
 #include <QtTest>
 
+using Latte::WindowSystem::WindowId;
 using Latte::WindowSystem::WindowInfoWrap;
 
 class WindowInfoWrapTest : public QObject
@@ -33,7 +34,7 @@ void WindowInfoWrapTest::waylandUuidParentMakesChildWindow()
 {
     WindowInfoWrap winfo;
     //! the shape KWayland's PlasmaWindow::uuid() delivers
-    winfo.setParentId(QByteArrayLiteral("{4a5b6c7d-8e9f-4a1b-9c2d-3e4f5a6b7c8d}"));
+    winfo.setParentId(WindowId::fromWaylandUuid(QByteArrayLiteral("{4a5b6c7d-8e9f-4a1b-9c2d-3e4f5a6b7c8d}")));
 
     QVERIFY(winfo.isChildWindow());
     QVERIFY(!winfo.isMainWindow());
@@ -42,8 +43,8 @@ void WindowInfoWrapTest::waylandUuidParentMakesChildWindow()
 void WindowInfoWrapTest::x11DecimalParentMakesChildWindow()
 {
     WindowInfoWrap winfo;
-    //! the shape xwindowinterface stores: QByteArray::number(transientId)
-    winfo.setParentId(QByteArrayLiteral("77594625"));
+    //! the shape xwindowinterface stores: WindowId::fromX11WId(transientId)
+    winfo.setParentId(WindowId::fromX11WId(77594625));
 
     QVERIFY(winfo.isChildWindow());
     QVERIFY(!winfo.isMainWindow());

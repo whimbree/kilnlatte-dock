@@ -61,8 +61,8 @@ void WaylandInterface::initWindowManagement(KWayland::Client::PlasmaWindowManage
     connect(m_windowManagement, &PlasmaWindowManagement::windowCreated, this, &WaylandInterface::windowCreatedProxy);
     connect(m_windowManagement, &PlasmaWindowManagement::activeWindowChanged, this, [&]() noexcept {
         auto w = m_windowManagement->activeWindow();
-        if (!w || (w && (!m_ignoredWindows.contains(w->uuid()))) ) {
-            Q_EMIT activeWindowChanged(w ? w->uuid() : QByteArray());
+        if (!w || (w && (!m_ignoredWindows.contains(WindowId::fromWaylandUuid(w->uuid())))) ) {
+            Q_EMIT activeWindowChanged(w ? WindowId::fromWaylandUuid(w->uuid()) : WindowId());
         }
 
     }, Qt::QueuedConnection);
@@ -130,7 +130,7 @@ KWayland::Client::PlasmaShell *WaylandInterface::waylandCoronaInterface() const
 //! Register Latte Ignored Windows in order to NOT be tracked
 void WaylandInterface::registerIgnoredWindow(WindowId wid)
 {
-    if (!wid.isNull() && !m_ignoredWindows.contains(wid)) {
+    if (!wid.isEmpty() && !m_ignoredWindows.contains(wid)) {
         m_ignoredWindows.append(wid);
 
         KWayland::Client::PlasmaWindow *w = windowFor(wid);
@@ -280,13 +280,18 @@ void WaylandInterface::removeViewStruts(QWindow &view)
 
 WindowId WaylandInterface::activeWindow()
 {
+    //! views start creating before the compositor announces the
+    //! window-management interface; the empty id is the no-window answer.
+    //! (this used to read 'return 0;' - a null char* silently building
+    //! the empty byte array, the exact implicit conversion the newtype
+    //! deletes)
     if (!m_windowManagement) {
-        return 0;
+        return WindowId();
     }
 
     auto wid = m_windowManagement->activeWindow();
 
-    return wid ? wid->uuid() : QByteArray();
+    return wid ? WindowId::fromWaylandUuid(wid->uuid()) : WindowId();
 }
 
 void WaylandInterface::skipTaskBar(const QDialog &dialog)
@@ -376,7 +381,7 @@ WindowInfoWrap WaylandInterface::requestInfoActive()
 
     if (!w) return {};
 
-    return requestInfo(w->uuid());
+    return requestInfo(WindowId::fromWaylandUuid(w->uuid()));
 }
 
 WindowInfoWrap WaylandInterface::requestInfo(WindowId wid)
@@ -391,7 +396,7 @@ WindowInfoWrap WaylandInterface::requestInfo(WindowId wid)
     if (w) {
         winfoWrap.setIsValid(isValidWindow(w) && !plasmaBlockedWindow);
         winfoWrap.setWid(wid);
-        winfoWrap.setParentId(w->parentWindow() ? w->parentWindow()->uuid() : QByteArray());
+        winfoWrap.setParentId(w->parentWindow() ? WindowId::fromWaylandUuid(w->parentWindow()->uuid()) : WindowId());
         winfoWrap.setIsActive(w->isActive());
         winfoWrap.setIsMinimized(w->isMinimized());
         winfoWrap.setIsMaxVert(w->isMaximized());
@@ -426,7 +431,7 @@ WindowInfoWrap WaylandInterface::requestInfo(WindowId wid)
     }
 
     if (plasmaBlockedWindow) {
-        windowRemoved(w->uuid());
+        windowRemoved(WindowId::fromWaylandUuid(w->uuid()));
     }
 
     return winfoWrap;
@@ -457,7 +462,7 @@ KWayland::Client::PlasmaWindow *WaylandInterface::windowFor(WindowId wid)
     }
 
     auto it = std::find_if(m_windowManagement->windows().constBegin(), m_windowManagement->windows().constEnd(), [&wid](PlasmaWindow * w) noexcept {
-            return w->isValid() && w->uuid() == wid;
+            return w->isValid() && WindowId::fromWaylandUuid(w->uuid()) == wid;
 });
 
     if (it == m_windowManagement->windows().constEnd()) {
@@ -493,7 +498,7 @@ WindowId WaylandInterface::winIdFor(QString appId, QString title)
         return WindowId();
     }
 
-    return (*it)->uuid();
+    return WindowId::fromWaylandUuid((*it)->uuid());
 }
 
 WindowId WaylandInterface::winIdFor(QString appId, QRect geometry)
@@ -510,7 +515,7 @@ WindowId WaylandInterface::winIdFor(QString appId, QRect geometry)
         return WindowId();
     }
 
-    return (*it)->uuid();
+    return WindowId::fromWaylandUuid((*it)->uuid());
 }
 
 bool WaylandInterface::windowCanBeDragged(WindowId wid)
@@ -694,7 +699,7 @@ bool WaylandInterface::isValidWindow(const KWayland::Client::PlasmaWindow *w)
         return false;
     }
 
-    if (windowsTracker()->isValidFor(w->uuid())) {
+    if (windowsTracker()->isValidFor(WindowId::fromWaylandUuid(w->uuid()))) {
         return true;
     }
 
@@ -708,12 +713,12 @@ bool WaylandInterface::isAcceptableWindow(const KWayland::Client::PlasmaWindow *
     }
 
     //! ignored windows that are not tracked
-    if (hasBlockedTracking(w->uuid())) {
+    if (hasBlockedTracking(WindowId::fromWaylandUuid(w->uuid()))) {
         return false;
     }
 
     //! whitelisted/approved windows
-    if (isWhitelistedWindow(w->uuid())) {
+    if (isWhitelistedWindow(WindowId::fromWaylandUuid(w->uuid()))) {
         return true;
     }
 
@@ -726,19 +731,19 @@ bool WaylandInterface::isAcceptableWindow(const KWayland::Client::PlasmaWindow *
     if (isSkipped
             && ((w->appId() == QLatin1String("yakuake")
                  || (w->appId() == QLatin1String("krunner"))) )) {
-        registerWhitelistedWindow(w->uuid());
+        registerWhitelistedWindow(WindowId::fromWaylandUuid(w->uuid()));
     } else if (w->appId() == QLatin1String("org.kde.plasmashell")) {
         if (isSkipped && isSidepanel(w)) {
-            registerWhitelistedWindow(w->uuid());
+            registerWhitelistedWindow(WindowId::fromWaylandUuid(w->uuid()));
             return true;
         } else if (isPlasmaPanel(w) || isFullScreenWindow(w)) {
-            registerPlasmaIgnoredWindow(w->uuid());
+            registerPlasmaIgnoredWindow(WindowId::fromWaylandUuid(w->uuid()));
             return false;
         }
     } else if ((w->appId() == QLatin1String("latte-dock"))
                || (w->appId().startsWith(QLatin1String("ksmserver")))) {
         if (isFullScreenWindow(w)) {
-            registerIgnoredWindow(w->uuid());
+            registerIgnoredWindow(WindowId::fromWaylandUuid(w->uuid()));
             return false;
         }
     }
@@ -751,7 +756,7 @@ void WaylandInterface::updateWindow()
     PlasmaWindow *pW = qobject_cast<PlasmaWindow*>(QObject::sender());
 
     if (isValidWindow(pW)) {
-        considerWindowChanged(pW->uuid());
+        considerWindowChanged(WindowId::fromWaylandUuid(pW->uuid()));
     }
 }
 
@@ -761,7 +766,7 @@ void WaylandInterface::windowUnmapped()
 
     if (pW) {
         untrackWindow(pW);
-        Q_EMIT windowRemoved(pW->uuid());
+        Q_EMIT windowRemoved(WindowId::fromWaylandUuid(pW->uuid()));
     }
 }
 
@@ -819,7 +824,7 @@ void WaylandInterface::windowCreatedProxy(KWayland::Client::PlasmaWindow *w)
     }
 
     trackWindow(w);
-    Q_EMIT windowAdded(w->uuid());
+    Q_EMIT windowAdded(WindowId::fromWaylandUuid(w->uuid()));
 
     if (w->appId() == QLatin1String("latte-dock")) {
         Q_EMIT latteWindowAdded();

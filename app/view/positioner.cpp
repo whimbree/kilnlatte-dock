@@ -58,12 +58,12 @@ Positioner::Positioner(Latte::View *parent)
 
     if (m_corona) {
         if (KWindowSystem::isPlatformX11()) {
-            m_trackedWindowId = WindowSystem::windowIdFromWId(m_view->winId());
+            m_trackedWindowId = WindowSystem::WindowId::fromX11WId(m_view->winId());
             m_corona->wm()->registerIgnoredWindow(m_trackedWindowId);
 
             connect(m_view, &Latte::View::forcedShown, this, [&]() {
                 m_corona->wm()->unregisterIgnoredWindow(m_trackedWindowId);
-                m_trackedWindowId = WindowSystem::windowIdFromWId(m_view->winId());
+                m_trackedWindowId = WindowSystem::WindowId::fromX11WId(m_view->winId());
                 m_corona->wm()->registerIgnoredWindow(m_trackedWindowId);
             });
         } else {
@@ -244,7 +244,7 @@ void Positioner::updateWaylandId()
     Latte::WindowSystem::WindowId newId = m_corona->wm()->winIdFor("latte-dock", validTitle);
 
     if (m_trackedWindowId != newId) {
-        if (!m_trackedWindowId.isNull()) {
+        if (!m_trackedWindowId.isEmpty()) {
             m_corona->wm()->unregisterIgnoredWindow(m_trackedWindowId);
         }
 

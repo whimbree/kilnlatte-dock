@@ -148,6 +148,28 @@ produced).
   malformed ids loudly instead of tagging window 0. The helper moves
   next to the newtype at the flip so the boundary contract is
   unit-testable headless.
+- chunk 2 (wayland lazy re-resolve, pre-flip): the three getters keep
+  the unconditional wayland re-resolve; commit body carries the
+  latteWindowAdded coverage analysis.
+- chunk 3 (newtype + windowidtest): landed standalone; nothing included
+  the header until the flip.
+- chunk 4 (the flip): windowinfowrap.h's alias and windowIdFromWId()
+  replaced by including windowid.h; xwindowinterface's file-local parse
+  helper deleted in favor of the shared one (which also refuses a
+  parsed 0, matching the old setKeepAbove/Below '<= 0' guards);
+  wayland uuid() productions wrapped in fromWaylandUuid at every site;
+  activeWindow()'s 'return 0;' (null char* to empty QByteArray - the
+  poster implicit conversion) now returns WindowId() with a comment;
+  X11 transientFor parent-id construction simplified through
+  fromX11WId's 0-maps-to-empty rule; isNull() -> isEmpty() everywhere
+  (equivalent: ids were only ever default-null or set non-empty);
+  LastActiveWindow gained typed currentWindowId() so windowstracker
+  stops round-tripping the id through the QVariant QML boundary
+  (currentWinId().toByteArray()); the QML winId property still ships
+  QVariant(bytes()). Checked: no queued connection marshals a WindowId
+  (the only wm QueuedConnection lambda is argument-free), so
+  Q_DECLARE_METATYPE is future-proofing, not a runtime dependency.
+  Both WITH_X11 variants compile; full ctest 55/55.
 
 ### Gate results
 

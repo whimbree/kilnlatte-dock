@@ -35,31 +35,11 @@
 namespace Latte {
 namespace WindowSystem {
 
+//! the checked id parse at every KX11Extras/NETWinInfo call below is
+//! parseX11WindowId from wm/windowid.h (quiet refusal for the documented
+//! empty no-window id, loud refusal for malformed bytes)
+
 namespace {
-//! Parse the string-typed WindowId at the X11 boundary. An empty id is the
-//! documented no-window value (e.g. activeWindow() with nothing active), so
-//! it refuses quietly - a deliberate contract, not a swallowed failure.
-//! Non-empty bytes that do not parse as a decimal WId mean a foreign id (a
-//! wayland uuid, or corruption) reached the X11 backend: that is a defect,
-//! refused loudly instead of silently becoming window 0 the way an
-//! ok-flag-less toUInt() did.
-std::optional<quint32> parseX11WindowId(const WindowId &wid, const char *operation)
-{
-    if (wid.isEmpty()) {
-        return std::nullopt;
-    }
-
-    bool ok{false};
-    const quint32 parsed = wid.toUInt(&ok);
-
-    if (!ok) {
-        qWarning() << operation << "- refusing malformed X11 window id" << wid;
-        return std::nullopt;
-    }
-
-    return parsed;
-}
-
 //! Qt6 removed QX11Info; native X11 handles come from the platform interface
 xcb_connection_t *x11Connection()
 {
@@ -85,10 +65,10 @@ XWindowInterface::XWindowInterface(QObject *parent)
     m_currentDesktop = QString::number(KX11Extras::currentDesktop());
 
     connect(KX11Extras::self(), &KX11Extras::activeWindowChanged, this, [&](WId wid) {
-        Q_EMIT activeWindowChanged(windowIdFromWId(wid));
+        Q_EMIT activeWindowChanged(WindowId::fromX11WId(wid));
     });
     connect(KX11Extras::self(), &KX11Extras::windowRemoved, this, [&](WId wid) {
-        Q_EMIT windowRemoved(windowIdFromWId(wid));
+        Q_EMIT windowRemoved(WindowId::fromX11WId(wid));
     });
 
     connect(KX11Extras::self(), &KX11Extras::windowAdded, this, &XWindowInterface::windowAddedProxy);
@@ -147,12 +127,12 @@ void XWindowInterface::setViewExtraFlags(QObject *view,bool isPanelWindow, Latte
 
     //! Layer to be applied
     if (mode == Latte::Types::WindowsCanCover || mode == Latte::Types::WindowsAlwaysCover) {
-        setKeepBelow(windowIdFromWId(winId), true);
+        setKeepBelow(WindowId::fromX11WId(winId), true);
     } else if (mode == Latte::Types::NormalWindow) {
-        setKeepBelow(windowIdFromWId(winId), false);
-        setKeepAbove(windowIdFromWId(winId), false);
+        setKeepBelow(WindowId::fromX11WId(winId), false);
+        setKeepAbove(WindowId::fromX11WId(winId), false);
     } else {
-        setKeepAbove(windowIdFromWId(winId), true);
+        setKeepAbove(WindowId::fromX11WId(winId), true);
     }
 }
 
@@ -273,7 +253,7 @@ void XWindowInterface::removeViewStruts(QWindow &view)
 
 WindowId XWindowInterface::activeWindow()
 {
-    return windowIdFromWId(KX11Extras::activeWindow());
+    return WindowId::fromX11WId(KX11Extras::activeWindow());
 }
 
 void XWindowInterface::skipTaskBar(const QDialog &dialog)
@@ -487,7 +467,7 @@ void XWindowInterface::setInputMask(QWindow *window, const QRect &rect)
 
 WindowInfoWrap XWindowInterface::requestInfoActive()
 {
-    return requestInfo(windowIdFromWId(KX11Extras::activeWindow()));
+    return requestInfo(WindowId::fromX11WId(KX11Extras::activeWindow()));
 }
 
 WindowInfoWrap XWindowInterface::requestInfo(WindowId wid)
@@ -524,8 +504,8 @@ WindowInfoWrap XWindowInterface::requestInfo(WindowId wid)
     } else if (isValidWindow(wid)) {
         winfoWrap.setIsValid(true);
         winfoWrap.setWid(wid);
-        const WId transientId = winfo.transientFor();
-        winfoWrap.setParentId(transientId ? QByteArray::number((qulonglong)transientId) : QByteArray());
+        //! fromX11WId maps a 0 transientFor (no parent) to the empty id
+        winfoWrap.setParentId(WindowId::fromX11WId(winfo.transientFor()));
         winfoWrap.setIsActive(KX11Extras::activeWindow() == static_cast<xcb_window_t>(*xwid));
         winfoWrap.setIsMinimized(winfo.hasState(NET::Hidden));
         winfoWrap.setIsMaxVert(winfo.hasState(NET::MaxVert));
@@ -924,7 +904,7 @@ bool XWindowInterface::isAcceptableWindow(WindowId wid)
 
 void XWindowInterface::windowAddedProxy(WId wid)
 {
-    const WindowId winid = windowIdFromWId(wid);
+    const WindowId winid = WindowId::fromX11WId(wid);
 
     if (!isAcceptableWindow(winid)) {
         return;
@@ -936,7 +916,7 @@ void XWindowInterface::windowAddedProxy(WId wid)
 
 void XWindowInterface::windowChangedProxy(WId wid, NET::Properties prop1, NET::Properties2 prop2)
 {
-    const WindowId winid = windowIdFromWId(wid);
+    const WindowId winid = WindowId::fromX11WId(wid);
 
     if (!isValidWindow(winid)) {
         return;

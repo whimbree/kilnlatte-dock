@@ -885,7 +885,7 @@ void Corona::aboutApplication()
     aboutDialog = new KAboutApplicationDialog(KAboutData::applicationData());
     connect(aboutDialog.data(), &QDialog::finished, aboutDialog.data(), &QObject::deleteLater);
     m_wm->skipTaskBar(*aboutDialog);
-    m_wm->setKeepAbove(WindowSystem::windowIdFromWId(aboutDialog->winId()), true);
+    m_wm->setKeepAbove(WindowSystem::WindowId::fromX11WId(aboutDialog->winId()), true);
 
     aboutDialog->show();
 }
@@ -1113,7 +1113,7 @@ void Corona::windowColorScheme(QString windowIdAndScheme)
             return;
         }
 
-        m_wm->schemesTracker()->setColorSchemeForWindow(WindowSystem::windowIdFromWId(parsedWId), schemeStr);
+        m_wm->schemesTracker()->setColorSchemeForWindow(WindowSystem::WindowId::fromX11WId(parsedWId), schemeStr);
     }
 }
 

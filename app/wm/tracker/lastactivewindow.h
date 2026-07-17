@@ -101,6 +101,7 @@ public:
     QIcon icon() const;
 
     QVariant currentWinId() const;
+    WindowId currentWindowId() const;
 
     void setInformation(const WindowInfoWrap &info);
 

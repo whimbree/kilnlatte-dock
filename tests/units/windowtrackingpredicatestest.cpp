@@ -19,7 +19,7 @@ using namespace Latte::WindowSystem;
 // Helper to build a WindowInfoWrap fixture
 static WindowInfoWrap makeWinfo(bool valid, bool active, bool minimized, bool shaded,
                                  bool maximized, QRect geom,
-                                 const Latte::WindowSystem::WindowId &wid = QByteArrayLiteral("w1"))
+                                 const Latte::WindowSystem::WindowId &wid = WindowId::fromWaylandUuid(QByteArrayLiteral("w1")))
 {
     WindowInfoWrap w;
     w.setIsValid(valid);
@@ -128,8 +128,8 @@ void WindowTrackingPredicatesTest::isMaximizedInViewScreen_maximizedOnScreen()
 void WindowTrackingPredicatesTest::registry_isIgnoredPlasmaWhitelisted_contains()
 {
     using WId = Latte::WindowSystem::WindowId;
-    WId w1 = QByteArrayLiteral("aaa");
-    WId w2 = QByteArrayLiteral("bbb");
+    WId w1 = WindowId::fromWaylandUuid(QByteArrayLiteral("aaa"));
+    WId w2 = WindowId::fromWaylandUuid(QByteArrayLiteral("bbb"));
     QList<WId> ignored = {w1};
     QList<WId> plasmaIgnored = {w2};
     QList<WId> whitelisted = {w1};
@@ -145,8 +145,8 @@ void WindowTrackingPredicatesTest::registry_isIgnoredPlasmaWhitelisted_contains(
 void WindowTrackingPredicatesTest::hasBlockedTracking_whitelistWins()
 {
     using WId = Latte::WindowSystem::WindowId;
-    WId w = QByteArrayLiteral("ww");
-    WId other = QByteArrayLiteral("xx");
+    WId w = WindowId::fromWaylandUuid(QByteArrayLiteral("ww"));
+    WId other = WindowId::fromWaylandUuid(QByteArrayLiteral("xx"));
 
     QList<WId> ignored = {w};
     QList<WId> plasma = {w};
@@ -168,7 +168,7 @@ void WindowTrackingPredicatesTest::hasBlockedTracking_whitelistWins()
 void WindowTrackingPredicatesTest::shouldRegister_idempotentAndSkipNull()
 {
     using WId = Latte::WindowSystem::WindowId;
-    WId w = QByteArrayLiteral("zz");
+    WId w = WindowId::fromWaylandUuid(QByteArrayLiteral("zz"));
     WId nullW;
     QList<WId> set = {w};
     QList<WId> empty;

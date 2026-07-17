@@ -68,7 +68,7 @@ inline bool hasBlockedTracking(const QList<WindowId> &ignoredWindows,
 
 inline bool shouldRegister(const QList<WindowId> &existingWindows, const WindowId &wid)
 {
-    return (!wid.isNull() && !existingWindows.contains(wid));
+    return (!wid.isEmpty() && !existingWindows.contains(wid));
 }
 
 } // namespace WindowTrackingPredicates
