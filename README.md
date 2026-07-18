@@ -92,10 +92,16 @@ phases, one commit-traceable checklist item per task. The coarse picture:
 - [ ] Layout/config persistence, session shutdown, multi-screen edge cases
       (the open phase; live-driven fixes land here continuously)
 - [ ] Theming and colorization polish audit
-- [ ] CI/CD: the local gates (build-check, QML compile gate, qmllint
-      ratchet, coverage ratchet, scene-render gate) are pure shell over
-      cmake/ctest and CI-portable by design; the hosted pipeline itself
-      is not stood up yet
+- [ ] CI/CD and multi-distro matrix: the local gates (build-check, QML
+      compile gate, qmllint ratchet, coverage ratchet, scene-render gate)
+      are pure shell over cmake/ctest and CI-portable by design, and the
+      port is proven to build and render headless in containers on eight
+      distributions - Arch, Debian, openSUSE Tumbleweed, Fedora, KDE neon,
+      Void and Gentoo, alongside the NixOS bit-exact tier - each behind the
+      same nested-compositor sceneprobe gate with graduated per-distro
+      golden rigor (bit-exact where the distro's Mesa/LLVM matches, a
+      bounded tolerance where it does not); the hosted matrix pipeline
+      itself is not stood up yet
 - [x] Automated end-to-end GUI testing: a maintained recipe suite runs
       desk-independently inside a nested compositor - the staged dock,
       pointer injection, real client windows and KWin screenshots all

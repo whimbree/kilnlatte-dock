@@ -1,33 +1,62 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-17 (multi-distro CI: Wave A + B2 MERGED to master;
-Wave B in flight; orchestrator driving).
+Last updated 2026-07-17 (multi-distro CI: Phase A/B COMPLETE - all 8 distros
+build + render in-container; next is Phase C).
 
 ## NEXT SESSION ENTRY POINT (2026-07-17)
 
 Invoke `docs/prompts/multi-distro-ci-orchestrator-prompt.md`. The session
 drives as an ORCHESTRATOR: it owns the shared scaffold + serial merges and
-FARMS chunks to capable Opus worktree subagents (one distro leg / packaging
-format per agent, batched at the 4-subagent cap), merging each returned
-branch through gate-all -> independent lean Opus review -> ff-merge.
-STATE @ master f4db9b558: B2 gate stage productionized (PR #13) AND Wave A
-(Debian PR #11, openSUSE PR #12, Fedora PR #14) all landed. FIVE distros now
-build + render in-container (Arch, Debian, openSUSE, Fedora + the NixOS dev
-tier). Fedora is the FIRST tolerance tier (LLVM 21 vs 22, Δ=2) - concrete
-proof of the graduated-rigor premise; Arch/Debian/openSUSE stayed bit-exact.
-Wave B (neon / void / gentoo) is IN FLIGHT (3 worktree agents). NEXT after
-Wave B lands: Phase C (per-distro golden tiers - Fedora's Δ=2 forces the
-tolerance-tier axis now), Phase D (CI workflow - collect DECISION 6/2),
-Phase E (v0.12.0 - DECISION 5), Phase F (packaging swarm - DECISION 7/8).
-Merge mechanic learned: the gate stamp (build/_gates-passed) is per-worktree
-and does NOT travel with a merge, so the MAIN worktree must run gate-all
-before every push; BATCH reviewed branches (rebase onto master, resolve the
-always-conflicting plan doc, one gate-all, one push) to amortize the heavy
-gate run and dodge the cross-worktree nix flake race. Rebased PRs don't
-auto-close - close them with a landed-commit comment (#12/#13/#14 done so).
-The execution prompt (multi-distro-ci-execution-prompt.md) still holds the
-standing mission/context; the orchestrator prompt changes only HOW.
+FARMS chunks to capable Opus worktree subagents, merging each returned branch
+through independent lean Opus review -> merge.
+STATE @ master 1a01d0dee: PHASE A/B COMPLETE. All EIGHT distro legs build
+565/565 and render sceneprobe 13/13 in-container: Arch, Debian (PR #11),
+openSUSE (#12), Fedora (#14), KDE neon (#15), Void (#16), Gentoo (#17), plus
+the NixOS bit-exact dev tier. B2 gate stage productionized (#13). ZERO port
+source changes were needed across all of Wave A+B - every issue was a
+per-distro dep-name/split or image-env trap, so the port is genuinely
+distro-portable. Sceneprobe tiers: BIT-EXACT = Arch/Debian/openSUSE/Void/
+Gentoo (LLVM 22, and Void's LLVM 21.1.7); TOLERANCE Δ=2 = Fedora (LLVM 21.1.8)
++ neon (LLVM 20) - so bit-exactness tracks the exact Mesa+LLVM build, not the
+LLVM major. NEXT: Phase C (decouple render DEVICE from golden TIER in
+tests/sceneprobe/main.cpp + imagecompare.h; wire bit-exact NixOS / bless-
+frozen stable / invariant+tolerance rolling - this is a REAL code change, so a
+real gate-all, not the --no-verify shortcut), then Phase D (CI workflow -
+collect DECISION 6 runner + 2 cadence), Phase E (v0.12.0 - DECISION 5),
+Phase F (packaging swarm deb/rpm/arch/gentoo/void - DECISION 7/8).
+
+MERGE MECHANIC (Bree's direction, learned the hard way this session): land
+each PR THROUGH GitHub as MERGED, never manual-close. Per leg after review:
+rebase branch onto master (fix plan-tick hashes to post-rebase), push the
+rebased branch to its PR, KEEP THE PR OPEN, ff-merge master, push master while
+the PR is open -> GitHub auto-marks it MERGED (its head is in the base push).
+Re-gate ONLY if the rebase changed PORT CODE or review asked for code changes;
+a docs+Containerfile-only leg reuses the agent's green gate via --no-verify
+(Bree-authorized for that scenario - port code unchanged & already gated).
+CAUTION: the gate stamp (build/_gates-passed) is per-worktree and does NOT
+travel with a merge; the cross-worktree nix flake race can stamp a foreign
+sha (verify stamp==HEAD). OPEN: PRs #12/#13/#14 are CLOSED (mergedAt=null) from
+an early batch-and-manual-close mistake - GitHub will NOT retroactively flip a
+manually-closed PR to Merged (confirmed), their commits are on master under
+rebased shas; Bree's call whether to accept Closed-with-comment. The execution
+prompt (multi-distro-ci-execution-prompt.md) still holds the standing mission.
+
+## 2026-07-17 multi-distro CI: PHASE A/B COMPLETE - 8 DISTROS (master 1a01d0dee)
+
+Wave B (neon #15, void #16, gentoo #17) landed after Wave A + B2, each as a
+proper MERGED PR via the correct process above. Highlights: neon needed 5
+deb dev-names that diverge from BOTH Arch and Debian (KSvg = kf6-ksvg-dev, no
+libkf6svg-dev); Void had no prior docker reference (first full xbps table)
+and split the ASan/UBSan runtime into libsanitizer-devel; Gentoo is the
+binhost leg - base gentoo/stage3:amd64-systemd (KDE binpkgs carry USE=systemd)
++ two mandatory source rebuilds (Mesa +video_cards_lavapipe for the ICD, kwin
++lock so kwin_wayland accepts --no-lockscreen), split-usr kwin at both
+/usr/bin and /usr/sbin. Cross-cutting for Phase C/D: qmllintgate is a
+NixOS-tier ratchet the distro gate excludes; Qt QML host tools sit off default
+PATH on Fedora/openSUSE/Debian/neon/Void/Gentoo (bindir added to each image
+PATH; a qtpaths6-aware gate script is a filed follow-up). Ledgers:
+docs/agent-logs/2026-07-17-{neon,void,gentoo}-leg.md.
 
 ## 2026-07-17 multi-distro CI: WAVE A + B2 LANDED (master f4db9b558)
 
