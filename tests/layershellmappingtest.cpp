@@ -36,6 +36,8 @@ private Q_SLOTS:
     void exclusiveEdgeIsAlwaysAnchored();
     void layerByVisibilityMode();
     void exclusiveZoneByLocation();
+    void floatingGapMapsToEdgeMargins();
+    void floatingPanelSurfaceIsLiftedOffItsEdge();
     void seededSizeForUnspannedAxes();
     void canvasPlacementByEdge();
     void canvasInputRegionPlainEditMode();
@@ -154,6 +156,68 @@ void LayerShellMappingTest::exclusiveZoneByLocation()
     QCOMPARE(LayerShell::exclusiveZoneFor(QRect(0, 0, 48, 1080), Plasma::Types::LeftEdge), 48);
     QCOMPARE(LayerShell::exclusiveZoneFor(QRect(1872, 0, 48, 1080), Plasma::Types::RightEdge), 48);
     QCOMPARE(LayerShell::exclusiveZoneFor(QRect(), Plasma::Types::BottomEdge), 0);
+}
+
+void LayerShellMappingTest::floatingGapMapsToEdgeMargins()
+{
+    //! the floating gap (screenEdgeMargin) is a real offset off the anchored
+    //! edge, realised as a layer-shell margin on THAT edge - not folded into
+    //! surface thickness. Before this the panel sat flush and grew instead of
+    //! floating. A top panel is pushed down, a bottom panel up, sides inward.
+    QCOMPARE(LayerShell::edgeMarginsFor(Plasma::Types::TopEdge, 12), QMargins(0, 12, 0, 0));
+    QCOMPARE(LayerShell::edgeMarginsFor(Plasma::Types::BottomEdge, 12), QMargins(0, 0, 0, 12));
+    QCOMPARE(LayerShell::edgeMarginsFor(Plasma::Types::LeftEdge, 12), QMargins(12, 0, 0, 0));
+    QCOMPARE(LayerShell::edgeMarginsFor(Plasma::Types::RightEdge, 12), QMargins(0, 0, 12, 0));
+
+    //! the offset edge is always the exclusive/anchored edge, so the margin
+    //! actually takes effect (a margin on an unanchored edge is ignored)
+    const QList<Plasma::Types::Location> edges{
+        Plasma::Types::TopEdge, Plasma::Types::BottomEdge,
+        Plasma::Types::LeftEdge, Plasma::Types::RightEdge};
+    for (const auto edge : edges) {
+        const QMargins m = LayerShell::edgeMarginsFor(edge, 20);
+        const LSW::Anchor exclusive = LayerShell::edgeFor(edge);
+        const int onExclusive = (exclusive == LSW::AnchorTop) ? m.top()
+                              : (exclusive == LSW::AnchorBottom) ? m.bottom()
+                              : (exclusive == LSW::AnchorLeft) ? m.left()
+                              : m.right();
+        QCOMPARE(onExclusive, 20);
+    }
+
+    //! no gap and a disabled gap both mean flush: no margin, so the panel is
+    //! never lifted. A non-edge location carries no offset either.
+    QCOMPARE(LayerShell::edgeMarginsFor(Plasma::Types::TopEdge, 0), QMargins());
+    QCOMPARE(LayerShell::edgeMarginsFor(Plasma::Types::TopEdge, -1), QMargins());
+    QCOMPARE(LayerShell::edgeMarginsFor(Plasma::Types::Floating, 12), QMargins());
+}
+
+void LayerShellMappingTest::floatingPanelSurfaceIsLiftedOffItsEdge()
+{
+    //! end to end on a live layer surface: a floating top panel (edgeMargin>0)
+    //! gets a real top margin so the compositor places it OFF the screen edge,
+    //! leaving the gap. This is the fix for "the gap grows the panel instead of
+    //! offsetting it" - the surface was anchored flush with no margin.
+    QScreen *screen = QGuiApplication::screens().at(0);
+
+    QWindow window;
+    LSW *ls = LSW::get(&window);
+    QVERIFY(ls);
+
+    LayerShell::configureView(&window, screen, Plasma::Types::TopEdge, Latte::Types::Center, false, 16);
+    QCOMPARE(ls->exclusiveEdge(), LSW::AnchorTop);
+    QCOMPARE(ls->margins(), QMargins(0, 16, 0, 0));
+
+    //! disabling the gap at runtime (edgeMargin back to 0) must bring the panel
+    //! flush again, not leave a stale margin welded on - updateAnchoring runs
+    //! on every gap change and always (re)sets the margin
+    LayerShell::updateAnchoring(&window, screen, Plasma::Types::TopEdge, Latte::Types::Center, false, 0);
+    QCOMPARE(ls->margins(), QMargins(0, 0, 0, 0));
+
+    //! a masked dock (windowSpansScreenLength=true) realises the gap through
+    //! its mask, so its surface stays flush even though a gap is configured:
+    //! the caller passes edgeMargin 0 for it, and the surface must not move
+    LayerShell::updateAnchoring(&window, screen, Plasma::Types::TopEdge, Latte::Types::Center, true, 0);
+    QCOMPARE(ls->margins(), QMargins(0, 0, 0, 0));
 }
 
 void LayerShellMappingTest::seededSizeForUnspannedAxes()

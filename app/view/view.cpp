@@ -343,6 +343,11 @@ void View::init(Plasma::Containment *plasma_containment)
     connect(this, &View::locationChanged, this, &View::reanchorLayerShell);
     connect(this, &View::alignmentChanged, this, &View::reanchorLayerShell);
     connect(this, &View::behaveAsPlasmaPanelChanged, this, &View::reanchorLayerShell);
+    //! the floating gap is realised as a layer-shell margin (layerShellEdgeMargin),
+    //! so a runtime gap resize or enable/disable must re-run the anchoring path
+    //! to push the panel off its edge or bring it back flush
+    connect(this, &View::screenEdgeMarginChanged, this, &View::reanchorLayerShell);
+    connect(this, &View::screenEdgeMarginEnabledChanged, this, &View::reanchorLayerShell);
 
     connect(this, &View::alignmentChanged, this, [&](){
         // inform neighbour vertical docks/panels to adjust their positioning
@@ -516,7 +521,7 @@ void View::setupWaylandLayerShell()
 
     namespace LS = Latte::WindowSystem::LayerShell;
     LS::configureView(this, screen(), location(), static_cast<Latte::Types::Alignment>(alignment()),
-                      windowSpansScreenLength());
+                      windowSpansScreenLength(), layerShellEdgeMargin());
     LS::applyLayer(this, m_visibility ? m_visibility->mode() : Latte::Types::None);
     LS::setFocusPolicy(this, !flags().testFlag(Qt::WindowDoesNotAcceptFocus));
 
@@ -529,12 +534,14 @@ void View::reanchorLayerShell()
         return;
     }
 
-    //! only the anchors, exclusive edge, screen and seeded size change here;
-    //! the stacking layer (cover modes use LayerBottom) and keyboard policy
-    //! that configureView() forced must survive an edge change
+    //! only the anchors, exclusive edge, screen, seeded size and floating-gap
+    //! margin change here; the stacking layer (cover modes use LayerBottom) and
+    //! keyboard policy that configureView() forced must survive an edge change.
+    //! screenEdgeMargin/screenEdgeMarginEnabled changes route here too so a
+    //! runtime gap toggle re-applies the surface offset.
     namespace LS = Latte::WindowSystem::LayerShell;
     LS::updateAnchoring(this, screen(), location(), static_cast<Latte::Types::Alignment>(alignment()),
-                        windowSpansScreenLength());
+                        windowSpansScreenLength(), layerShellEdgeMargin());
 }
 
 bool View::windowSpansScreenLength() const
@@ -1093,6 +1100,11 @@ bool View::inEditMode() const
 bool View::isFloatingPanel() const
 {
     return m_behaveAsPlasmaPanel && m_screenEdgeMarginEnabled && (m_screenEdgeMargin>0);
+}
+
+int View::layerShellEdgeMargin() const
+{
+    return isFloatingPanel() ? m_screenEdgeMargin : 0;
 }
 
 bool View::isPreferredForShortcuts() const

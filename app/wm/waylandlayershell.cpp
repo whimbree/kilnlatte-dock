@@ -123,6 +123,26 @@ LSW::Anchor edgeFor(Plasma::Types::Location location)
     }
 }
 
+QMargins edgeMarginsFor(Plasma::Types::Location location, int edgeMargin)
+{
+    if (edgeMargin <= 0) {
+        return QMargins();
+    }
+
+    switch (location) {
+    case Plasma::Types::TopEdge:
+        return QMargins(0, edgeMargin, 0, 0);
+    case Plasma::Types::BottomEdge:
+        return QMargins(0, 0, 0, edgeMargin);
+    case Plasma::Types::LeftEdge:
+        return QMargins(edgeMargin, 0, 0, 0);
+    case Plasma::Types::RightEdge:
+        return QMargins(0, 0, edgeMargin, 0);
+    default:
+        return QMargins();
+    }
+}
+
 int exclusiveZoneFor(const QRect &strutRect, Plasma::Types::Location location)
 {
     if (strutRect.isEmpty()) {
@@ -166,7 +186,7 @@ QSize seededLayerSize(LSW::Anchors anchors, Plasma::Types::Location location,
 
 void updateAnchoring(QWindow *window, QScreen *screen,
                      Plasma::Types::Location location, Latte::Types::Alignment alignment,
-                     bool windowSpansScreenLength)
+                     bool windowSpansScreenLength, int edgeMargin)
 {
     LSW *ls = LSW::get(window);
 
@@ -203,11 +223,18 @@ void updateAnchoring(QWindow *window, QScreen *screen,
     //! exclusive edge is not among its anchors
     ls->setAnchors(anchors);
     ls->setExclusiveEdge(edgeFor(location));
+
+    //! the floating gap is a real offset off the anchored edge, not surface
+    //! thickness: a behaveAsPlasmaPanel dock is lifted screenEdgeMargin px off
+    //! its edge here. Masked docks and chrome pass 0 and stay flush. Always
+    //! (re)setting this keeps a gap-disabling change (edgeMargin back to 0)
+    //! from leaving a stale margin welded on.
+    ls->setMargins(edgeMarginsFor(location, edgeMargin));
 }
 
 void configureView(QWindow *window, QScreen *screen,
                    Plasma::Types::Location location, Latte::Types::Alignment alignment,
-                   bool windowSpansScreenLength)
+                   bool windowSpansScreenLength, int edgeMargin)
 {
     LSW *ls = LSW::get(window);
 
@@ -216,7 +243,7 @@ void configureView(QWindow *window, QScreen *screen,
     }
 
     ls->setScope(QStringLiteral("dock"));
-    updateAnchoring(window, screen, location, alignment, windowSpansScreenLength);
+    updateAnchoring(window, screen, location, alignment, windowSpansScreenLength, edgeMargin);
     ls->setLayer(LSW::LayerTop);
     ls->setKeyboardInteractivity(LSW::KeyboardInteractivityNone);
 }

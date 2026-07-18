@@ -401,6 +401,11 @@ private:
     //! LayerShell::anchorsFor). Vertical masked docks are sized to the available
     //! region, not the screen, so they do not qualify.
     bool windowSpansScreenLength() const;
+    //! the floating-gap offset the layer surface must be lifted off its
+    //! anchored edge: the screenEdgeMargin for a floating panel, 0 otherwise
+    //! (a masked dock realises the gap through its mask, not a surface offset).
+    //! Fed to LayerShell::configureView/updateAnchoring as edgeMargin.
+    int layerShellEdgeMargin() const;
     void updateAppletContainsMethod();
 
     //! apply the window's keyboard-focus stance (Qt flags + layer-shell
