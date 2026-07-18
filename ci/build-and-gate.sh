@@ -72,69 +72,13 @@ build_fakepointer() {
         -I"$gendir" $(pkg-config --cflags --libs wayland-client)
 }
 
-# seed_config <dir>: produce a default layout config for run-e2e.sh to copy
-# its throwaway from. run-e2e.sh needs a pre-existing $base/latte and refuses
-# loudly without one, but a fresh dock only writes its default layout on first
-# run. So bring up a throwaway nested compositor, run the staged dock against
-# an empty config home until it self-inits the default layout, then tear the
-# compositor down. The subshell scopes the nested-kwin EXIT trap so it can
-# never clobber the driver's own control flow.
-seed_config() {
-    local seeddir="$1"
-    rm -rf "$seeddir"
-    mkdir -p "$seeddir"
-    (
-        # lib-nested-kwin.sh is nounset-safe but NOT errexit-safe: its cleanup
-        # ends with `wait $NESTED_KWIN_PID`, which returns the kwin's SIGTERM
-        # status (143) since teardown just killed it. Under the driver's
-        # inherited `set -e` that 143 fires from the EXIT trap and takes the
-        # whole driver down (caught in-container: the gate died 143 right after
-        # a clean seed). Every library caller runs without -e (run-e2e.sh uses
-        # `set -uo pipefail`); match that contract here. Explicit checks below
-        # still catch a real seeding failure loudly.
-        set +e
-        source "$SRC/scripts/lib-nested-kwin.sh"
-        nested_kwin_prepare
-        trap 'nested_kwin_cleanup' EXIT
-        mkdir -p "$NESTED_RT/kwin-config" "$NESTED_RT/kwin-cache"
-        # WAYLAND_DISPLAY is preseeded into the session env BEFORE kwin exists
-        # so dbus-activated kactivitymanagerd gets a display in its activation
-        # environment; without it the activities consumer never reaches Running
-        # and the dock hangs in startup with zero views (the run-e2e trap).
-        nested_kwin_env+=(
-            WAYLAND_DISPLAY=latte-seed-wl
-            XDG_CONFIG_HOME="$NESTED_RT/kwin-config"
-            XDG_CACHE_HOME="$NESTED_RT/kwin-cache"
-            QT_FORCE_STDERR_LOGGING=1
-        )
-        nested_kwin_start 1600 1000 latte-seed-wl || exit 2
-
-        export XDG_RUNTIME_DIR="$NESTED_RT"
-        export WAYLAND_DISPLAY="$NESTED_SOCK"
-        export DBUS_SESSION_BUS_ADDRESS="$NESTED_BUS"
-        unset DISPLAY XAUTHORITY
-
-        local seedlog="$BUILD/_seed-dock.log"
-        setsid env LATTE_CONFIG_HOME="$seeddir" BUILD="$BUILD" \
-            "$SRC/scripts/run-staged.sh" -d >"$seedlog" 2>&1 &
-        local dockpid=$! i state settled=0
-        for ((i = 0; i < 90; i++)); do
-            state="$(busctl --user call org.kde.lattedock /Latte org.kde.LatteDock lifecycleState 2>/dev/null | awk '{print $2}' || true)"
-            if [[ "$state" == '"running"' ]] && compgen -G "$seeddir/latte/*.layout.latte" >/dev/null 2>&1; then
-                settled=1; break
-            fi
-            kill -0 "$dockpid" 2>/dev/null || break
-            sleep 1
-        done
-        kill -TERM "$dockpid" 2>/dev/null || true
-        wait "$dockpid" 2>/dev/null || true
-        if [[ "$settled" != 1 ]]; then
-            echo "gate: FAIL the dock never self-initialized a default layout while seeding (last state='${state:-none}'); seed dock log tail:" >&2
-            tail -30 "$seedlog" >&2 || true
-            exit 2
-        fi
-    )
-}
+# The default-layout config seeder lives in scripts/lib-e2e-seed.sh, shared with
+# the NixOS sanitized gate (scripts/asan-e2e-gate.sh) so the two gates can never
+# drift on how a hermetic seed is produced. e2e_seed_default_config <repo>
+# <build> <seeddir> brings up a throwaway nested compositor, runs the staged dock
+# against an empty config until it self-inits its default layout, tears the
+# compositor down, and leaves a seed tree run-e2e.sh can copy.
+source "$SRC/scripts/lib-e2e-seed.sh"
 
 # Two ctest entries cannot pass off the NixOS pin, by construction, and are
 # excluded from the distro matrix (named here, never silently dropped):
@@ -179,7 +123,7 @@ case "$STAGE" in
 
         seedbase="$BUILD/_seedconfig"
         echo "==> seeding a default layout config"
-        seed_config "$seedbase"
+        e2e_seed_default_config "$SRC" "$BUILD" "$seedbase"
 
         # The e2e suite splits by environment dependency in a bare container.
         # This gate runs the ENVIRONMENT-AGNOSTIC recipes (dock lifecycle,
