@@ -1,8 +1,57 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-17 (multi-distro CI: Phase A/B COMPLETE - all 8 distros
-build + render in-container; next is Phase C).
+Last updated 2026-07-18 (panel bug fixes + UB-catching initiative + a dev-loop
+shadow fix all landed; #4 maximize-length and A3 sanitized-gate in flight).
+
+## 2026-07-18 SESSION: panel fixes, UB-catching, dev-loop shadow fix
+
+Pivoted from the multi-distro mission (Phase C landed as #18; Phase D+ still
+standing, section below) to a batch of panel bugs Bree hit on the real dock,
+plus a UB-catching initiative. All landed as MERGED PRs via gh pr merge --rebase
+(so the local panel-fix-* branches are stale - their work is on master under
+rebased shas, not the branch shas).
+
+LANDED (master 326aba06d):
+- #19 floating gap becomes a real edge offset + systray popup anchors UNDER the
+  panel (maskgeometry).
+- #20 edit-mode header hint renders in-window so it stops eating the Rearrange
+  click (+ #743d11e2e guard test).
+- #21 Prong A: -DLATTE_SANITIZE=ON dock build (ASan+UBSan+forced-asserts on the
+  dock/libs, not just unit tests) + scripts/run-asan-dock.sh (nested) +
+  scripts/start-dock-sanitized.sh (LIVE, for Bree's pre-release manual testing).
+- #22 Prong B1: justify-splitter pure core containment/plugin/units/
+  justifysplitters.h - the ONLY splitter-insert path; repairs out-of-range
+  positions (killed a splitterPosition=0 -> QList::insert(-1) UB); sanitized
+  guard proven a real tripwire.
+- #23 DEV-LOOP SHADOW FIX: the staged dev dock was silently loading the
+  SYSTEM-INSTALLED packaged latte-dock's containment plugin, not the worktree
+  build - Bree's machine enables programs.latte-dock.enable=true ->
+  environment.systemPackages -> the session Qt6 wrapper seeds
+  NIXPKGS_QT6_QML_IMPORT_PATH with packaged 0.10.77 QML. Every containment/plugin
+  change "landed but never ran" on the dev dock, invisible until /proc/<dock>/
+  maps was read. Fix: scripts/lib-qml-env.sh strips ONLY the packaged latte-dock
+  leaf (grep -vE '/nix/store/[^/]*-latte-dock-'), keeping frameworks the QML
+  gates need (a wholesale unset broke qmlcontracts - caught by the gate). PROVEN:
+  /proc/maps flipped packaged->staged; #19/#22 fixes now visibly active on Bree's
+  real dock (Bree confirmed "dock is looking better").
+
+IN FLIGHT (parallel Opus worktree agents, nested-only, off master 326aba06d):
+- #4 panel-fix-maximize-length-repaint: Qt6 wayland couples QWindow::mask() to
+  submitted buffer damage, so a shrinking masked dock (maximize-panel-length
+  releasing on un-maximize) drops the vacated edge's clearing damage -> stale
+  frosted band at the former extent. Salvaged pure-core WIP inputmaskflush.h
+  (keep the mask at the union of bands until settled, then collapse to the band)
+  in scratchpad/maximize-wip/.
+- A3 (ub-catching): wire the sanitized dock into a DRIVEN e2e/sceneprobe gate
+  (build-asan + halt_on_error + a /proc/maps shadow-assertion so the gate can't
+  run a shadowed binary + an injected-UB proof).
+
+OPEN AFTER THESE: Job C (panel test matrix, all 4 edges - after #4 stabilizes so
+its goldens capture the maximize fix); UB Prong B2 (boundary sweep, evidence-
+driven from Prong A findings); the on-disk splitterPosition write-back caveat
+(the justify fix repairs at every load, so the panel is always correct, but the
+corrected value doesn't persist to the layout file yet - small follow-up).
 
 ## NEXT SESSION ENTRY POINT (2026-07-17)
 

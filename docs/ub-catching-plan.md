@@ -62,6 +62,21 @@ sanitizer AFTER it. UB-catching therefore needs TWO prongs.
       sceneprobe nested scenarios against the build-asan dock so UB in
       integration paths fails CI (halt_on_error, first-finding abort).
       Sequenced after A1/A2. Commits:
+      NOTE (2026-07-18): the containment-plugin-shadow-in-vehicle risk this
+      item flagged is fixed at the harness layer by PR #23 (master 326aba06d,
+      scripts/lib-qml-env.sh): NIXPKGS_QT6_QML_IMPORT_PATH / NIXPKGS_QML_SEARCH_PATHS
+      leaked the SYSTEM-INSTALLED packaged latte-dock, so the STAGED dock (and
+      any nested run sourcing lib-qml-env.sh) loaded the packaged containment
+      plugin, not the build-under-test - A3's sanitized dock would have run the
+      packaged binary and caught no UB. The fix strips only the packaged
+      latte-dock leaf. A3 must still confirm the build-asan dock's plugin
+      resolves to build-asan (assert /proc/<dock>/maps in the vehicle, same
+      check that caught this live). Non-blocking nit filed from PR #23 review:
+      lib-qml-env.sh:40 grep -vE returns exit 1 if a var is ALL latte-dock
+      entries (unreachable in the documented env - the vars always carry KDE
+      frameworks); when this file is next touched, wrap the grep `|| true` so
+      the all-filtered case is tolerated (grep-exit-1 there is a legit
+      "everything filtered" signal, not a masked failure).
 
 ## Prong B - boundary invariants make lib-boundary UB structurally impossible
 
