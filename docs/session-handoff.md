@@ -88,6 +88,20 @@ this track: Prong B2 (sweep the index/enum/pointer boundaries the gate surfaces)
 and optionally add the wheel/edit recipes or a sanitized sceneprobe leg. Ledger:
 docs/agent-logs/2026-07-18-a3-sanitized-gate.md.
 
+## SIBLING BRANCH IN FLIGHT (2026-07-18)
+
+`panel-fix-maximize-length-repaint` (PR open, awaiting independent review +
+`gh pr merge --rebase`): fixes the Phase 8 maximize-length repaint (stale
+frosted band when a masked dock shrinks off its maximized-window full width on
+Qt6 wayland). New pure core `app/view/inputmaskflush.h` (keep the union across
+a mask shrink, collapse once settled), `Effects` coalescing timer, a new
+`viewsData` field `appliedInputRegionRects`, `inputmaskflushtest` (SIGABRT
+tripwire on a naive setMask(band)), and `tests/e2e/070-maximize-length-mask.sh`.
+Ledger + desk-check steps: `docs/agent-logs/2026-07-18-maximize-length-repaint.md`.
+Plan item filed under Phase 8. DESK-CHECK owed to Bree: the "no frosted band"
+pixel confirmation on the real feature (the vehicle cannot flip
+existsWindowMaximized).
+
 ## NEXT SESSION ENTRY POINT (2026-07-17)
 
 Invoke `docs/prompts/multi-distro-ci-orchestrator-prompt.md`. The session
