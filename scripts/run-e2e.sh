@@ -111,7 +111,12 @@ start_vehicle() {
         KWIN_SCREENSHOT_NO_PERMISSION_CHECKS=1
         QT_FORCE_STDERR_LOGGING=1
     )
-    nested_kwin_start 1600 1000 latte-e2e-wl || exit 2
+    #! E2E_OUTPUT_COUNT defaults to 1: the vehicle is single-output unless a
+    #! multi-output front door (scripts/run-multi-output-e2e.sh) asks for more,
+    #! so every existing recipe keeps its one 1600x1000 output unchanged. The
+    #! dual-output vehicle (C-I2/P1) proves per-screen view placement.
+    export E2E_OUTPUT_COUNT="${E2E_OUTPUT_COUNT:-1}"
+    nested_kwin_start 1600 1000 latte-e2e-wl "$E2E_OUTPUT_COUNT" || exit 2
 
     export E2E_RT="$NESTED_RT"
     export E2E_KWIN_LOG="$NESTED_KWIN_LOG"

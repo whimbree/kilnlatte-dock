@@ -13,8 +13,16 @@
 #   source scripts/lib-nested-kwin.sh
 #   nested_kwin_prepare                     # creates the private runtime dir
 #   nested_kwin_env+=(VAR=VALUE ...)        # optional extra env for the session
-#   nested_kwin_start <width> <height> <socket>
+#   nested_kwin_start <width> <height> <socket> [output-count]
 #   trap nested_kwin_cleanup EXIT INT TERM  # caller owns the trap
+#
+# output-count defaults to 1 (a single <width>x<height> virtual output; the
+# byte-identical historical command line). >1 asks kwin_wayland for that many
+# virtual outputs (`--virtual --output-count N`, verified on the pinned kwin
+# 6.7.3), which the multi-output e2e vehicle (C-I2/P1) uses to prove per-screen
+# view placement. The outputs' connector NAMES are assigned by the compositor
+# and discovered at runtime (org.kde.LatteDock screensData / a KWin script),
+# never hardcoded.
 #
 # After nested_kwin_start:
 #   NESTED_RT        private XDG_RUNTIME_DIR of the session
@@ -42,7 +50,7 @@ nested_kwin_prepare() {
 # compositor inside its own dbus-run-session and wait for its socket.
 # Returns non-zero (after printing kwin's log) if the socket never appears.
 nested_kwin_start() {
-    local width="$1" height="$2" socket="$3"
+    local width="$1" height="$2" socket="$3" outputs="${4:-1}"
     NESTED_SOCK="$socket"
 
     # DISPLAY/XAUTHORITY are STRIPPED for the whole nested session: nothing in
@@ -54,13 +62,21 @@ nested_kwin_start() {
     #
     # The sh -c wrapper publishes the private bus address to $NESTED_RT before
     # exec'ing kwin (pid and process shape unchanged), so callers can put more
-    # clients on the same bus - see the one-bus note in the header.
+    # clients on the same bus - see the one-bus note in the header. The
+    # single-output branch ($5 <= 1) is the byte-identical historical command;
+    # only a multi-output request ($5 > 1) adds --output-count, so no existing
+    # single-output recipe changes.
     setsid env -u DISPLAY -u XAUTHORITY \
         XDG_RUNTIME_DIR="$NESTED_RT" KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
         "${nested_kwin_env[@]}" \
         dbus-run-session -- sh -c \
-        'printf %s "$DBUS_SESSION_BUS_ADDRESS" >"$1/bus-address"; exec kwin_wayland --virtual --width "$2" --height "$3" --no-lockscreen --socket "$4"' \
-        sh "$NESTED_RT" "$width" "$height" "$socket" >"$NESTED_KWIN_LOG" 2>&1 &
+        'printf %s "$DBUS_SESSION_BUS_ADDRESS" >"$1/bus-address";
+         if [ "$5" -gt 1 ]; then
+             exec kwin_wayland --virtual --output-count "$5" --width "$2" --height "$3" --no-lockscreen --socket "$4";
+         else
+             exec kwin_wayland --virtual --width "$2" --height "$3" --no-lockscreen --socket "$4";
+         fi' \
+        sh "$NESTED_RT" "$width" "$height" "$socket" "$outputs" >"$NESTED_KWIN_LOG" 2>&1 &
     NESTED_KWIN_PID=$!
 
     local _i
