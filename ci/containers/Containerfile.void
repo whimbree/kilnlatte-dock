@@ -1,0 +1,136 @@
+# SPDX-FileCopyrightText: 2026 Latte Dock contributors
+# SPDX-FileCopyrightText: 2026 Bree Spektor
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Void Linux build+gate environment for the multi-distro CI matrix
+# (docs/multi-distro-ci-plan.md, Phase A/B). Void is the minimalist
+# source/rolling nerd leg (xbps package manager): goldens rot as the repo
+# rolls, so it gates at the invariant+tolerance tier, not bit-exact (though
+# at the Mesa version below the text-free scenes happen to match the
+# nix-blessed lavapipe goldens bit-for-bit, same as Arch/Debian/Tumbleweed -
+# recorded, not relied on). This layer installs ONLY the build/runtime/gate
+# dependencies; the port itself is built by ci/build-and-gate.sh against a
+# bind-mounted or copied source tree, so this image is a cacheable deps-only
+# layer. It also seeds the future void-packages xbps template's build env
+# (Phase F5).
+#
+# Rolling base: this tracks the glibc-full :latest tag for the local
+# prototype loop; a Phase A3 snapshot pin is TBD for reproducible CI (same
+# open item as Arch/Tumbleweed - Void has no dated archive, so the pin would
+# be a digest). GLIBC image deliberately (musl is a separate axis, not this
+# pass). Floor is Plasma>=6.5 / Qt>=6.6 / KF6>=6.5; the versions OBSERVED at
+# image-build time (verified in-container 2026-07-17 via xbps-query -Rs) sail
+# well past it:
+#   Qt 6.11.1  /  KF6 6.25.0  /  libplasma + kwin 6.6.3  /  Mesa lavapipe 26.1.5
+FROM ghcr.io/void-linux/void-glibc-full:latest
+
+# xbps-install -Suy first syncs the remote index and updates the base image
+# (Void is rolling; the -full image's frozen packages are stale until this),
+# then the deps go in in one layer. The base glibc-full image ships no bash,
+# but the whole gate stack (build-and-gate.sh, gate-all.sh, the harness
+# scripts) is #!/usr/bin/env bash, so bash is a hard build dep here, not an
+# afterthought. rm -rf /var/cache/xbps keeps the deps layer small.
+#
+# Package-name notes vs the Arch leg (all Void-idiomatic, resolved by
+# xbps-query -Rs prototyping in the base image - no ng docker reference
+# exists for Void, so every name was verified against the live repo):
+#   - The KF6 frameworks are kf6-<name>-devel across the board (like
+#     Tumbleweed), but extra-cmake-modules is the bare name (NO kf6- prefix,
+#     unlike Tumbleweed's kf6-extra-cmake-modules).
+#   - Qt6 dev packages are qt6-<module>-devel; the Qt5Compat shim
+#     (Qt.labs / Qt5Compat.GraphicalEffects) is qt6-qt5compat-devel.
+#   - Qt private headers (the sceneprobe target links Qt6::GuiPrivate for
+#     rhi/qrhi.h) are split into qt6-base-private-devel (Arch bundles these
+#     in qt6-base; Void/Tumbleweed split them out).
+#   - qt6-declarative-host-tools carries qmlcachegen/qmlimportscanner under
+#     /usr/lib/qt6/libexec, which the build's QML module compilation needs
+#     (cmake finds them by absolute IMPORTED_LOCATION, so no PATH change).
+#   - libplasma is libplasma-devel; plasma-workspace/-activities/-stats and
+#     plasma5support keep those bare names + -devel (no version-numbered
+#     prefix, unlike Tumbleweed's plasma6-*).
+#   - KWayland is kf6-kwayland-devel (the KF6 client wrapper); the old
+#     kwayland-5.116 is the dead Qt5 one - do not pull it.
+#   - qqc2-desktop-style is the runtime QML style kf6-qqc2-desktop-style
+#     (a Kirigami runtime import, not a build-time find_package).
+#   - kwin (provides /usr/bin/kwin_wayland, the nested CI compositor) is the
+#     bare name kwin; kwin-x11 is a separate package we do not need.
+#   - lavapipe (CPU Vulkan) is mesa-vulkan-lavapipe; the loader is
+#     vulkan-loader (+ -devel for find_package(Vulkan)'s libvulkan.so and
+#     cmake config), headers are Vulkan-Headers, Khronos validation layers
+#     are Vulkan-ValidationLayers (note the Khronos CamelCase names).
+#   - noto fonts are noto-fonts-ttf; setcap ships in libcap-progs (NOT the
+#     bare libcap library package).
+#   - libsanitizer-devel is the gcc ASan/UBSan runtime + static preinit
+#     object (libasan_preinit.o, libasan.so, libubsan.so). Void SPLITS these
+#     out of the base gcc that base-devel pulls, where Arch/Debian/Tumbleweed
+#     bundle them. The step-2.5 law builds every unit test with
+#     -fsanitize=address,undefined (latte_add_unit_test), so without this the
+#     sanitized test targets fail to link ("cannot find -lasan /
+#     libasan_preinit.o") at [534/565] - a distro dep-split, not a source
+#     defect. Caught live in the Void container 2026-07-17.
+RUN xbps-install -Suy \
+    && xbps-install -y \
+        bash base-devel cmake ninja git pkg-config jq gettext libsanitizer-devel \
+        extra-cmake-modules \
+        qt6-base-devel qt6-base-private-devel qt6-declarative-devel \
+        qt6-declarative-host-tools qt6-wayland-devel qt6-qt5compat-devel \
+        qt6-shadertools-devel qt6-tools-devel qt6-svg-devel \
+        kf6-karchive-devel kf6-kcmutils-devel kf6-kconfig-devel \
+        kf6-kcoreaddons-devel kf6-kcrash-devel kf6-kdbusaddons-devel \
+        kf6-kdeclarative-devel kf6-kglobalaccel-devel kf6-kguiaddons-devel \
+        kf6-ki18n-devel kf6-kiconthemes-devel kf6-kio-devel kf6-kirigami-devel \
+        kf6-knewstuff-devel kf6-knotifications-devel kf6-kpackage-devel \
+        kf6-ksvg-devel kf6-kwindowsystem-devel kf6-kxmlgui-devel \
+        kf6-kitemmodels-devel kf6-solid-devel kf6-sonnet-devel \
+        kf6-ktextwidgets-devel kf6-kidletime-devel kf6-kdoctools-devel \
+        kf6-kservice-devel kf6-kwayland-devel kf6-qqc2-desktop-style \
+        libplasma-devel plasma-activities-devel plasma-activities-stats-devel \
+        plasma-workspace-devel plasma5support-devel kpipewire-devel \
+        libksysguard-devel plasma-pa \
+        plasma-wayland-protocols wayland-devel wayland-protocols \
+        layer-shell-qt-devel \
+        kwin vulkan-loader vulkan-loader-devel Vulkan-Headers \
+        Vulkan-ValidationLayers mesa-vulkan-lavapipe \
+        noto-fonts-ttf dbus libcap-progs rsync perl python3 ImageMagick \
+    && rm -rf /var/cache/xbps
+
+# kwin_wayland ships with cap_sys_nice=ep (the EFFECTIVE bit set). Podman's
+# default capability set excludes CAP_SYS_NICE, so execve of a file whose
+# effective caps aren't in the container bounding set fails EPERM
+# ("Operation not permitted") - the nested compositor never comes up. The
+# cap only lets kwin raise its scheduler priority, meaningless for a
+# throwaway headless CI compositor. Strip it (libcap-progs provides setcap)
+# so kwin execs under the default locked-down cap set and CI needs no
+# --cap-add. Same trap as the Arch (79a8008f0) and Tumbleweed legs; verified
+# present on Void's kwin build (getcap showed cap_sys_nice=ep before strip).
+RUN setcap -r /usr/bin/kwin_wayland 2>/dev/null || true
+
+# The nested-kwin harness (scripts/lib-nested-kwin.sh via the sceneprobe and
+# e2e drivers) and lib-qml-env.sh read these to find the DISTRO's lavapipe
+# ICD, Vulkan validation layers and framework QML tree instead of the nix
+# devShell's:
+#   - Void's lavapipe ICD manifest is arch-suffixed (lvp_icd.x86_64.json),
+#     like Tumbleweed, where Arch ships plain lvp_icd.json.
+#   - /usr/lib64 is a symlink to lib on Void x86_64, so the framework QML
+#     modules (kf6-kirigami etc.) resolve under the canonical
+#     /usr/lib/qt6/qml (Arch-style non-multiarch layout), NOT lib64.
+#     lib-qml-env.sh needs LATTE_QML_MODULE_PATH so scenes importing
+#     org.kde.* resolve.
+ENV LATTE_VULKAN_LAVAPIPE_ICD=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json \
+    LATTE_VK_LAYER_PATH=/usr/share/vulkan/explicit_layer.d \
+    LATTE_QML_MODULE_PATH=/usr/lib/qt6/qml
+
+# Void installs the Qt6 QML host tools qmllint and qmltestrunner under
+# /usr/lib/qt6/bin, which is NOT on the default PATH (qmlcachegen and
+# qmlimportscanner live in /usr/lib/qt6/libexec and are found by cmake via
+# absolute path, so the BUILD needs no PATH change; only the ctest QML gates
+# that call qmltestrunner/qmllint by bare name do). Adding a host-tool bin dir
+# to PATH does not shadow the build's Qt tools - cmake resolves moc/rcc/uic
+# from the Qt6 package's absolute IMPORTED_LOCATION, never PATH - so the blast
+# radius is limited to making the gate tools findable. (The qmllint RATCHET
+# gate stays a NixOS-tier merge gate: its baseline is calibrated to the pinned
+# qmllint and it deliberately refuses a foreign qmllint, so it is excluded
+# from the distro gate stage rather than run against Void's.)
+ENV PATH=/usr/lib/qt6/bin:${PATH}
+
+WORKDIR /src
