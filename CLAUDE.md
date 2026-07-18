@@ -160,11 +160,17 @@ ff-merged locally without ever opening a PR - that shortcut is banned.)
 EVERY major feature lands as its own GitHub PR. A major feature is any
 code landing beyond a docs tick or a one-line fix: a new subsystem, a
 harness, a defect fix with its test, a transplant wave, a phase's worth
-of work. The flow is: branch off master -> push to origin
+of work. The flow is: branch off main -> push to origin
 (whimbree/lattecotta-dock) -> open a real PR (`gh pr create`, installed
 via `nix run nixpkgs#gh --`) -> independent review (below) -> merge via
-the PR. Do not local-ff-and-push a feature straight to master; the PR
+the PR. Do not local-ff-and-push a feature straight to main; the PR
 is the reviewable unit and the record.
+
+The trunk branch is `main` (renamed from `master` 2026-07-18 via GitHub's
+branch-rename, which retargeted open PRs and moved the default). Historical
+references to "master" in this file and the plan/handoff docs mean the same
+trunk before the rename; the KDE plasma-desktop `?ref=master` below is a
+DIFFERENT repo and stays master.
 
 Merge mechanics: the bisectable small-commit discipline lives INSIDE
 the branch - never squash-merge, it destroys the bisection tool. LAND
@@ -179,13 +185,13 @@ use `gh pr merge --rebase` - GitHub performs the merge, the PR is ALWAYS
 marked MERGED, and history stays linear (bisection intact). The tradeoff
 is GitHub REWRITES the commit shas (the 2bba6cb8b/PR #1 lesson), so
 re-resolve every plan/handoff hash the branch filed at merge time and
-`git fetch && git reset --hard origin/master` to re-sync local master.
-Flow per PR: review -> rebase the branch onto current master locally
+`git fetch && git reset --hard origin/main` to re-sync local main.
+Flow per PR: review -> rebase the branch onto current main locally
 (resolve conflicts, fix plan-tick hashes) -> gate-all green on the
 rebased head (a real gate for code; the docs+Containerfile-only
 distro-leg case may reuse the branch's gate) -> push the rebased branch
 -> `gh pr merge --rebase` -> fetch. Never squash. gate-all.sh green on
-the branch head before the PR opens and again at merge if master moved
+the branch head before the PR opens and again at merge if main moved
 (the pre-push hook enforces the stamp on every code push, any branch;
 --no-verify is a deliberate act you explain, e.g. a Containerfile-only
 leg whose port code is already gated). Plan checkboxes get their final
