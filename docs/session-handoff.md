@@ -1,25 +1,69 @@
 # Session handoff
 
 Rolling handoff for the next session to pick up without re-deriving context.
-Last updated 2026-07-17 (multi-distro CI: Arch A/B/B2 proven; orchestrator
-direction set for the rest).
+Last updated 2026-07-17 (multi-distro CI: Wave A + B2 MERGED to master;
+Wave B in flight; orchestrator driving).
 
 ## NEXT SESSION ENTRY POINT (2026-07-17)
 
-Invoke `docs/prompts/multi-distro-ci-orchestrator-prompt.md`. The next
-session drives as an ORCHESTRATOR: it owns the shared scaffold + serial
-merges and FARMS chunks to capable Opus worktree subagents (one distro leg
-/ packaging format / the B2 productionization per agent, batched at the
-4-subagent cap), merging each returned branch serially through gate-all ->
-independent lean Opus review -> ff-merge. First shared piece (the B2 gate
-productionization) is DONE on branch multi-distro-ci-b2-gate: the reusable
-gate stage runs full green in-container (build -> ctest -> fakepointer ->
-sceneprobe -> seed -> e2e agnostic subset). Next: Wave A
-(fedora / opensuse Tumbleweed / debian sid) in parallel, Wave B (neon /
-gentoo / void), then Phases C-G. Arch is the proven template; the four
-portability fixes already landed mean new legs should mostly just build.
+Invoke `docs/prompts/multi-distro-ci-orchestrator-prompt.md`. The session
+drives as an ORCHESTRATOR: it owns the shared scaffold + serial merges and
+FARMS chunks to capable Opus worktree subagents (one distro leg / packaging
+format per agent, batched at the 4-subagent cap), merging each returned
+branch through gate-all -> independent lean Opus review -> ff-merge.
+STATE @ master f4db9b558: B2 gate stage productionized (PR #13) AND Wave A
+(Debian PR #11, openSUSE PR #12, Fedora PR #14) all landed. FIVE distros now
+build + render in-container (Arch, Debian, openSUSE, Fedora + the NixOS dev
+tier). Fedora is the FIRST tolerance tier (LLVM 21 vs 22, Δ=2) - concrete
+proof of the graduated-rigor premise; Arch/Debian/openSUSE stayed bit-exact.
+Wave B (neon / void / gentoo) is IN FLIGHT (3 worktree agents). NEXT after
+Wave B lands: Phase C (per-distro golden tiers - Fedora's Δ=2 forces the
+tolerance-tier axis now), Phase D (CI workflow - collect DECISION 6/2),
+Phase E (v0.12.0 - DECISION 5), Phase F (packaging swarm - DECISION 7/8).
+Merge mechanic learned: the gate stamp (build/_gates-passed) is per-worktree
+and does NOT travel with a merge, so the MAIN worktree must run gate-all
+before every push; BATCH reviewed branches (rebase onto master, resolve the
+always-conflicting plan doc, one gate-all, one push) to amortize the heavy
+gate run and dodge the cross-worktree nix flake race. Rebased PRs don't
+auto-close - close them with a landed-commit comment (#12/#13/#14 done so).
 The execution prompt (multi-distro-ci-execution-prompt.md) still holds the
 standing mission/context; the orchestrator prompt changes only HOW.
+
+## 2026-07-17 multi-distro CI: WAVE A + B2 LANDED (master f4db9b558)
+
+The orchestrator dispatched B2 + three Wave A legs in parallel (4-agent
+cap), reviewed each with an independent cold-context lean Opus agent (all
+MERGE), and landed them as one rebased batch behind a single gate-all
+(GATES: ALL OK @ f4db9b558, exit 0). Contents, all bisectable on master:
+- B2 gate productionization (PR #13): ci/build-and-gate.sh gate stage
+  un-stubbed, distro-agnostic (fakepointer XML via pkg-config->ENV,
+  LATTE_QML_MODULE_PATH asserted as a container contract, seed a default
+  layout in a nested kwin, sceneprobe + e2e). Runs full green on Arch:
+  build -> ctest 80/80 -> fakepointer -> sceneprobe 13/13 -> seed -> e2e
+  6/6. Real defect fixed: EXIT 143 from the errexit-unsafe nested-kwin
+  cleanup, `set +e` scoped to the seed subshell with explicit checks kept.
+  Also landed the PR #9/#10 nits (run-staged $HOME guard, qml-interaction
+  QMLDIR guard). e2e hard set = 6 recipes; 5 deferred+filed (konsole app_id
+  resolves bare in a bare container -> 020/040/parabolic; empty launcher
+  app_ids -> 050; duplicate-view-idremap = a libplasma removeView
+  layout-flush divergence, a REAL bug to root-cause on Arch).
+- Debian testing (PR #11): builds 565/565, sceneprobe bit-exact. Found +
+  fixed a real libplasma VERSION-SKEW: askdestroysignalorderingtest was
+  pinned to the 6.7 widened-guard contract, but the 6.5 floor + Debian's
+  6.6.5 need the pre-6.7 shape - now gated on #if PLASMA_VERSION >= 6.7.0
+  (NixOS 6.7.3 branch unchanged, merge gate untouched).
+- openSUSE Tumbleweed (PR #12): builds 565/565, sceneprobe bit-exact, zero
+  source change. Trap: qt6-base-private-devel split; Qt QML tooling off PATH.
+- Fedora 43 (PR #14): builds 565/565, sceneprobe renders but Δ=2 TOLERANCE
+  (LLVM 21.1.8) - the first tolerance-tier leg, the graduated-rigor proof.
+  Traps: qt6-qtbase-private-devel + libasan/libubsan splits (build deps).
+Cross-cutting for Phase C/D + Wave B: qmllintgate is a NixOS-tier ratchet
+(distro gate excludes it); Qt QML host tools live off default PATH on
+Fedora/openSUSE/Debian (bindir added to image PATH; a qtpaths6-aware gate
+script is a follow-up); all distro sceneprobe on LLVM 22 stayed bit-exact,
+LLVM 21 (Fedora) is Δ=2 -> Phase C must decouple render DEVICE from golden
+TIER. Ledgers: docs/agent-logs/2026-07-17-{b2-gate-productionization,
+debian-leg,opensuse-leg,fedora-leg}.md.
 
 ## 2026-07-17 multi-distro CI Phase B2: GATE STAGE PRODUCTIONIZED (branch multi-distro-ci-b2-gate)
 
