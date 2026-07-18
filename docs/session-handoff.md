@@ -87,18 +87,36 @@ E2E INTERACTION SUITE (docs/e2e-interaction-test-plan.md, on master): 196
 scenarios (~106 novel), abort first-class, readback-first (goldens only where no
 readback exists), full-dual-display matrix, tier-1-in-gate-all + full-periodic.
 Both HC gates passed at review (HC1 panel-alignment degeneracy, HC3 rejection
-acceptance per driver). SWARM WAVE 1 in flight: C-I1 (harness backbone, root
-dep), C-I10 (fakepointer key injection), C-I3 (addApplet + applet-id readback);
-C-I4/C-I5 serialized behind C-I3 (shared D-Bus files). 28 chunks, 4 waves, max 4
-agents. Widget-explorer DND (C-I9/P8) is EXPECTED DOABLE in the nested vehicle
-(Bree directive - the old "GUI CI vm" defer note was stale).
+acceptance per driver). Adversarial abort matrix (PR #31) enriched A1-A6 with
+code-grounded wrong-place/off-dock/timing scenarios (T1-T5 targets, DR-1..DR-6
+driver needs) and found real bugs (D1-D3 in known-defects). E2E INFRA LAYER
+COMPLETE (all merged): C-I1 harness backbone (#30) + residue-detector hardening
+across every strand surface incl lattedockrc (#35); C-I2 multi-output vehicle +
+screensData readback, O7 retired (#34); C-I3 addApplet+G1 (#29); C-I4
+removeApplet+G3 drop-marker (#32); C-I6 golden bridge at Tolerance tier (#33);
+C-I10 fakepointer key verb (#28). REMAINING SWARM: infra C-I5 (moveViewToScreen),
+C-I7 (applet-reorder + z), C-I8 (task-reorder), C-I9 (widget-explorer DND, EXPECTED
+DOABLE in the vehicle per Bree); then scenario chunks C-S1..C-S12 + abort chunks
+C-A1..C-A8 (30 chunks total). Widget-explorer DND is not deferred - the old "GUI CI
+vm" note was stale.
 
-OPEN: Job C (panel matrix) is likely SUBSUMED by the e2e suite - reconcile;
-UB Prong B2 (boundary sweep, now seeded by A3's two vptr finds); the on-disk
-splitterPosition write-back caveat (justify repairs at every load, panel always
-correct, corrected value not yet persisted to the layout file - small follow-up);
-a docs testing-infra accuracy pass in flight (PORTING_PLAN/README/TESTING.md,
-correcting stale "infra not there yet" claims).
+GATE SPLIT (2026-07-18): LATTE_GATE_FAST=1 skips the ~30-min asan-e2e-gate on a
+swarm BRANCH gate (it exceeds a subagent's per-tool budget); the orchestrator runs
+asan-e2e-gate at MERGE time on the rebased head before merging a dock-code PR.
+
+DEFECTS REGISTRY (docs/known-defects.md, 2026-07-18): the flat found-bugs index
+D1-D14; CLAUDE.md now requires filing there + PERIODIC governing-doc review. VOICE
+(2026-07-18): impersonal, no first-person pronouns in committed content. D14 OPEN:
+46 invalid-color qCriticals at startup (the colorBrightness guard is correct; a QML
+site hands it an invalid QColor before the theme resolves) - fix in flight.
+
+OPEN: Job C (panel matrix) SUBSUMED by the e2e suite - reconcile/close; UB Prong B2
+(boundary sweep, seeded by A3's two vptr finds); the splitterPosition write-back
+caveat (small follow-up); the maximize-length desk-check owed to Bree (dock is on
+the fixed build now); the residue-detector nits (N1 unquoted glob in
+matrix_surface_list, N2 unescaped MATRIX_VOLATILE_EXTRA regex) + the #28 fakepointer
+nits + the #33/#34 first-person commit-body wording, to fold in at the next touch /
+pre-PR cleanup.
 
 ## UB-catching initiative (parallel track, docs/ub-catching-plan.md)
 
