@@ -98,6 +98,12 @@ target_link_libraries(positionergeometrytest
     Qt6::Gui
     Plasma::Plasma)
 
+# InputMaskFlush (app/view/inputmaskflush.h): the pure "what region to hand
+# QWindow::setMask" decision that keeps the window mask wide across a band
+# shrink so Qt6 wayland does not clip the vacated region's clearing damage.
+# Header-only, QRect-only; Qt6::Test brings QtCore.
+latte_add_unit_test(inputmaskflushtest)
+
 # EX-23 WindowTrackingPredicates + ExtraViewHints: two header-only cores,
 # one spec. The predicates test needs windowinfowrap's types (Qt Gui);
 # the hints test needs the Plasma location enum.
