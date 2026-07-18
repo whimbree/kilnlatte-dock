@@ -1,10 +1,10 @@
 /*
     SPDX-FileCopyrightText: 2019 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
 import QtQuick 2.7
-import QtQuick.Controls 2.15 as QQC2
 import QtQuick.Layouts 1.1
 
 import org.kde.plasma.core 2.0 as PlasmaCore
@@ -112,9 +112,6 @@ Item{
         anchors.fill: visibleButtonRoot
         opacity: 0
 
-        QQC2.ToolTip.text: button.tooltip
-        QQC2.ToolTip.visible: hovered && button.tooltip.length > 0
-
         //! Screen-reader surface (Phase 10 AT-SPI rollout): this invisible
         //! button is the real click target, so it announces the drawn chip -
         //! visible text as name, tooltip as description, checked mirroring
@@ -141,5 +138,81 @@ Item{
         }
 
         onPressedChanged: button.pressedChanged(pressed)
+    }
+
+    //! The hint the buttons carry deliberately renders INSIDE this window as
+    //! a plain Rectangle, never as an attached QQC2.ToolTip. On Wayland a
+    //! QQC2.ToolTip maps its OWN popup surface at the cursor, and in a cramped
+    //! edit-mode header that surface lands directly over the button and eats
+    //! the click - the "Rearrange..." toggle went unclickable whenever space
+    //! was tight (caught live on a top panel, 2026-07-17). This is the same
+    //! defect family the edit-handle flicker and the wheel-hint chip already
+    //! retired: containment ConfigOverlay.qml and CanvasConfiguration.qml both
+    //! ban per-control QQC2.ToolTip and draw the hint in-window instead. A
+    //! Rectangle+Label carries no input handler, so it is pointer-transparent:
+    //! it shows over the button yet the press falls straight through to
+    //! tooltipBtn beneath it. Don't re-add a QQC2.ToolTip here.
+    Rectangle {
+        id: hintChip
+        objectName: "buttonHintChip"
+        z: 10
+        visible: opacity > 0
+        opacity: (hintDwell.dwellCompleted && tooltipBtn.hovered && button.tooltip.length > 0) ? 1 : 0
+
+        //! sits just past the button chip toward the header interior; the
+        //! header rotates for vertical docks, so button-local "below" tracks
+        //! the correct visual side automatically
+        anchors.horizontalCenter: visibleButtonRoot.horizontalCenter
+        anchors.top: visibleButtonRoot.bottom
+        anchors.topMargin: Kirigami.Units.smallSpacing
+
+        width: hintLabel.width + 4 * Kirigami.Units.smallSpacing
+        height: hintLabel.height + 2 * Kirigami.Units.smallSpacing
+        radius: Kirigami.Units.smallSpacing
+        color: Kirigami.Theme.backgroundColor
+        border.width: 1
+        border.color: Qt.rgba(Kirigami.Theme.textColor.r,
+                              Kirigami.Theme.textColor.g,
+                              Kirigami.Theme.textColor.b,
+                              0.3)
+
+        Behavior on opacity {
+            NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+        }
+
+        //! Plasma's tooltip dwell: the hint only appears once the pointer has
+        //! rested on the button, so the brief hover bounces the compositor
+        //! sends while the edit-mode input mask re-carves never flash it. Same
+        //! guard the wheel-hint chip uses.
+        Timer {
+            id: hintDwell
+            objectName: "buttonHintDwell"
+            property bool dwellCompleted: false
+            interval: Kirigami.Units.toolTipDelay
+            running: tooltipBtn.hovered && !dwellCompleted
+            onTriggered: dwellCompleted = true
+        }
+
+        Connections {
+            target: tooltipBtn
+            function onHoveredChanged() {
+                if (!tooltipBtn.hovered) {
+                    hintDwell.dwellCompleted = false;
+                }
+            }
+        }
+
+        PlasmaComponents.Label {
+            id: hintLabel
+            anchors.centerIn: parent
+            //! the rearrange hint is a full sentence; cap the chip width and
+            //! wrap so it never grows into a screen-wide stripe
+            width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 16)
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+            text: button.tooltip
+            textFormat: Text.PlainText
+            color: Kirigami.Theme.textColor
+        }
     }
 }
