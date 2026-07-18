@@ -16,20 +16,37 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 
 ## Open / suspected
 
-### D1 - Aborted task-reorder does not revert
-- STATUS: SUSPECTED (found by adversarial code-reading; the C-A3 abort scenario
-  will confirm).
+### D1 - Aborted task-reorder does not revert (Qt5-faithful live-move model)
+- STATUS: ACCEPTED (resolved from SUSPECTED 2026-07-18; confirmed live and ruled
+  Qt5-faithful, not a Qt6 regression - the C-I8/P7 task-reorder driver
+  acceptance).
 - FOUND: 2026-07-18, adversarial abort design (PR #31).
 - SYMPTOM: dragging a task across a neighbour commits the reorder immediately;
-  Escape or release-back does NOT revert it. Only a zero-cross drag is a true
-  no-op.
-- EVIDENCE: plasmoid/package/contents/ui/taskslayout/MouseHandler.qml:184 -
-  tasksModel.move() is called live inside onDragMove.
-- DISPOSITION PENDING: is this Qt5-faithful (KDE's TasksModel is a live-move
-  model with no transactional revert) or a Qt6 regression? Qt5 Latte is the spec
-  (CLAUDE.md working agreement) - check its aborted-task-drag behaviour before
-  deciding FIX vs ACCEPTED. The C-A3 scenario asserts whatever is decided; if
-  revert is intended, it stays RED until fixed.
+  neither Escape nor a release-back reverts it. Only a drag that never crosses a
+  neighbour's midpoint is a true no-op.
+- EVIDENCE (live, tests/e2e/092-task-reorder.sh in the nested vehicle): a plain
+  crossed drag and an Escape-held crossed drag (fakepointer `dragkey`, the key
+  injected WITH the pointer button still held) landed the IDENTICAL crossed
+  order - the committed move SURVIVED Escape; and a reverse-jitter returned to
+  the exact origin still left the task moved (release-back does not revert
+  either). A zero-cross hold-noop, by contrast, left the order AND the launchers
+  config key byte-unchanged (the true no-op). Mechanism: tasksModel.move() runs
+  LIVE inside onDragMove (MouseHandler.qml:184); the drag is a real compositor
+  drag (dragHelper Drag.dragType Automatic -> QDrag/wl_data_device, main.qml:831)
+  so Escape DOES cancel the drag, but dragHelper.Drag.onDragFinished only resets
+  z and clears dragSource (main.qml:833) - nothing reverts the model move, and
+  onDrop for an internal move is LeaveUnchanged (dropclassifier.h:263).
+- DISPOSITION: Qt5-faithful, so ACCEPTED (not fixed). KDE's TasksModel is a
+  live-move model with no drag transaction to revert, and BOTH reference forks
+  carry the identical live pattern (latte-dock-ng MouseHandler.qml:296,
+  latte-dock-qt6 MouseHandler.qml:180: tasksModel.move inside onDragMove, z=100,
+  ignoreItemTimer). The C-A3 abort scenario therefore asserts the ACTUAL
+  contract - a zero-cross is a true no-op (order + launchers key byte-unchanged),
+  a crossed drag lands the NET crossings and does not revert - which is GREEN,
+  not a standing RED for a wished revert. The 200ms ignoredItem timer
+  (MouseHandler.qml:50) suppresses an immediate reverse re-cross, so a
+  return-to-origin nets one crossing unless the reversal re-crosses after the
+  timer expires.
 
 ### D2 - ConfigOverlay applet drops from appletOrder on edit-exit mid-drag
 - STATUS: SUSPECTED (adversarial code-reading; C-A2 will confirm).
