@@ -787,7 +787,17 @@ void GenericLayout::containmentDestroyed(QObject *cont)
         return;
     }
 
-    Plasma::Containment *containment = static_cast<Plasma::Containment *>(cont);
+    //! reinterpret_cast, not static_cast: this runs inside the containment's
+    //! destroyed(QObject*) handler, where every derived destructor has already
+    //! run and the object's dynamic type has decayed to QObject - a static_cast
+    //! downcast reads the (now-QObject) vptr to validate the cast and is
+    //! undefined behaviour (UBSan -fsanitize=vptr aborts here in the sanitized
+    //! build). The pointer is used ONLY for identity below (indexOf, and the
+    //! Plasma::Containment*-keyed m_latteViews/m_waitingLatteViews lookups);
+    //! pointer identity survives destruction and needs no vtable, so a bit
+    //! reinterpretation is both correct and vptr-clean. Same destroyed()-handler
+    //! demotion family as the location()-reads-freed-memory note below.
+    Plasma::Containment *containment = reinterpret_cast<Plasma::Containment *>(cont);
 
     if (containment) {
         int containmentIndex = m_containments.indexOf(containment);
