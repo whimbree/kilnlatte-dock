@@ -31,18 +31,33 @@ sanitizer AFTER it. UB-catching therefore needs TWO prongs.
 
 ## Prong A - a sanitized dock build, runnable and gated
 
-- [ ] A1 CMake option `-DLATTE_SANITIZE=ON` (default OFF) that compiles the
+- [x] A1 CMake option `-DLATTE_SANITIZE=ON` (default OFF) that compiles the
       dock and its libs (app/, containment/plugin/, declarativeimports/) with
       `-fsanitize=address,undefined -fno-sanitize-recover=all` + link, and
       `QT_FORCE_ASSERTS`, so OUR Q_ASSERTs go live and OUR-code UB aborts with
       a stack. Factor the flag set shared with `latte_add_unit_test` so there
       is one source of truth. The normal build MUST stay unchanged when OFF
-      (blast radius: verify gate-all green with the option absent). Commits:
-- [ ] A2 A build-asan tree + a launch mode: a script (or `LATTE_RUN_WRAPPER`
+      (blast radius: verify gate-all green with the option absent).
+      Commits: (ub-sanitize-build branch; final hashes at merge)
+      Top-level CMakeLists defines LATTE_SANITIZE_FLAGS once (shared with
+      tests/units/CMakeLists.txt) and, when LATTE_SANITIZE=ON, adds them as
+      compile+link options plus QT_FORCE_ASSERTS at directory scope. OFF is
+      byte-unchanged (block skipped); proven by gate-all green with OFF. See
+      docs/agent-logs/2026-07-18-ub-sanitize-build.md.
+- [x] A2 A build-asan tree + a launch mode: a script (or `LATTE_RUN_WRAPPER`
       analogue) to run the sanitized dock in the NESTED VEHICLE only (never
       the real session), with the ASan/UBSan options set to abort-and-log.
       Prove it catches a known UB (inject a temporary one, confirm the abort +
-      stack, remove it). Commits:
+      stack, remove it).
+      Commits: (ub-sanitize-build branch; final hashes at merge)
+      build-asan tree (-DLATTE_SANITIZE=ON -DBUILD_TESTING=OFF); nested launcher
+      scripts/run-asan-dock.sh (BUILD=build-asan -> run-e2e vehicle) and a LIVE
+      launcher for Bree's manual desk testing scripts/start-dock-sanitized.sh
+      (build-asan against --user-config, detect_leaks=0, log_path, suppressions
+      scripts/asan/{asan,ubsan}.supp). Proven: sanitized dock runs clean in the
+      vehicle (0 sanitizer output at startup) and ABORTS with a symbolized stack
+      on an injected heap OOB (app/main.cpp:159, since removed). Ledger:
+      docs/agent-logs/2026-07-18-ub-sanitize-build.md.
 - [ ] A3 Wire the sanitized dock into a driven gate: run the e2e /
       sceneprobe nested scenarios against the build-asan dock so UB in
       integration paths fails CI (halt_on_error, first-finding abort).

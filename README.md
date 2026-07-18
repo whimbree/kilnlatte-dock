@@ -163,7 +163,12 @@ baseline that only shrinks, and a coverage ratchet that makes untested
 cores un-mergeable. Feel-critical changes (the parabolic engine,
 the preview pipeline) additionally get live verification on a running
 Wayland session with injected pointer glides and screenshot comparison
-before they merge. [docs/TESTING.md](docs/TESTING.md) carries the
+before they merge. The whole dock and its plugins can also be built
+with ASan+UBSan and live Q_ASSERTs on demand (a `-DLATTE_SANITIZE`
+build, off by default), then driven either in the nested compositor or
+against the real session, so undefined behavior and tripped invariants
+in the running dock abort with a stack instead of misbehaving silently.
+[docs/TESTING.md](docs/TESTING.md) carries the
 standard; [docs/session-handoff.md](docs/session-handoff.md) carries the
 current working state.
 
