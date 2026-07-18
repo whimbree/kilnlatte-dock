@@ -412,7 +412,7 @@ a success.
       REFUSED with a qWarning and the view stays put (readback unchanged),
       proven as a rejection.
       Commits:
-- [ ] **P6 Applet-reorder driver (commit + abort).** Blocks F3/A2. Generalize
+- [x] **P6 Applet-reorder driver (commit + abort).** Blocks F3/A2. Generalize
       `050` to APPLETS in rearrange mode; drag axis edge-driven (horizontal
       top/bottom, VERTICAL left/right - the buggy path). Abort via drop-at-origin
       or Escape (P9). Add a `z`/stacking readback to `viewAppletsData` (HC2
@@ -422,8 +422,25 @@ a success.
       not cross a neighbor leaves order unchanged - reported as "no reorder",
       NOT success) and an ABORTED reorder (order restored) AS negatives, using
       the `viewAppletsOrder` + z readbacks. Depends on P0.
-      Commits:
-- [x] **P7 Task-reorder driver + window-task order readback (commit + abort).**
+      Landed: the reusable driver is `tests/e2e/matrix/applet-reorder-driver.sh`
+      (enter/exit rearrange, order/z readbacks, `applet_reorder_attempt` +
+      `applet_reorder_glide`/`_glide_to` with the commit/origin/noop/jitter/
+      escape/occupied/overflow modes, the `matrix_verb_appletreorder` hookup).
+      The rearrange sub-mode is transient with no config path, so the driving
+      surface is a NEW coarse D-Bus action `setViewConfiguringApplets(u,b)`
+      (flips the HeaderSettings rearrange toggle; refused when the view is not in
+      edit mode - the action's own observes-a-rejection self-test). G2 `z` added
+      to `viewAppletsData` (below). The DR-6 escape-in-held-drag rides the
+      fakepointer `dragkey <keysym> ...` verb (taps the key while the button is
+      held, one connection; landed on main via C-I8). HC3 acceptance
+      `tests/e2e/100-applet-reorder.sh` PASSES on BOTH axes: a committed reorder
+      changes the order; a no-op drag is reported AS a refusal (rc 3, NOT
+      success); a release-at-origin abort restores the order with no strand; and
+      the DR-6 escape observation caught Escape's REAL effect - it exits edit
+      mode and STRANDS the applet at z=900 (G2: `STRANDED 40@z900`/`52@z900`),
+      confirming D2 live (never assumed a cancel).
+      Commits: (C-I7 branch; final hashes at PR merge)
+- [ ] **P7 Task-reorder driver + window-task order readback (commit + abort).**
       Blocks F4/A3. Extend `050` launcher reorder into a reusable driver AND
       cover the DISTINCT window-task sub-model. Launcher order readback exists
       (`viewTasksData` `launcherUrl`, persists to the `launchers` key). Confirm
@@ -1193,7 +1210,13 @@ merge --rebase`, re-resolve hashes, fetch).
       `e2e_assert_golden`/`e2e_screenshot_crop`), `latte-imgdiff --tier`,
       `matrix_frame_equals_baseline` hook live, `tests/e2e/090-golden-bridge-selftest.sh` (HC3).
       Commits: (C-I6 branch; final hashes at PR merge)
-- [ ] **C-I7 = P6** applet-reorder driver + `z`/stacking readback (commit+abort). Commits:
+- [x] **C-I7 = P6** applet-reorder driver + `z`/stacking readback (commit+abort).
+      `tests/e2e/matrix/applet-reorder-driver.sh` (driver + matrix verb),
+      `tests/e2e/100-applet-reorder.sh` (HC3, both axes), the G2 `z` field in
+      `viewAppletsData` (app/dbusreports.{h,cpp} + dbusreportstest + docs), the
+      `setViewConfiguringApplets` D-Bus action (rearrange driving surface; XML +
+      corona + docs). DR-6 rides the `dragkey` fakepointer verb (on main via
+      C-I8). Found+confirmed D2 live (docs/known-defects.md). Commits: (C-I7 branch; final hashes at PR merge)
 - [x] **C-I8 = P7** task-reorder driver + window-task readback (commit+abort).
       `tests/e2e/matrix/task-reorder-lib.sh` (driver, launcher+window sub-models
       via appId), fakepointer `dragkey` verb (DR-6 escape-in-held-drag), G4
@@ -1291,9 +1314,19 @@ lands in the three required places + `dbusreportstest`):**
       agree, via the pure `DbusReports::appletIdOrder` helper (pinned by
       `dbusreportstest`); the e2e recipe asserts the two order readbacks match.
       Commits: (branch worktree-agent-a102bc9cfc620c8c0; final hashes at PR merge)
-- [ ] G2 `z`/stacking order in `viewAppletsData` (and `viewTasksData`). Retires
-      the stuck-over-chrome golden for F3/F4/A2/A3 (`480ae30e3` residue becomes
-      queryable). (In C-I7/P6.) Commits:
+- [x] G2 `z`/stacking order in `viewAppletsData`. Retires the stuck-over-chrome
+      golden for F3/A2 (`480ae30e3` residue becomes queryable). (In C-I7/P6.)
+      Landed as a `z` field on each applet record in `viewAppletsData`: the
+      applet's AppletItem DELEGATE z (not the inner AppletQuickItem's - the
+      delegate is what ConfigOverlay lifts to z=900 during a drag), read via the
+      splitter-marker-unique `isInternalViewSplitter` parent-walk in
+      `collectAppletsData`. 0 at the layout default; >=900 = stranded over
+      chrome. Pinned by `dbusreportstest` (`appletZReportsStackingResidue` +
+      the record serialization/keyset) and demonstrated live by
+      `tests/e2e/100-applet-reorder.sh` (it queried a real z=900 strand after an
+      escape-in-held-drag). No `viewTasksData` z here - the task-order z-residue
+      (`dragSource.z=100`) is C-I8/P7's leg (it owns `viewTasksData`).
+      Commits: (C-I7 branch; final hashes at PR merge)
 - [x] G3 live drop-marker / `dndSpacerIndex` state readback. Retires the
       half-inserted-placeholder golden for A1/A2 - the direct `insert(-1)`
       observability. (In C-I4/P4.) Landed as `viewDropMarkerIndex(u) -> i`:

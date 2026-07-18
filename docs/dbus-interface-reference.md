@@ -67,9 +67,11 @@ true with `isOffScreen`), what the compositor was told to reserve.
 ```bash
 call viewAppletsData u 1               # s: JSON array per applet, in visual order
 #   id, plugin, index, geometry, isExpanded, inScheduledDestruction,
-#   lockedZoom, colorizingBlocked
+#   lockedZoom, colorizingBlocked, z
 #   id is the stable Plasma INSTANCE id: two applets of the same plugin
 #   are distinguishable by id and their order is unambiguous (G1)
+#   z is the delegate STACKING order (G2): 0 at rest, 900 while ConfigOverlay
+#   drags it; an applet left >=900 is stranded over the edit chrome (residue)
 call viewTasksData u 1                 # s: JSON array per task entry (tasks views; else [])
 #   index, appletId, appId, launcherUrl, isLauncher, isGrouped,
 #   childCount, isActive, isMinimized, demandsAttention, badge,
@@ -120,6 +122,11 @@ call setViewVisibilityMode us 1 "dodgeActive"   # the settings combo; names as v
 call setViewKeyboardNavigation ub 1 true        # enter/leave keyboard navigation (what Meta+Alt+D
                                                 # toggles); readback: viewsData keyboardNavigation.
                                                 # false is always safe: exits are idempotent
+call setViewConfiguringApplets ub 1 true        # enter/leave the applet-REARRANGE sub-mode (what the
+                                                # settings header rearrange button toggles); the ConfigOverlay
+                                                # drag machinery needs it. Refused loudly if view 1 is NOT in
+                                                # edit mode first (open it with setViewEditMode). Readback:
+                                                # viewsData inConfigureAppletsMode. false is always safe
 call activateTaskAt ui 1 3             # what Meta+3 does on view 1: 1-BASED visual entry
                                        # index (badges' numbering); active task toggles
                                        # (minimize), launcher-only entries launch

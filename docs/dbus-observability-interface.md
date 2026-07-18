@@ -77,13 +77,21 @@ Landed before or during the 2026-07-16 stabilization session:
   exactly the stranded bits).
 - `viewAppletsData(u containmentId) -> s` (JSON array, in visual order).
   Per applet: id, plugin, index in layout, geometry within the view,
-  expanded state, inScheduledDestruction, lockedZoom, colorizingBlocked.
-  The per-applet `id` is the stable Plasma instance id, so two applets
-  of the SAME plugin are distinguishable by id and their order is
-  unambiguous (the G1 disambiguation readback,
+  expanded state, inScheduledDestruction, lockedZoom, colorizingBlocked,
+  z (stacking order). The per-applet `id` is the stable Plasma instance
+  id, so two applets of the SAME plugin are distinguishable by id and
+  their order is unambiguous (the G1 disambiguation readback,
   docs/e2e-interaction-test-plan.md - retires the same-plugin ambiguity
-  in the F2/F3/A1/A2 add/reorder/abort scenarios). Supersedes
-  viewAppletsOrder for rich asserts.
+  in the F2/F3/A1/A2 add/reorder/abort scenarios). The `z` field (added
+  2026-07-18 with the applet-reorder driver, C-I7/P6) is the G2 stacking
+  readback: the applet's AppletItem delegate z, 0 at the layout default
+  and lifted to 900 by ConfigOverlay while a reorder drags it. An abort
+  that strands the dragged applet over the edit chrome (the 480ae30e3
+  "icons stuck over chrome" residue class, e.g. an edit-exit mid-drag)
+  shows here as a delegate left at z>=900, so the residue is queryable
+  instead of golden-only (D2 in docs/known-defects.md was confirmed live
+  through exactly this field). Supersedes viewAppletsOrder for rich
+  asserts.
 - `viewAppletsOrder(u containmentId) -> as`: the cheap companion to
   viewAppletsData - the same applets' instance ids (NOT plugin strings)
   in visual order. Justify-splitter sentinels (JUSTIFYSPLITTERID = -10,
@@ -162,6 +170,18 @@ Landed before or during the 2026-07-16 stabilization session:
   drives, targeted at one view; the test surface for the mode, since
   kglobalaccel invokes race registration inside the nested vehicle.
   Readback: viewsData()'s keyboardNavigation field.
+- `setViewConfiguringApplets(u containmentId, b configuring)` (added
+  2026-07-18 with the applet-reorder driver, C-I7/P6) - flips the same
+  global inConfigureAppletsMode rearrange sub-mode the settings header's
+  rearrange button toggles (HeaderSettings.qml). It is the driving
+  surface for the applet-reorder e2e family: the ConfigOverlay drag
+  machinery is live only when a view is BOTH in edit mode AND this
+  sub-mode, and the sub-mode is transient (deleted on config load, never
+  persisted), so no config seed can reach it. Entering is REFUSED loudly
+  when the target view is not already in edit mode (rearrange only runs
+  inside an open edit session; the boundary refusal is also the action's
+  observes-a-rejection self-test); exiting is always honored. Readback:
+  viewsData()'s inConfigureAppletsMode field.
 - `addApplet(u containmentId, s pluginId)` (added 2026-07-18 with the
   e2e interaction suite, C-I3/P3) - the deterministic sibling of a
   widget-explorer drop: validate that pluginId names an INSTALLED

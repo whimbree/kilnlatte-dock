@@ -4,7 +4,9 @@ Rolling handoff for the next session to pick up without re-deriving context.
 Last updated 2026-07-18 (panel bug fixes + UB-catching initiative + a dev-loop
 shadow fix all landed; clangd editor-intelligence setup in flight as its own
 PR; #4 maximize-length and A3 sanitized-gate in flight; D14 startup
-invalid-color qCriticals fixed at the QML call sites, own PR).
+invalid-color qCriticals fixed at the QML call sites, own PR; the e2e
+interaction matrix swarm is executing - C-I7/P6 applet-reorder driver in
+flight, below).
 
 ## 2026-07-18 D14: startup invalid-color qCriticals fixed at the source (own PR)
 
@@ -28,6 +30,31 @@ counter kept the baseline - and a per-site `console.warn` in the guard's else
 branch gave the attribution. The throwaway probe recipe was tests/e2e/
 zzz-d14-probe.sh (removed). Colors readback used temporary `onXChanged`
 console.warn loggers in Manager (removed).
+
+## 2026-07-18 SWARM: C-I7/P6 applet-reorder driver + G2 z readback
+
+The applet-reorder infra chunk of the e2e interaction matrix
+(docs/e2e-interaction-test-plan.md). Landed on its own branch/PR:
+- The reusable driver `tests/e2e/matrix/applet-reorder-driver.sh` - enter/exit
+  rearrange, applet-id-order + delegate-z readbacks, and a glide reorder with
+  commit/origin/noop/jitter/escape/occupied/overflow modes plus an
+  arbitrary-target primitive (the justify-splitter seam). It is what F3/A2
+  (C-S6/C-S7/C-A2/C-A2b) drive.
+- The rearrange sub-mode (inConfigureAppletsMode) is transient with no config
+  path, so a NEW coarse D-Bus action `setViewConfiguringApplets(u,b)` is the
+  driving surface (flips the HeaderSettings rearrange toggle; refuses when the
+  view is not in edit mode).
+- G2: a `z` field on each applet in `viewAppletsData` (the AppletItem DELEGATE
+  z, found via an `isInternalViewSplitter` parent-walk; the delegate, not the
+  inner quick item, is what ConfigOverlay lifts to 900). Makes the
+  stuck-over-chrome residue queryable.
+- DR-6: a new fakepointer `dragkey <keysym> ...` verb (taps a key while the
+  pointer button is held, one connection) - the escape-in-held-drag primitive.
+- HC3 acceptance `tests/e2e/100-applet-reorder.sh` PASSES both axes. It also
+  CONFIRMED D2 live: the DR-6 escape exits edit mode and STRANDS the applet at
+  z=900 (G2 queried it), so D2 is now OPEN, not SUSPECTED. The T4c edit-exit
+  strand fix (rescue the ConfigOverlay currentApplet in main.qml
+  onEditModeChanged) is the C-A2b marquee, out of this chunk's scope.
 
 ## 2026-07-18 SIDE TRACK: clangd editor code intelligence (own PR)
 
