@@ -38,15 +38,50 @@
 # end-to-end with no dependency on the P3-P9 drivers.
 #
 # ABORT BACKBONE (used by matrix_scenario_abort; also callable directly):
-#   matrix_baseline_capture <view-id> <verb>           # snapshot residue fields
+#   matrix_baseline_capture <view-id> <verb>           # snapshot residue surfaces
 #   matrix_assert_baseline_restored <view-id> <verb>   # diff; 1 on residue
-# The captured field set is the abort-residue surface the plan enumerates
-# (section 3): the view record, the applet order, the layout config bytes
-# (KConfig-default-aware), plus the verb's own probe. Where a residue is
-# visual-only (a ghost overlay whose STATE says clean - PR #20), a baseline
-# FRAME is captured too when MATRIX_CAPTURE_FRAME=1; the pixel comparison
-# itself is delegated to the golden bridge (P2 / C-I6) via a hook this file
+# The residue SURFACES (matrix_surface_list) span every place an aborted
+# interaction has been observed to strand state (plan section 3, and the #31
+# adversarial abort analysis):
+#   view          - viewsData record (editMode, inConfigureAppletsMode, struts,
+#                   mask, inputRegionRects, geometry) - the runtime dock state.
+#   applets_order - viewAppletsOrder (a half-applied swap shows here).
+#   config        - the whole LAYOUT file, KConfig-default-aware (the broad net).
+#   universal     - lattedockrc [UniversalSettings]: persisted universal residue
+#                   (the global launchers list, inAdvancedModeForEditSettings).
+#   screenpool    - lattedockrc [ScreenConnectors]: a phantom connector left by
+#                   a cross-screen move abort (A4 "vacated but never claimed").
+#   verb          - the verb's own probe.
+#   appletcfg:*   - one per MATRIX_APPLET_CONFIG_GROUPS entry: a named applet's
+#                   config subtree in the layout (the tasks `launchers` key is
+#                   the launcher/task-reorder abort residue). SEE the SEAMS below.
+# Where a residue is visual-only (a ghost overlay whose STATE says clean - PR
+# #20), a baseline FRAME is captured too when MATRIX_CAPTURE_FRAME=1; the pixel
+# comparison is delegated to the golden bridge (P2 / C-I6) via a hook this file
 # stubs.
+#
+# SEAMS a scenario sets before matrix_scenario_abort / matrix_baseline_capture:
+#   MATRIX_APPLET_CONFIG_GROUPS   space-separated applet config-group prefixes to
+#                                 add to the diff, e.g.
+#                                 "$(matrix_applet_config_group <view> <plugin>)".
+#   MATRIX_VOLATILE_EXTRA         space/pipe-separated extra key NAMES to treat as
+#                                 volatile (excluded from every KConfig-file diff)
+#                                 WITHOUT redefining the probes. Use it for a key
+#                                 that legitimately returns to its default on this
+#                                 verb (KConfig deletes it), which otherwise shows
+#                                 as a diff. The default direction is a false-FAIL
+#                                 (a default-deleted key reads as a removed line =
+#                                 residue), never a false-PASS: the safe way to be
+#                                 wrong, and this seam is how a scenario relaxes it.
+#
+# VERB SETTLING CONTRACT (mandatory for every matrix_verb_<name>_drive):
+#   The residue diff is BYTE-EXACT on geometry, struts, mask and config. A drive
+#   that returns while the dock is still animating (edit-mode grow/shrink, the
+#   parabolic zoom relayout, a drag settle) races the post-abort snapshot and
+#   FALSE-FAILS. Every _drive MUST fully settle before returning - poll the state
+#   it changed AND wait for geometry to stop moving (e2e_wait_settled). The
+#   built-in editmode verb is the reference: it polls the editMode flip and then
+#   calls e2e_wait_settled.
 #
 # STAGING:
 #   matrix_stage <cell>              # generate + load the cell fixture, then
@@ -202,42 +237,60 @@ print(json.dumps({k: v.get(k) for k in fields}, sort_keys=True))
 '
 }
 
-# matrix_probe_applets_order <view>: the applet visual order (as: cheap, stable).
+# matrix_probe_applets_order <view>: the applet visual order. A D-Bus call
+# failure is NOT swallowed into a plausible-but-empty answer - that would let a
+# broken probe read as the "same empty order" on both sides = a false PASS,
+# against the never-swallow rule. The reply is validated as an `as ...` array;
+# any call error or malformed reply surfaces loudly and returns non-zero, so the
+# backbone treats it as an unassertable surface, never a clean one.
 matrix_probe_applets_order() {
-    local view="$1"
-    e2e_call viewAppletsOrder u "$view" 2>/dev/null | sed 's/^as [0-9]* //'
+    local view="$1" raw
+    if ! raw="$(e2e_call viewAppletsOrder u "$view")"; then
+        echo "matrix: viewAppletsOrder call FAILED for view $view (D-Bus error, not an empty order)" >&2
+        return 1
+    fi
+    case "$raw" in
+        "as "*) printf '%s\n' "$raw";;
+        *) echo "matrix: viewAppletsOrder reply is not an 'as' array: $raw" >&2; return 1;;
+    esac
 }
 
-# matrix_probe_config: the layout config, KConfig-default-aware. Volatile keys
-# that change without being residue (config-dialog geometry, preload weights,
-# the runtime-resolved screen id) are stripped; everything else is sorted so a
-# semantic change surfaces as a diff regardless of KConfig line ordering.
-# NOTE (per-verb refinement): abort assertions that must reason about a key
-# returning to its default (KConfig deletes it - the plan's default-key trap)
-# extend this denylist in their scenario chunk; the backbone ships the common set.
-matrix_probe_config() {
-    local layout="${E2E_LAYOUT:?}"
-    python3 - "$layout" <<'PY'
-import sys, re
-path = sys.argv[1]
-# keys whose value legitimately breathes across a restart / an interaction
-# without being abort residue
-VOLATILE = re.compile(r'^(DialogHeight|DialogWidth|PreloadWeight|lastScreen|'
-                      r'configurationSticker|timerShow|timerHide)=')
-lines = []
-group = None
-groups = {}
-order = []
+# _matrix_kconfig_snapshot <file> [group-prefix]: a KConfig-default-aware
+# snapshot of <file>, optionally limited to groups at or under <group-prefix>
+# ([Foo] itself and [Foo][Bar], not [Foobar]). Groups and keys are sorted so a
+# semantic change surfaces regardless of KConfig line ordering. Volatile keys
+# (values that legitimately breathe across a restart / an interaction without
+# being residue) are stripped: a base set plus MATRIX_VOLATILE_EXTRA, a
+# space/pipe-separated list of extra key names a scenario adds WITHOUT redefining
+# this probe. A key that returned to its default (KConfig deletes it) surfaces as
+# a removed line = a diff = a false-FAIL, the SAFE direction (never a false-PASS);
+# a scenario that hits a known-benign default-deletion suppresses it via
+# MATRIX_VOLATILE_EXTRA. Returns non-zero (loudly) if the file is missing.
+_matrix_kconfig_snapshot() {
+    local file="$1" prefix="${2:-}"
+    if [[ ! -f "$file" ]]; then
+        echo "matrix: kconfig snapshot: file missing: $file" >&2
+        return 1
+    fi
+    MATRIX_VOLATILE_EXTRA="${MATRIX_VOLATILE_EXTRA:-}" python3 - "$file" "$prefix" <<'PY'
+import sys, os, re
+path, prefix = sys.argv[1], sys.argv[2]
+base = ["DialogHeight", "DialogWidth", "PreloadWeight", "lastScreen",
+        "configurationSticker", "timerShow", "timerHide"]
+extra = [a for a in re.split(r'[|\s]+', os.environ.get("MATRIX_VOLATILE_EXTRA", "").strip()) if a]
+volatile = re.compile(r'^(?:%s)=' % "|".join(base + extra))
+def in_scope(group):
+    return (not prefix) or group == prefix or group.startswith(prefix + "[")
+groups, order, group = {}, [], None
 with open(path) as fh:
     for raw in fh:
-        line = raw.rstrip("\n")
-        s = line.strip()
+        s = raw.rstrip("\n").strip()
         if s.startswith("[") and s.endswith("]"):
             group = s
-            if group not in groups:
+            if in_scope(group) and group not in groups:
                 groups[group] = []
                 order.append(group)
-        elif s and group is not None and not VOLATILE.match(s):
+        elif s and group is not None and in_scope(group) and not volatile.match(s):
             groups[group].append(s)
 for g in sorted(order):
     print(g)
@@ -246,17 +299,104 @@ for g in sorted(order):
 PY
 }
 
-# --- baseline backbone ------------------------------------------------------
+# matrix_probe_config: the whole LAYOUT config (containment keys, applet order,
+# every applet's config group) - the broad net. KConfig-default-aware.
+matrix_probe_config() { _matrix_kconfig_snapshot "${E2E_LAYOUT:?}"; }
 
-# matrix_baseline_capture <view> <verb>: snapshot every residue field to
-# $MATRIX_BASELINE. Includes the verb's own probe so the check is verb-aware.
+# matrix_probe_universal: lattedockrc [UniversalSettings]. Persisted universal
+# residue an abort must not strand - the global `launchers` list,
+# inAdvancedModeForEditSettings, memoryUsage. (The RUNTIME inConfigureAppletsMode
+# is transient - never persisted, universalsettings.cpp saveConfig line 608 - so
+# its residue is caught by matrix_probe_view's viewsData readback, not here; but
+# any inConfigureAppletsMode toggle rewrites this whole group, so a settings/edit
+# abort that also mutated a persisted universal key strands it HERE.)
+matrix_probe_universal() { _matrix_kconfig_snapshot "${E2E_CONFIG_HOME:?}/lattedockrc" "[UniversalSettings]"; }
+
+# matrix_probe_screenpool: lattedockrc [ScreenConnectors] (id -> connector
+# serialization, screenpool.cpp). A phantom connector left after a cross-screen
+# move abort (A4 "vacated the old output but never claimed the new one") is the
+# residue this catches; the numeric ids start at FIRSTSCREENID=10.
+matrix_probe_screenpool() { _matrix_kconfig_snapshot "${E2E_CONFIG_HOME:?}/lattedockrc" "[ScreenConnectors]"; }
+
+# matrix_probe_applet_config <group-prefix>: one applet's config subtree in the
+# layout (e.g. the tasks applet's [Configuration][General], where the `launchers`
+# key strands a launcher/task-reorder abort). A focused, scenario-declared
+# surface (via MATRIX_APPLET_CONFIG_GROUPS) that localizes the diff to the applet;
+# the broad matrix_probe_config also covers the layout, but this names the
+# launcher-residue assertion explicitly and can be checked even when a scenario
+# has relaxed unrelated layout churn through MATRIX_VOLATILE_EXTRA.
+matrix_probe_applet_config() { _matrix_kconfig_snapshot "${E2E_LAYOUT:?}" "$1"; }
+
+# matrix_applet_config_group <view> <plugin>: the applet subtree group prefix for
+# the single applet of <plugin> under <view>, e.g. [Containments][12][Applets][4]
+# for org.kde.latte.plasmoid - the value a scenario feeds into
+# MATRIX_APPLET_CONFIG_GROUPS. Refuses if the applet is not present exactly once.
+matrix_applet_config_group() {
+    local view="$1" plugin="$2" appid
+    appid="$({ echo "$view $plugin"; e2e_json viewAppletsData u "$view"; } | python3 -c '
+import json, sys
+view, plugin = sys.stdin.readline().split()
+applets = json.load(sys.stdin)
+m = [a for a in applets if a["plugin"] == plugin]
+if len(m) != 1:
+    sys.exit("matrix_applet_config_group: expected exactly one %s applet under view %s, saw %d" % (plugin, view, len(m)))
+print(m[0]["id"])
+')" || return 1
+    echo "[Containments][$view][Applets][$appid]"
+}
+
+# --- baseline backbone ------------------------------------------------------
+#
+# The backbone snapshots a SET of residue surfaces at baseline and diffs each
+# after the abort. matrix_surface_list is the single source of the surface set,
+# so capture and assert can never drift; a scenario extends it by listing applet
+# config groups in MATRIX_APPLET_CONFIG_GROUPS.
+
+# matrix_surface_list: the residue surfaces, one per line. Fixed core plus one
+# `appletcfg:<group>` per entry a scenario put in MATRIX_APPLET_CONFIG_GROUPS.
+matrix_surface_list() {
+    printf '%s\n' view applets_order config universal screenpool verb
+    local g
+    for g in ${MATRIX_APPLET_CONFIG_GROUPS:-}; do
+        printf 'appletcfg:%s\n' "$g"
+    done
+}
+
+# matrix_capture_surface <surface> <view> <verb>: print one surface's snapshot.
+# Returns the probe's own exit status - a probe failure is NOT masked into an
+# empty snapshot (never-swallow).
+matrix_capture_surface() {
+    local surface="$1" view="$2" verb="$3"
+    case "$surface" in
+        view)          matrix_probe_view "$view";;
+        applets_order) matrix_probe_applets_order "$view";;
+        config)        matrix_probe_config;;
+        universal)     matrix_probe_universal;;
+        screenpool)    matrix_probe_screenpool;;
+        verb)          matrix_verb_probe "$verb" "$view";;
+        appletcfg:*)   matrix_probe_applet_config "${surface#appletcfg:}";;
+        *)             echo "matrix: unknown residue surface '$surface'" >&2; return 1;;
+    esac
+}
+
+# _matrix_surface_file <surface>: baseline filename for a surface (sanitized so a
+# group header's [ ] / : characters are filesystem-safe).
+_matrix_surface_file() { printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_'; }
+
+# matrix_baseline_capture <view> <verb>: snapshot every residue surface to
+# $MATRIX_BASELINE. A probe that fails here is a BROKEN baseline, not a clean
+# one: it fails loudly (return 1) rather than recording an empty snapshot a later
+# broken probe would falsely match.
 matrix_baseline_capture() {
-    local view="$1" verb="$2"
+    local view="$1" verb="$2" surface out
     rm -rf "$MATRIX_BASELINE"; mkdir -p "$MATRIX_BASELINE"
-    matrix_probe_view "$view"          > "$MATRIX_BASELINE/view"
-    matrix_probe_applets_order "$view" > "$MATRIX_BASELINE/applets_order"
-    matrix_probe_config                > "$MATRIX_BASELINE/config"
-    matrix_verb_probe "$verb" "$view"  > "$MATRIX_BASELINE/verb"
+    while IFS= read -r surface; do
+        out="$MATRIX_BASELINE/$(_matrix_surface_file "$surface")"
+        if ! matrix_capture_surface "$surface" "$view" "$verb" > "$out"; then
+            echo "matrix: baseline capture FAILED for surface '$surface' (probe error) - baseline invalid" >&2
+            return 1
+        fi
+    done < <(matrix_surface_list)
     if [[ "${MATRIX_CAPTURE_FRAME:-0}" == 1 ]]; then
         # visual-only residue (PR #20 ghost overlay): the clean baseline frame.
         # Cursor excluded so a pointer moved between capture and re-shoot cannot
@@ -266,24 +406,29 @@ matrix_baseline_capture() {
     fi
 }
 
-# matrix_assert_baseline_restored <view> <verb>: re-read every field and assert
-# byte-identical to the captured baseline. Any diff is residue -> return 1,
-# naming the field so the failure localizes.
+# matrix_assert_baseline_restored <view> <verb>: re-read every residue surface
+# and assert byte-identical to baseline. Any diff is residue -> return 1, naming
+# the surface so the failure localizes. A probe that FAILS on the re-read is
+# surfaced as an unassertable surface (bad=1), never swallowed into a silent pass.
 matrix_assert_baseline_restored() {
-    local view="$1" verb="$2" bad=0 field now
-    for field in view applets_order config verb; do
-        case "$field" in
-            view)          now="$(matrix_probe_view "$view")";;
-            applets_order) now="$(matrix_probe_applets_order "$view")";;
-            config)        now="$(matrix_probe_config)";;
-            verb)          now="$(matrix_verb_probe "$verb" "$view")";;
-        esac
-        if [[ "$now" != "$(cat "$MATRIX_BASELINE/$field")" ]]; then
-            echo "matrix: RESIDUE in '$field' after abort:" >&2
-            diff <(cat "$MATRIX_BASELINE/$field") <(printf '%s\n' "$now") >&2 || true
+    local view="$1" verb="$2" bad=0 surface base now rc
+    while IFS= read -r surface; do
+        base="$MATRIX_BASELINE/$(_matrix_surface_file "$surface")"
+        if [[ ! -f "$base" ]]; then
+            echo "matrix: no baseline snapshot for surface '$surface'" >&2
+            bad=1; continue
+        fi
+        now="$(matrix_capture_surface "$surface" "$view" "$verb")"; rc=$?
+        if (( rc != 0 )); then
+            echo "matrix: probe for surface '$surface' FAILED on re-read (rc=$rc) - unassertable, not a clean pass" >&2
+            bad=1; continue
+        fi
+        if [[ "$now" != "$(cat "$base")" ]]; then
+            echo "matrix: RESIDUE in surface '$surface' after abort:" >&2
+            diff "$base" <(printf '%s\n' "$now") >&2 || true
             bad=1
         fi
-    done
+    done < <(matrix_surface_list)
     if [[ "${MATRIX_CAPTURE_FRAME:-0}" == 1 && -f "$MATRIX_BASELINE/frame.png" ]]; then
         local nowframe="$MATRIX_BASELINE/frame.after.png"
         if e2e_screenshot "$nowframe" include-cursor b false 2>/dev/null; then
@@ -350,7 +495,7 @@ matrix_scenario_abort() {
     local cell="$1" verb="$2" view
     matrix_stage "$cell" || return 2
     view="$(matrix_view_id)" || return 2
-    matrix_baseline_capture "$view" "$verb"
+    matrix_baseline_capture "$view" "$verb" || { matrix_refuse "abort $cell/$verb: baseline capture failed"; return 2; }
     matrix_verb_drive "$verb" "$view" abort || return 2
     if matrix_assert_baseline_restored "$view" "$verb"; then
         echo "matrix: PASS abort $cell/$verb -> baseline restored (no residue)"
@@ -380,6 +525,13 @@ matrix_verb_editmode_drive() {
             sleep 0.2
         done
     fi
+    # SETTLING CONTRACT (see the header): the residue diff is byte-exact on
+    # geometry/struts/mask, so do not return mid-animation. Edit mode grows the
+    # dock to editThickness and shrinks it back on exit; wait for the geometry to
+    # stop moving before the caller snapshots. Best-effort: a settle timeout is
+    # left to surface as a geometry diff (the safe false-FAIL direction), not
+    # hidden here.
+    e2e_wait_settled 15 || true
     return 0
 }
 
