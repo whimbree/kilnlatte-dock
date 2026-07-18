@@ -48,15 +48,30 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   return-to-origin nets one crossing unless the reversal re-crosses after the
   timer expires.
 
-### D2 - ConfigOverlay applet drops from appletOrder on edit-exit mid-drag
-- STATUS: SUSPECTED (adversarial code-reading; C-A2 will confirm).
-- FOUND: 2026-07-18, adversarial abort design (PR #31).
-- SYMPTOM: exiting edit mode WHILE an applet is mid-drag leaves that applet out
-  of appletOrder - onEditModeChanged rescues the dndSpacer but not the
-  in-flight ConfigOverlay applet; the ConfigOverlay onReleased path always
-  commits and has no abort branch.
-- EVIDENCE: the A2 family analysis in docs/e2e-interaction-test-plan.md; the
-  ConfigOverlay QML (press z=900, onReleased always-commit).
+### D2 - ConfigOverlay applet stranded over chrome on edit-exit mid-drag
+- STATUS: OPEN (reproduced live 2026-07-18 by the C-I7 escape-in-held-drag
+  driver + the G2 z readback; was SUSPECTED from adversarial code-reading).
+- FOUND: 2026-07-18, adversarial abort design (PR #31); CONFIRMED live 2026-07-18
+  (C-I7/P6, the applet-reorder driver).
+- SYMPTOM: leaving edit mode WHILE an applet is mid-drag (here: Escape reaches
+  the view during a held ConfigOverlay drag and exits edit mode) leaves the
+  dragged applet's delegate stranded at the lift z (900), parented to root and
+  drawn OVER the edit chrome. onEditModeChanged (main.qml) rescues the dndSpacer
+  but NOT the in-flight ConfigOverlay currentApplet, and the onReleased restore
+  never runs because inConfigureAppletsMode goes false first (the MouseArea is
+  no longer live to receive the button release).
+- EVIDENCE: tests/e2e/100-applet-reorder.sh DR-6 escape observation, BOTH axes:
+  after `dragkey Escape` mid-drag, viewAppletsData reports the dragged applet at
+  z=900 (`STRANDED 40@z900` on a horizontal view, `52@z900` on a vertical one)
+  while editMode reads false. REFINEMENT of the original hypothesis: the residue
+  manifests as the z=900 STRAND with `viewAppletsOrder` PRESERVED (order
+  unchanged), not as a drop from appletOrder - the drop-from-order path needs
+  save() to run, and this edit-exit path never calls it (onReleased does not
+  fire). The G2 z field in viewAppletsData now makes the strand queryable
+  (previously it would have been golden-only).
+- DISPOSITION: the C-A2b marquee target (T4c). The fix rescues the ConfigOverlay
+  currentApplet/placeHolder in main.qml onEditModeChanged, mirroring the dndSpacer
+  rescue already there; out of scope for the C-I7 driver chunk that found it.
 
 ### D3 - Phantom ScreenConnectors entry on dropped-back cross-screen move
 - STATUS: SUSPECTED (adversarial code-reading; C-A4 + the hardened residue
