@@ -10,6 +10,18 @@ project(lattedock)
 # this same standard - never fork it per-target.
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Always emit build/compile_commands.json so clangd (and any other
+# libclang tool) can parse the tree with the real include paths, defines
+# and C++ standard the build uses, instead of a standalone best-guess that
+# floods every Qt/KF6 include with false "file not found" errors. This is a
+# pure side artifact: the Ninja generator writes the JSON but the compile
+# rules are byte-for-byte unchanged, so binaries stay identical (verified
+# OFF->ON with a diff of the built .so/binaries). Repo-root .clangd points
+# clangd at build/ for this file; docs/clangd-setup.md has the contributor
+# flow. Ninja/Makefile generators honour this; ours is Ninja.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(VERSION 0.10.77)
 set(AUTHOR "Michail Vourlakos, Smith Ar")
 set(EMAIL "mvourlakos@gmail.com, audoban@openmailbox.org")
