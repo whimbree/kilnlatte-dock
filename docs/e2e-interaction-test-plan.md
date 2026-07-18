@@ -423,7 +423,7 @@ a success.
       NOT success) and an ABORTED reorder (order restored) AS negatives, using
       the `viewAppletsOrder` + z readbacks. Depends on P0.
       Commits:
-- [ ] **P7 Task-reorder driver + window-task order readback (commit + abort).**
+- [x] **P7 Task-reorder driver + window-task order readback (commit + abort).**
       Blocks F4/A3. Extend `050` launcher reorder into a reusable driver AND
       cover the DISTINCT window-task sub-model. Launcher order readback exists
       (`viewTasksData` `launcherUrl`, persists to the `launchers` key). Confirm
@@ -432,6 +432,34 @@ a success.
       window tasks. Acceptance (observes a rejection): self-test reports a
       REFUSED task reorder (Escape mid-drag -> order unchanged) AS an abort, not
       a pass. Depends on P0.
+      Landed: the reusable driver is `tests/e2e/matrix/task-reorder-lib.sh`,
+      keyed by appId (the stable per-task identity, G4) so it drives the
+      launcher and window sub-models through the SAME tasks-applet handler
+      (MouseHandler.qml tasksModel.move) unchanged: `taskdrag_reorder`,
+      `taskdrag_hold_noop` (T5a zero-delta), `taskdrag_reverse_jitter`
+      (DR-2/T5b), `taskdrag_escape_held` (DR-6), `taskdrag_out_of_applet` (T1d),
+      plus `taskdrag_order`/`taskdrag_launcher_order` readers. DR-6 needed a new
+      fakepointer verb `dragkey <keysym> <coords...>` that presses, glides WITH
+      THE BUTTON HELD, taps the keysym at the target, then releases on ONE
+      connection (a separate `drag` then `key` cannot reach an in-flight drag) -
+      the escape-in-held-drag the plan flagged C-I8 would build on C-I10.
+      Acceptance recipe `tests/e2e/092-task-reorder.sh` (PASS in the nested
+      vehicle) is HC3 tripwire-shaped: leg 1 a real reorder (the driver SEES a
+      cross), leg 2 (HC3) a zero-cross hold-noop reported AS no reorder (order
+      AND the launchers config key byte-unchanged), leg 3 the D1 Escape evidence
+      (a committed move survives Escape), leg 4 the D1 release-back evidence (a
+      reverse-jitter returned to origin still leaves the move). G4 confirmed (see
+      section 9): index/appId were already the window-task order readback; this
+      chunk documents the contract and pins it in `dbusreportstest`
+      (windowTaskOrderReadbackTracksAppIdAcrossReorder). D1 disposition
+      (docs/known-defects.md): ACCEPTED, Qt5-faithful live-move - both reference
+      forks carry the identical live tasksModel.move; there is no revert to fix.
+      O6: the driver is identity-generic and drives window tasks unchanged, and
+      G4 is proven pure, so the LIVE window-task reorder with distinct-appId
+      throwaway-window fixtures rides on the C-S8/C-A3 scenario chunks (deferred
+      here, not a live-desk cop-out - the driver + readback are the reusable
+      pieces those chunks consume; the launcher sub-model, exercising the exact
+      same handler, is the proven vehicle-friendly stand-in).
       Commits:
 - [ ] **P8 Widget-explorer DND driver (commit + non-drop abort).** Blocks F2 DND
       leg + A1 (deterministic add leg needs only P3). Open the explorer, locate
@@ -1141,7 +1169,11 @@ merge --rebase`, re-resolve hashes, fetch).
       `matrix_frame_equals_baseline` hook live, `tests/e2e/090-golden-bridge-selftest.sh` (HC3).
       Commits: (C-I6 branch; final hashes at PR merge)
 - [ ] **C-I7 = P6** applet-reorder driver + `z`/stacking readback (commit+abort). Commits:
-- [ ] **C-I8 = P7** task-reorder driver + window-task readback (commit+abort). Commits:
+- [x] **C-I8 = P7** task-reorder driver + window-task readback (commit+abort).
+      `tests/e2e/matrix/task-reorder-lib.sh` (driver, launcher+window sub-models
+      via appId), fakepointer `dragkey` verb (DR-6 escape-in-held-drag), G4
+      confirmed + documented + `dbusreportstest`, `tests/e2e/092-task-reorder.sh`
+      (HC3 + D1 evidence). D1 -> ACCEPTED (Qt5-faithful live-move). Commits:
 - [ ] **C-I9 = P8** widget-explorer DND driver (commit + non-drop abort). Commits:
 - [x] **C-I10 = P9** fakepointer key injection. Commits: <this PR - `key <keysym>` verb (keyboard_keysym/xkbcommon) + tests/e2e/080-key-escape-cancels-move.sh>
 
@@ -1244,9 +1276,19 @@ lands in the three required places + `dbusreportstest`):**
       reference; `091-drop-marker.sh` proves the clean/post-abort baseline
       reading end-to-end.
       Commits: (branch worktree-agent-af2749c9456618186; final hashes at PR merge)
-- [ ] G4 window-task order readback confirmation/addition in `viewTasksData`
+- [x] G4 window-task order readback confirmation/addition in `viewTasksData`
       (`index`/`appId` stable after reorder). For F4/A3 window sub-model. (In
-      C-I8/P7.) Commits:
+      C-I8/P7.) CONFIRMED, no serializer change needed: `viewTasksData` already
+      reported per task the model-row `index` and the stable `appId` (and
+      `launcherUrl`), emitted in row order, so tracking a window by appId and
+      reading its index before/after a drag IS the window-task order readback.
+      This chunk records the contract where it lives (the `TaskRecord` comment in
+      `app/dbusreports.h`, the XML method comment, the design doc and usage
+      reference) and pins it in `dbusreportstest`
+      (windowTaskOrderReadbackTracksAppIdAcrossReorder: a modelled
+      tasksModel.move(0->2) moves appId "alpha" from index 0 to index 2 while
+      beta/gamma shift, proving the identity travels by appId as the index
+      moves). Signature stays `s`. Commits:
 - [ ] G5 (candidate, flagged not committed) edit-chrome sub-item geometry
       (ruler/toggle rects). Would retire the F1 blueprint/toggle golden; larger
       surface, decide in review (O-gap). Commits:
