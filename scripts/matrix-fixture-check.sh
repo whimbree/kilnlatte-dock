@@ -78,11 +78,30 @@ L="$(layout_of "$work/ptc")"
 assert_key "minLength=100" "$L" '^minLength=100$'
 assert_key "maxLength=100" "$L" '^maxLength=100$'
 
-echo "matrix-fixture-check: 2out per-screen pin"
-gen "$work/d2" dock bottom center 2out --screen HDMI-A-2 >/dev/null
+echo "matrix-fixture-check: 2out per-screen pin (real keys: onPrimary=false + lastScreen=<id> + ScreenConnectors)"
+# a NAMED secondary pins by the pair the app reads (lastScreen + the
+# ScreenConnectors mapping that resolves it), NOT the dead explicitScreen key
+gen "$work/d2" dock bottom center 2out --screen HDMI-A-2 --screen-id 11 --screen-geometry "1600,0 1600x1000" >/dev/null
 L="$(layout_of "$work/d2")"
 assert_key "onPrimary=false (2out)" "$L" '^onPrimary=false$'
-assert_key "explicitScreen=HDMI-A-2" "$L" '^explicitScreen=HDMI-A-2$'
+assert_key "lastScreen=11 (2out pins the numeric id)" "$L" '^lastScreen=11$'
+if grep -qE '^explicitScreen=' "$L"; then
+    echo "  FAIL [no dead explicitScreen key]: fixture still writes the no-op explicitScreen" >&2; fails=$((fails + 1))
+else
+    echo "  ok   [no dead explicitScreen key]"
+fi
+assert_key "ScreenConnectors 11=HDMI-A-2" "$work/d2/lattedockrc" '^11=HDMI-A-2:::1600,0 1600x1000$'
+
+echo "matrix-fixture-check: 2out with NO discovered secondary pins a sentinel (rejected, never mis-placed)"
+gen "$work/d2s" dock bottom center 2out >/dev/null
+L="$(layout_of "$work/d2s")"
+assert_key "onPrimary=false (2out sentinel)" "$L" '^onPrimary=false$'
+assert_key "lastScreen=999 sentinel (no such output)" "$L" '^lastScreen=999$'
+if grep -qE '^\[ScreenConnectors\]' "$work/d2s/lattedockrc"; then
+    echo "  FAIL [sentinel seeds no mapping]: a sentinel 2out must NOT seed ScreenConnectors" >&2; fails=$((fails + 1))
+else
+    echo "  ok   [sentinel seeds no mapping]"
+fi
 
 echo "matrix-fixture-check: REFUSALS (each must exit 2, leave no output dir)"
 # assert_refused <label> <out-dir> <args...>
