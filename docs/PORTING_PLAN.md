@@ -1234,9 +1234,18 @@ multi-view, multi-monitor setup.
       instrumentation over a deliberate ruler-driven band shrink (the
       vehicle cannot flip existsWindowMaximized, so the identical maxLength
       path is driven instead) and guarded by
-      tests/e2e/070-maximize-length-mask.sh. The "no frosted band" pixel
-      confirmation on the real feature is a desk-check owed to Bree - steps
-      in docs/agent-logs/2026-07-18-maximize-length-repaint.md.
+      tests/e2e/070-maximize-length-mask.sh. SCOPED after PR #24 review (F2):
+      the input mask is the ONLY input driver, so the union-hold governed every
+      shrink - including the autohide/dodge HIDE, where it held the full former
+      band as the input mask while the dock was hidden (over-capturing input
+      across the vacated body, measured in the vehicle). Root-caused to
+      over-generalizing and scoped to LENGTH-axis shrinks
+      (InputMaskFlush::windowMaskFor takes the dock's length axis; a thickness
+      shrink to the reveal strip is applied directly), keeping maximize-length
+      and zoom-out held while the HIDE no longer over-captures (re-verified in
+      the vehicle: hidden dock applies its reveal strip directly). The "no
+      frosted band" pixel confirmation on the real feature is a desk-check owed
+      to Bree - steps in docs/agent-logs/2026-07-18-maximize-length-repaint.md.
       Commits: (to fill post-rebase)
 
 - [x] Render-thread crash whenever an overflowing dock relayouts (enter

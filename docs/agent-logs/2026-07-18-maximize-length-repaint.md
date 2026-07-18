@@ -112,6 +112,59 @@ union (`applied` wider than `input`) and fail. Passes on the clean fix; band
 shrank 874 -> 769 -> 727 -> 641 -> 540 with the applied mask collapsed at
 every step.
 
+## F2 (independent review of PR #24): blast radius, and the length-axis scoping
+
+The only external driver of the input mask is VisibilityManager.qml ->
+effects.inputMask, so the union-hold governed EVERY input-mask shrink, not just
+maximize-length. computeInputMask (containment/plugin/units/maskgeometry.h)
+shrinks the band on three paths: (1) maxLength / maximize-length, (2) parabolic
+zoom-OUT (unhover), (3) autohide/dodge HIDE (the band collapses to its reveal
+strip). (1) and (2) shrink the LENGTH axis; (3) shrinks the THICKNESS axis (same
+length, thinner).
+
+Verified in the nested vehicle (autohide works there, unlike existsWindowMaximized;
+same temporary instrumentation approach, plus REVEAL-TEMP logging in
+setContainsMouse / setIsHidden / raiseView). setContainsMouse is driven by the
+dock window's QEvent::Enter/Leave, which the compositor gates by the window mask,
+and it drives raiseView - so the mask IS the reveal-trigger surface. On an
+autohide HIDE the un-scoped union-hold held the FULL former band as the input
+mask while the dock was hidden (measured, bottom dock):
+
+```
+apply band= QRect(363,382 874x2)  applied= QRect(363,296 874x88) settleArmed= true   [OVER-CAPTURE: hidden, holds the 88px body]
+```
+
+That is a real regression: for the settle window a hidden dock accepts pointer
+input across its whole vacated body (clicks swallowed instead of falling
+through; the reveal-sensitive area widened from the 2px strip to the 88px band),
+and the hold provides no rendering benefit (the dock leaves on hide, nothing is
+stranded where it stood). A masked dock's hidden input region MUST be exactly
+its reveal strip.
+
+ROOT-CAUSE FIX (not a downstream guard): scope the union-hold to LENGTH-axis
+shrinks. windowMaskFor gained a Qt::Orientation lengthAxis (Effects::lengthAxis:
+horizontal for Top/Bottom, vertical for Left/Right); it holds the union only
+when the band shrinks along that axis, and applies the band directly otherwise.
+Zoom-out (a length shrink that can also frost at the overshoot ends) stays held;
+the autohide/dodge HIDE (thickness) no longer is. Re-verified in the vehicle:
+
+```
+apply band= QRect(363,382 874x2)  applied= QRect(363,382 874x2)  settleArmed= false   [FIXED: strip applied directly on hide]
+apply band= QRect(415,306 769x78) applied= QRect(363,306 874x78) settleArmed= true    [maximize-length STILL held]
+```
+
+D-Bus at rest-hidden confirms appliedInputRegionRects == inputRegionRects == the
+strip. inputmaskflushtest pins the scoping (thicknessShrinkAppliesBandDirectly,
+verticalDockHoldsOnHeightShrink); 070 still passes.
+
+The remaining sibling path is zoom-OUT (a length shrink, still held). It is a
+mild extension of the pre-existing full-length-input-during-zoom workaround
+(11f42978): the applied mask stays full-length for ~100ms after the zoom-out
+animation settles, so a click in the vacated length-ends (beyond the settled
+applet band) within that window hits the dock instead of falling through. The
+dock is shown and the pointer is leaving, so this is minor; it is called out in
+the desk-check below for a live eyeball.
+
 ## Desk-check owed to Bree (real session, the "no frosted band" pixel confirm)
 
 The nested vehicle cannot exercise the real maximize-length feature (see above),
@@ -137,4 +190,19 @@ so the visual confirmation is a desk-check on the live session:
 Query while checking: `busctl --user call org.kde.lattedock /Latte
 org.kde.LatteDock viewsData` and read the view's `appliedInputRegionRects` vs
 `inputRegionRects` - they agree at rest and during the grow, and the applied
-one is briefly wider during the shrink.
+one is briefly wider during the length shrink.
+
+Two sibling live checks from the F2 review (both expected fine, worth an
+eyeball):
+
+- Autohide/dodge: with the dock in an autohide or dodge mode, hover to reveal
+  then move away to hide. There should be NO flicker / spurious re-reveal right
+  after it hides, and a click just above the hidden dock's reveal strip should
+  reach whatever is behind (the dock must not swallow it). The scoping makes the
+  hidden input region exactly the reveal strip; the vehicle confirmed the strip
+  is applied directly on hide.
+- Zoom-out: on a zoom-enabled dock, hover an icon (band zooms/extends) then move
+  the pointer off. A click in the just-vacated zoom-overshoot area (past the
+  settled applet band) within ~100ms of leaving is briefly caught by the dock
+  rather than falling through. This is the one remaining held length-shrink; if
+  it is ever noticeable, the zoom-out path can be excluded from the hold too.
