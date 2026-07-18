@@ -231,6 +231,28 @@ public:
     //! log).
     QString colorizerData(const uint &containmentId);
 
+    //! D-Bus state readback (observability-first): one view's containment
+    //! config VALUES (the settings-panel keys - length/appearance/behavior/
+    //! effects) read from the in-process KConfigPropertyMap, plus the live
+    //! C++-property half (byPassWM, visibility timers/flags, indicator type)
+    //! the edit-mode audit's P3 leg reads, as one compact JSON object
+    //! documented in docs/dbus-observability-interface.md. The in-process
+    //! read sidesteps the KConfig default-deletion trap (a key at its default
+    //! reads as its default, not "missing"). Coarse read of the user's own
+    //! dock config (no execution, no secrets). "{}" means no view exists for
+    //! that containment id (warned in the log).
+    QString viewConfigData(const uint &containmentId);
+
+    //! D-Bus state readback (observability-first): one child applet's config
+    //! VALUES (keyed by containment id, applet id, plugin) read from the
+    //! applet's in-process KConfigPropertyMap, as one compact JSON object
+    //! documented in docs/dbus-observability-interface.md. This is the
+    //! D10-class surface the Tasks-page audit diffs to prove whether
+    //! tasks.plasmoid.configuration.* writes land anywhere. "{}" means no view
+    //! for that containment id, or no applet with that id on the view (both
+    //! warned in the log).
+    QString appletConfigData(const uint &containmentId, const uint &appletId);
+
     //! D-Bus state readback (observability-first): every loaded layout
     //! (name, active state, applied activities, view count) plus the
     //! layouts memory mode as one compact JSON object, documented in

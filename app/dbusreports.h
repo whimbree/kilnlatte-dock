@@ -17,12 +17,16 @@
 #include "../containment/plugin/types.h"
 
 // Qt
+#include <QColor>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonValue>
 #include <QList>
 #include <QRect>
 #include <QString>
+#include <QVariant>
+#include <QVariantMap>
 
 // C++
 #include <array>
@@ -187,6 +191,30 @@ struct ViewRecord {
     bool editMode{false};
     bool inConfigureAppletsMode{false};
     bool keyboardNavigation{false};
+};
+
+//! The live C++-property half of viewConfigData() (the "view" object):
+//! settings-panel controls that write a View/VisibilityManager/Indicator
+//! property instead of a containment config key, so the edit-mode audit's
+//! P3 leg (a control reflects the dock's current state) has a readback for
+//! them (docs/dbus-observability-interface.md, docs/edit-mode-settings-audit-plan.md
+//! section 3). Config-backed controls read from viewConfigData()'s "config"
+//! object instead; these are the ones whose live value lives only in C++.
+struct ViewLiveRecord {
+    bool byPassWM{false};
+    bool isPreferredForShortcuts{false};
+    int visibilityTimerShow{0};
+    int visibilityTimerHide{0};
+    bool visibilityEnableKWinEdges{false};
+    bool visibilityRaiseOnDesktop{false};
+    bool visibilityRaiseOnActivity{false};
+    //! the indicator subsystem binds after QML load, so it is a legitimately
+    //! absent optional (like the colorizer): indicatorPresent reports it and
+    //! the dependent fields keep their record defaults when it is not up yet
+    bool indicatorPresent{false};
+    bool indicatorEnabled{false};
+    QString indicatorType;
+    QString indicatorCustomType;
 };
 
 //! Enum-to-string names for the JSON fields. Exhaustive switches with no
@@ -624,6 +652,97 @@ inline QString serializeViewRecords(const QList<ViewRecord> &records)
     return QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact));
 }
 
+//! One config value as a STABLE, comparable JSON scalar for viewConfigData()
+//! and appletConfigData() (docs/dbus-observability-interface.md). Config
+//! values are the user's own dock settings - almost all are int/double/bool/
+//! string/stringlist, which QJsonValue::fromVariant maps straight to a JSON
+//! scalar. The handful of typed values with no JSON scalar (a QColor for
+//! shadowColor) fall back to a canonical string, NOT the JSON null that
+//! fromVariant would otherwise hand back: the snapshot-diff the edit-mode
+//! audit runs needs equal-means-equal, and collapsing every color to null
+//! would make two different colors compare equal (a false PASS). Config keys
+//! always carry a schema default, so a genuinely-null value never occurs;
+//! null out of fromVariant therefore means "no JSON scalar for this type",
+//! which is the only case the fallback handles.
+inline QJsonValue configValueToJson(const QVariant &value)
+{
+    const QJsonValue direct = QJsonValue::fromVariant(value);
+
+    if (direct.type() != QJsonValue::Null && direct.type() != QJsonValue::Undefined) {
+        return direct;
+    }
+
+    if (value.canConvert<QColor>()) {
+        return value.value<QColor>().name(QColor::HexArgb);
+    }
+
+    return value.toString();
+}
+
+//! A whole config property map serialized key -> value. Keys are whatever the
+//! live KConfigPropertyMap carries (every schema key with its current value,
+//! plus any stray key a control wrote outside the schema - the S-a dead-key
+//! finding surfaces exactly here), so the audit's config-snapshot diff sees
+//! the full surface, not a curated subset.
+inline QJsonObject serializeConfigMap(const QVariantMap &config)
+{
+    QJsonObject json;
+
+    for (auto it = config.constBegin(); it != config.constEnd(); ++it) {
+        json[it.key()] = configValueToJson(it.value());
+    }
+
+    return json;
+}
+
+inline QJsonObject serializeViewLiveRecord(const ViewLiveRecord &record)
+{
+    QJsonObject json;
+    json[QStringLiteral("byPassWM")] = record.byPassWM;
+    json[QStringLiteral("isPreferredForShortcuts")] = record.isPreferredForShortcuts;
+    json[QStringLiteral("visibilityTimerShow")] = record.visibilityTimerShow;
+    json[QStringLiteral("visibilityTimerHide")] = record.visibilityTimerHide;
+    json[QStringLiteral("visibilityEnableKWinEdges")] = record.visibilityEnableKWinEdges;
+    json[QStringLiteral("visibilityRaiseOnDesktop")] = record.visibilityRaiseOnDesktop;
+    json[QStringLiteral("visibilityRaiseOnActivity")] = record.visibilityRaiseOnActivity;
+    json[QStringLiteral("indicatorPresent")] = record.indicatorPresent;
+    json[QStringLiteral("indicatorEnabled")] = record.indicatorEnabled;
+    json[QStringLiteral("indicatorType")] = record.indicatorType;
+    json[QStringLiteral("indicatorCustomType")] = record.indicatorCustomType;
+
+    return json;
+}
+
+//! The viewConfigData() payload: the containment's config VALUES (the "config"
+//! object) plus the live C++-property half (the "view" object). Two objects,
+//! not one flat map, so the audit's config-snapshot diff runs over "config"
+//! alone (a config key and a live C++ property never collide) while the P3
+//! leg reads "view". docs/dbus-observability-interface.md.
+inline QString serializeConfigData(uint containmentId, const QVariantMap &config, const ViewLiveRecord &live)
+{
+    QJsonObject json;
+    json[QStringLiteral("containmentId")] = static_cast<qint64>(containmentId);
+    json[QStringLiteral("config")] = serializeConfigMap(config);
+    json[QStringLiteral("view")] = serializeViewLiveRecord(live);
+
+    return QString::fromUtf8(QJsonDocument(json).toJson(QJsonDocument::Compact));
+}
+
+//! The appletConfigData() payload: one child applet's config VALUES, keyed by
+//! containment id, applet id and plugin. The D10-class surface the tasks-page
+//! audit (CL-5) diffs to prove whether tasks.plasmoid.configuration.* writes
+//! land anywhere. docs/dbus-observability-interface.md.
+inline QString serializeAppletConfigData(uint containmentId, int appletId, const QString &plugin, const QVariantMap &config)
+{
+    QJsonObject json;
+    json[QStringLiteral("containmentId")] = static_cast<qint64>(containmentId);
+    json[QStringLiteral("appletId")] = appletId;
+    json[QStringLiteral("plugin")] = plugin;
+    json[QStringLiteral("config")] = serializeConfigMap(config);
+
+    return QString::fromUtf8(QJsonDocument(json).toJson(QJsonDocument::Compact));
+}
+
 //! snapshot one live view into a value record (dbusreports.cpp)
 ViewRecord collectViewRecord(const Latte::View *view, bool inConfigureAppletsMode);
 
@@ -644,6 +763,18 @@ QString collectTasksData(const Latte::View *view);
 //! serialize one live view's colorizer facts for the colorizerData()
 //! D-Bus read
 QString collectColorizerData(const Latte::View *view);
+
+//! read one live view's live C++-property half of viewConfigData() off
+//! View/VisibilityManager/Indicator (dbusreports.cpp)
+ViewLiveRecord collectViewLiveRecord(const Latte::View *view);
+
+//! serialize one live view's containment config VALUES plus the live
+//! C++-property half for the viewConfigData() D-Bus read
+QString collectConfigData(const Latte::View *view);
+
+//! serialize one child applet's config VALUES for the appletConfigData()
+//! D-Bus read; "{}" (warned) when no applet on the view carries appletId
+QString collectAppletConfigData(const Latte::View *view, int appletId);
 
 //! serialize the loaded layouts for the layoutsData() D-Bus read
 QString collectLayoutsData(Latte::Layouts::Manager *manager);

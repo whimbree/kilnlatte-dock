@@ -135,6 +135,41 @@ Landed before or during the 2026-07-16 stabilization session:
   decision in force - mode, exempted or not, measured saturation
   bucket, active scheme file basename. Replaces the palette-flip
   screenshot bisections of rounds twenty-one/twenty-eight.
+- `viewConfigData(u containmentId) -> s` (JSON object, added 2026-07-18
+  for the edit-mode settings audit's CL-0 prerequisite,
+  docs/edit-mode-settings-audit-plan.md). Two objects: `config`, the
+  containment's settings-panel config VALUES (every key of the General
+  group - maxLength/minLength/offset/alignment, iconSize/zoomLevel/
+  panelSize/panelTransparency, the margins, the background toggles, the
+  color enums - each key -> its current value); and `view`, the live
+  C++-property half whose settings controls write a View/Visibility/
+  Indicator property instead of a config key (byPassWM,
+  isPreferredForShortcuts, visibility timerShow/timerHide/enableKWinEdges/
+  raiseOnDesktop/raiseOnActivity, indicator enabled/type/customType).
+  READ FROM THE IN-PROCESS KConfigPropertyMap (the same map the settings
+  pages write through plasmoid.configuration), NOT the on-disk file: the
+  file drops a key whose value returned to its default, but the map keeps
+  it, so a config-snapshot diff cannot mistake "written to default" for
+  "deleted" (the KConfig default-deletion caveat). The `config` object is
+  what the audit's Tier B check diffs before/after driving a control to
+  prove it wrote its own key with no stray side effect; the `view` object
+  is the P3 (reflects-current-state) readback for the C++-property
+  controls. Coarse read of the user's own dock config: no execution, no
+  secrets, no other applications' content - it carries only setting
+  values, dedicated (Bree's decision) rather than grown into viewsData so
+  that call stays lean. A dedicated method also keeps the audit's
+  full-config diff surface separate from the geometry/visibility facts
+  viewsData reports.
+- `appletConfigData(u containmentId, u appletId) -> s` (JSON object,
+  added 2026-07-18 alongside viewConfigData). One child applet's config
+  VALUES keyed by containmentId, appletId and plugin, read the same
+  in-process way. This is the D10-class surface: the Tasks settings page
+  writes tasks.plasmoid.configuration.* (a DIFFERENT applet's config),
+  and whether those writes reach the running tasks applet is the D10
+  question CL-5 settles by diffing this readback. The applet id comes
+  from viewAppletsData; an id that names no applet on the view is refused
+  loudly ("{}" + a warning), never a silent empty answer a consumer could
+  read as "the applet has no config".
 - `layoutsData() -> s` (JSON): loaded layouts, memory mode, current
   activity per layout, view counts. Complements switchToLayout.
 - `screensData() -> s` (JSON array): the ScreenPool id<->connector

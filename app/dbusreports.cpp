@@ -15,6 +15,7 @@
 #include "data/screendata.h"
 #include "view/containmentinterface.h"
 #include "view/effects.h"
+#include "view/indicator/indicator.h"
 #include "view/positioner.h"
 #include "view/view.h"
 #include "view/visibilitymanager.h"
@@ -25,6 +26,7 @@
 #include <QAbstractItemModel>
 #include <QFileInfo>
 #include <QMetaMethod>
+#include <QQmlPropertyMap>
 #include <QQuickItem>
 #include <QUrl>
 
@@ -442,6 +444,123 @@ QString collectColorizerData(const Latte::View *view)
     }
 
     return serializeColorizerData(record);
+}
+
+namespace {
+
+//! read a Plasma applet's (or containment's) live config property map into a
+//! value snapshot. The map is Applet::configuration() - a KConfigPropertyMap
+//! (a QQmlPropertyMap) - the SAME object the settings pages write through
+//! plasmoid.configuration.<key>, so the snapshot reflects unsaved in-process
+//! writes AND carries every schema key with its current value. Reading the
+//! in-process map (never the on-disk file) is the fix for the KConfig
+//! default-deletion trap the audit's snapshot-diff would otherwise hit: the
+//! file drops a key whose value returned to its default, but the map keeps it,
+//! so a key at its default reads as its default value here, not as "missing".
+QVariantMap readConfigMap(const QObject *configOwner)
+{
+    auto map = qobject_cast<QQmlPropertyMap *>(configOwner->property("configuration").value<QObject *>());
+
+    if (!map) {
+        //! a live applet always exposes its configuration map; a null one is a
+        //! code/porting defect (the Plasma property name drifted), said loudly
+        //! rather than reported as a silently empty config
+        qWarning() << "dbusreports: object" << configOwner
+                   << "exposes no configuration property map; its config values cannot be read";
+        return {};
+    }
+
+    QVariantMap values;
+    const QStringList keys = map->keys();
+
+    for (const QString &key : keys) {
+        values.insert(key, map->value(key));
+    }
+
+    return values;
+}
+
+}
+
+ViewLiveRecord collectViewLiveRecord(const Latte::View *view)
+{
+    //! visibility() is constructed with the view (View::init), same invariant
+    //! layer as collectViewRecord; indicator() binds later and is checked below
+    Q_ASSERT(view);
+    Q_ASSERT(view->visibility());
+
+    ViewLiveRecord record;
+    record.byPassWM = view->byPassWM();
+    record.isPreferredForShortcuts = view->isPreferredForShortcuts();
+
+    auto visibility = view->visibility();
+    record.visibilityTimerShow = visibility->timerShow();
+    record.visibilityTimerHide = visibility->timerHide();
+    record.visibilityEnableKWinEdges = visibility->enableKWinEdges();
+    record.visibilityRaiseOnDesktop = visibility->raiseOnDesktop();
+    record.visibilityRaiseOnActivity = visibility->raiseOnActivity();
+
+    //! the indicator is a legitimately absent optional until BindingsExternal
+    //! wires it after QML load (like the colorizer): report its presence and
+    //! keep the record defaults when it is not up yet
+    auto indicator = view->indicator();
+    record.indicatorPresent = (indicator != nullptr);
+
+    if (indicator) {
+        record.indicatorEnabled = indicator->enabled();
+        record.indicatorType = indicator->type();
+        record.indicatorCustomType = indicator->customType();
+    }
+
+    return record;
+}
+
+QString collectConfigData(const Latte::View *view)
+{
+    Q_ASSERT(view);
+    Q_ASSERT(view->containment());
+
+    //! the containment IS a Plasma::Applet, so its config values are the same
+    //! plasmoid.configuration.<key> map the settings pages write; read it
+    //! in-process (readConfigMap's default-deletion note)
+    const QVariantMap config = readConfigMap(view->containment());
+
+    return serializeConfigData(view->containment()->id(), config, collectViewLiveRecord(view));
+}
+
+QString collectAppletConfigData(const Latte::View *view, int appletId)
+{
+    Q_ASSERT(view);
+    Q_ASSERT(view->containment());
+
+    const auto applets = view->containment()->applets();
+
+    Plasma::Applet *target = nullptr;
+
+    for (auto *applet : applets) {
+        if (static_cast<int>(applet->id()) == appletId) {
+            target = applet;
+            break;
+        }
+    }
+
+    if (!target) {
+        //! appletId arrives from the D-Bus caller (outside input): an id that
+        //! names no applet on this view is refused loudly here, never a silent
+        //! empty answer a consumer could mistake for "the applet has no config"
+        qWarning() << "dbusreports: appletConfigData found no applet" << appletId
+                   << "on containment" << view->containment()->id();
+        return QStringLiteral("{}");
+    }
+
+    //! the tasks plasmoid (the D10-class target) is a plain applet, so its own
+    //! configuration map is the tasks.plasmoid.configuration.<key> surface the
+    //! Tasks page writes; a subcontainment applet would keep its config on the
+    //! subcontainment, but the audit only reads plain applets here
+    const QVariantMap config = readConfigMap(target);
+
+    return serializeAppletConfigData(view->containment()->id(), appletId,
+                                     target->pluginMetaData().pluginId(), config);
 }
 
 QString collectLayoutsData(Latte::Layouts::Manager *manager)

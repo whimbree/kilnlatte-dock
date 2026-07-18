@@ -12,8 +12,11 @@
 
 #include "dbusreports.h"
 
+#include <QColor>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QTest>
+#include <QVariantMap>
 
 using namespace Latte;
 using namespace Latte::DbusReports;
@@ -77,6 +80,14 @@ private Q_SLOTS:
     void screenRecordSerialization();
     void screenRecordKeySet();
     void screensDataSerializesAsCompactJsonArray();
+
+    void configValueScalarMapping();
+    void configValueColorFallsBackToCanonicalString();
+    void configMapSerializesEveryKey();
+    void viewLiveRecordSerialization();
+    void viewLiveRecordKeySet();
+    void configDataShape();
+    void appletConfigDataShape();
 };
 
 //! the exact sorted key list of a serialized record: the schema pin that
@@ -976,6 +987,146 @@ void DbusReportsTest::screensDataSerializesAsCompactJsonArray()
 
     //! no screens still answers a well-formed empty array
     QCOMPARE(serializeScreensData({}), QStringLiteral("[]"));
+}
+
+//! viewConfigData/appletConfigData carry the user's own dock config values,
+//! whose types are int/double/bool/string/stringlist - each maps to a JSON
+//! scalar so the audit's snapshot-diff compares equal-means-equal.
+void DbusReportsTest::configValueScalarMapping()
+{
+    QCOMPARE(configValueToJson(QVariant(90)).toInt(), 90);
+    QCOMPARE(configValueToJson(QVariant(0.5)).toDouble(), 0.5);
+    QCOMPARE(configValueToJson(QVariant(true)).toBool(), true);
+    QCOMPARE(configValueToJson(QVariant(QStringLiteral("org.kde.latte.default"))).toString(),
+             QStringLiteral("org.kde.latte.default"));
+    //! a zero and an empty string are real values, never collapsed to null
+    QCOMPARE(configValueToJson(QVariant(0)).type(), QJsonValue::Double);
+    QCOMPARE(configValueToJson(QVariant(QString())).type(), QJsonValue::String);
+}
+
+//! a config value with no JSON scalar (a QColor, e.g. shadowColor) becomes a
+//! canonical string, NOT the JSON null QJsonValue::fromVariant hands back -
+//! otherwise every color would compare equal in the diff (a false PASS)
+void DbusReportsTest::configValueColorFallsBackToCanonicalString()
+{
+    const QJsonValue red = configValueToJson(QVariant::fromValue(QColor(255, 0, 0)));
+    const QJsonValue blue = configValueToJson(QVariant::fromValue(QColor(0, 0, 255)));
+
+    QCOMPARE(red.type(), QJsonValue::String);
+    QVERIFY(!red.toString().isEmpty());
+    //! two different colors must serialize to two different strings
+    QVERIFY(red.toString() != blue.toString());
+}
+
+void DbusReportsTest::configMapSerializesEveryKey()
+{
+    QVariantMap config;
+    config.insert(QStringLiteral("maxLength"), 100);
+    config.insert(QStringLiteral("minLength"), 30);
+    config.insert(QStringLiteral("titleTooltips"), false);
+
+    const QJsonObject json = serializeConfigMap(config);
+
+    QCOMPARE(json.keys().count(), 3);
+    QCOMPARE(json.value(QStringLiteral("maxLength")).toInt(), 100);
+    QCOMPARE(json.value(QStringLiteral("minLength")).toInt(), 30);
+    QCOMPARE(json.value(QStringLiteral("titleTooltips")).toBool(), false);
+
+    //! an empty config is a well-formed empty object, not a crash
+    QVERIFY(serializeConfigMap({}).isEmpty());
+}
+
+void DbusReportsTest::viewLiveRecordSerialization()
+{
+    ViewLiveRecord record;
+    record.byPassWM = true;
+    record.isPreferredForShortcuts = true;
+    record.visibilityTimerShow = 100;
+    record.visibilityTimerHide = 700;
+    record.visibilityEnableKWinEdges = true;
+    record.visibilityRaiseOnDesktop = true;
+    record.visibilityRaiseOnActivity = true;
+    record.indicatorPresent = true;
+    record.indicatorEnabled = true;
+    record.indicatorType = QStringLiteral("org.kde.latte.default");
+    record.indicatorCustomType = QStringLiteral("");
+
+    const QJsonObject json = serializeViewLiveRecord(record);
+
+    QCOMPARE(json.value(QStringLiteral("byPassWM")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("isPreferredForShortcuts")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("visibilityTimerShow")).toInt(), 100);
+    QCOMPARE(json.value(QStringLiteral("visibilityTimerHide")).toInt(), 700);
+    QCOMPARE(json.value(QStringLiteral("visibilityEnableKWinEdges")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("visibilityRaiseOnDesktop")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("visibilityRaiseOnActivity")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("indicatorPresent")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("indicatorEnabled")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("indicatorType")).toString(), QStringLiteral("org.kde.latte.default"));
+    QCOMPARE(json.value(QStringLiteral("indicatorCustomType")).toString(), QString());
+}
+
+void DbusReportsTest::viewLiveRecordKeySet()
+{
+    const QStringList expected{
+        QStringLiteral("byPassWM"), QStringLiteral("indicatorCustomType"),
+        QStringLiteral("indicatorEnabled"), QStringLiteral("indicatorPresent"),
+        QStringLiteral("indicatorType"), QStringLiteral("isPreferredForShortcuts"),
+        QStringLiteral("visibilityEnableKWinEdges"), QStringLiteral("visibilityRaiseOnActivity"),
+        QStringLiteral("visibilityRaiseOnDesktop"), QStringLiteral("visibilityTimerHide"),
+        QStringLiteral("visibilityTimerShow")};
+
+    QCOMPARE(sortedKeys(serializeViewLiveRecord(ViewLiveRecord{})), expected);
+}
+
+//! the viewConfigData() top-level shape a consumer parses: a compact object
+//! with containmentId, the config values object, and the live "view" object
+void DbusReportsTest::configDataShape()
+{
+    QVariantMap config;
+    config.insert(QStringLiteral("maxLength"), 90);
+
+    ViewLiveRecord live;
+    live.byPassWM = true;
+
+    const QString data = serializeConfigData(12u, config, live);
+
+    QVERIFY(!data.contains(QLatin1Char('\n')));
+
+    QJsonParseError error{};
+    const QJsonDocument document = QJsonDocument::fromJson(data.toUtf8(), &error);
+    QCOMPARE(error.error, QJsonParseError::NoError);
+    QVERIFY(document.isObject());
+
+    const QJsonObject json = document.object();
+    QCOMPARE(sortedKeys(json), (QStringList{QStringLiteral("config"), QStringLiteral("containmentId"), QStringLiteral("view")}));
+    QCOMPARE(json.value(QStringLiteral("containmentId")).toInt(), 12);
+    QCOMPARE(json.value(QStringLiteral("config")).toObject().value(QStringLiteral("maxLength")).toInt(), 90);
+    QCOMPARE(json.value(QStringLiteral("view")).toObject().value(QStringLiteral("byPassWM")).toBool(), true);
+}
+
+//! the appletConfigData() top-level shape: a compact object keyed by
+//! containment id, applet id and plugin, carrying the applet's config values
+void DbusReportsTest::appletConfigDataShape()
+{
+    QVariantMap config;
+    config.insert(QStringLiteral("showInfoBadge"), true);
+
+    const QString data = serializeAppletConfigData(12u, 4, QStringLiteral("org.kde.latte.plasmoid"), config);
+
+    QVERIFY(!data.contains(QLatin1Char('\n')));
+
+    QJsonParseError error{};
+    const QJsonDocument document = QJsonDocument::fromJson(data.toUtf8(), &error);
+    QCOMPARE(error.error, QJsonParseError::NoError);
+    QVERIFY(document.isObject());
+
+    const QJsonObject json = document.object();
+    QCOMPARE(sortedKeys(json), (QStringList{QStringLiteral("appletId"), QStringLiteral("config"),
+                                            QStringLiteral("containmentId"), QStringLiteral("plugin")}));
+    QCOMPARE(json.value(QStringLiteral("appletId")).toInt(), 4);
+    QCOMPARE(json.value(QStringLiteral("plugin")).toString(), QStringLiteral("org.kde.latte.plasmoid"));
+    QCOMPARE(json.value(QStringLiteral("config")).toObject().value(QStringLiteral("showInfoBadge")).toBool(), true);
 }
 
 QTEST_GUILESS_MAIN(DbusReportsTest)

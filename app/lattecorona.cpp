@@ -1457,6 +1457,30 @@ QString Corona::colorizerData(const uint &containmentId)
     return DbusReports::collectColorizerData(view);
 }
 
+QString Corona::viewConfigData(const uint &containmentId)
+{
+    auto view = m_layoutsManager->synchronizer()->viewForContainment(containmentId);
+
+    if (!view) {
+        qWarning() << "corona: viewConfigData queried for containment" << containmentId << "which has no view";
+        return QStringLiteral("{}");
+    }
+
+    return DbusReports::collectConfigData(view);
+}
+
+QString Corona::appletConfigData(const uint &containmentId, const uint &appletId)
+{
+    auto view = m_layoutsManager->synchronizer()->viewForContainment(containmentId);
+
+    if (!view) {
+        qWarning() << "corona: appletConfigData queried for containment" << containmentId << "which has no view";
+        return QStringLiteral("{}");
+    }
+
+    return DbusReports::collectAppletConfigData(view, static_cast<int>(appletId));
+}
+
 QString Corona::layoutsData()
 {
     return DbusReports::collectLayoutsData(m_layoutsManager);

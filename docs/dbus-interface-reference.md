@@ -89,6 +89,24 @@ call colorizerData u 1                 # s: JSON object - the colorizer decision
 #   colorizerPresent, enabled, themeColorsMode, windowColorsMode,
 #   mustBeShown, applyingWindowColors, backgroundIsBusy,
 #   currentBackgroundBrightness (-1000 = no measurement), scheme
+call viewConfigData u 1                # s: JSON object - the settings-panel config VALUES
+#   { containmentId, config:{<every General-group key> -> value},
+#     view:{byPassWM, isPreferredForShortcuts, visibilityTimerShow,
+#           visibilityTimerHide, visibilityEnableKWinEdges,
+#           visibilityRaiseOnDesktop, visibilityRaiseOnActivity,
+#           indicatorPresent, indicatorEnabled, indicatorType,
+#           indicatorCustomType} }
+#   config = the containment config map, read IN-PROCESS (a key at its
+#   default reads as its default, never "missing" - the KConfig
+#   default-deletion caveat). view = the live C++-property half whose
+#   controls write a View/Visibility/Indicator property, not a config key.
+#   The edit-mode settings audit diffs config before/after driving a
+#   control (right-key check) and reads view for the P3 reflect-state leg.
+call appletConfigData u 1 4            # s: JSON object - one child applet's config VALUES
+#   { containmentId, appletId, plugin, config:{<applet keys> -> value} }
+#   The D10-class surface: the Tasks page writes tasks.plasmoid.
+#   configuration.* (appletId from viewAppletsData). "{}" if the view or
+#   the applet id is unknown (warned).
 call viewAppletsOrder u 1              # as: applet INSTANCE ids in visual order (cheap, stable);
 #   justify-splitter sentinels (-10) excluded, so it agrees with
 #   viewAppletsData's order on justify views (G1)
