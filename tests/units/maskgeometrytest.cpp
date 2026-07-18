@@ -139,7 +139,8 @@ private Q_SLOTS:
     //! input region (the input half)
     void inputMaskPerEdgeAndState_data();
     void inputMaskPerEdgeAndState();
-    void inputMaskAcceptsEverywhereWithoutCompositingOrAsPanel();
+    void inputMaskAcceptsEverywhereWithoutCompositing();
+    void inputMaskPanelExposesFullWindowSoPopupsAnchorOutside();
     void inputMaskFloatingGapEqualsLocalGeometry();
     void inputMaskAnimatedFloatingGapSubtractsItemsMargin();
     void inputMaskHiddenWinsOverFloatingGap();
@@ -335,18 +336,42 @@ void MaskGeometryTest::inputMaskPerEdgeAndState()
     QCOMPARE(MaskGeometry::computeInputMask(in), expected);
 }
 
-void MaskGeometryTest::inputMaskAcceptsEverywhereWithoutCompositingOrAsPanel()
+void MaskGeometryTest::inputMaskAcceptsEverywhereWithoutCompositing()
 {
-    //! both states drop the input mask entirely: the whole window accepts
-    //! input (panels have no masked chrome; without compositing there is
-    //! no mask to align with)
+    //! without compositing there is no mask to align with, so the whole
+    //! window accepts input (the legacy fall-through)
     MaskGeometry::InputMaskInputs in = horizontalInputMaskInputs(Plasma::Types::BottomEdge);
     in.compositingActive = false;
     QCOMPARE(MaskGeometry::computeInputMask(in), InputMaskDecision(AcceptAllInput{}));
+}
 
-    in = horizontalInputMaskInputs(Plasma::Types::BottomEdge);
+void MaskGeometryTest::inputMaskPanelExposesFullWindowSoPopupsAnchorOutside()
+{
+    //! REGRESSION (Issue 2, panel popup opens over the panel): a
+    //! behaveAsPlasmaPanel window must expose its WHOLE window as the input
+    //! mask, not clear it. libplasma's PopupPlasmaWindow anchors an applet
+    //! popup to parentWindow->mask().boundingRect(); a cleared mask collapses
+    //! that to a 1px strip at the window top and the popup opens OVER the
+    //! panel (covering the icon), while a masked dock's real band anchors it
+    //! outside. A cleared mask (the old AcceptAllInput here) would put the
+    //! bounding rect at 0-height and reintroduce the bug.
+    MaskGeometry::InputMaskInputs in = horizontalInputMaskInputs(Plasma::Types::BottomEdge);
     in.behaveAsPlasmaPanel = true;
-    QCOMPARE(MaskGeometry::computeInputMask(in), InputMaskDecision(AcceptAllInput{}));
+    QCOMPARE(MaskGeometry::computeInputMask(in),
+             InputMaskDecision(AcceptInputWithin{QRectF(0, 0, 1200, 140)}));
+
+    //! same on a vertical panel: the full window, no axis narrowed
+    MaskGeometry::InputMaskInputs vin = verticalInputMaskInputs(Plasma::Types::LeftEdge);
+    vin.behaveAsPlasmaPanel = true;
+    QCOMPARE(MaskGeometry::computeInputMask(vin),
+             InputMaskDecision(AcceptInputWithin{QRectF(0, 0, 140, 800)}));
+
+    //! the exposed band spans the full thickness so the popup anchors at the
+    //! real panel edge (bottom() here), never a collapsed strip at the top
+    const auto decision = MaskGeometry::computeInputMask(in);
+    const QRectF band = std::get<AcceptInputWithin>(decision).rect;
+    QCOMPARE(band.top(), qreal(0));
+    QCOMPARE(band.bottom(), qreal(140));
 }
 
 void MaskGeometryTest::inputMaskFloatingGapEqualsLocalGeometry()
