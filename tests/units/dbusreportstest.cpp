@@ -39,6 +39,7 @@ private Q_SLOTS:
 
     void appletRecordSerialization();
     void appletRecordKeySet();
+    void appletZReportsStackingResidue();
     void appletRecordsSerializeAsCompactJsonArray();
     void appletIdOrderStripsSplitters();
     void appletIdOrderDisambiguatesSamePluginApplets();
@@ -337,6 +338,9 @@ void DbusReportsTest::appletRecordSerialization()
     record.inScheduledDestruction = true;
     record.lockedZoom = true;
     record.colorizingBlocked = true;
+    //! a lifted delegate: 900 is the z ConfigOverlay parks a dragged applet at
+    //! over the edit chrome, the residue value the G2 readback exists to surface
+    record.z = 900;
 
     const QJsonObject json = serializeAppletRecord(record);
 
@@ -348,6 +352,7 @@ void DbusReportsTest::appletRecordSerialization()
     QCOMPARE(json.value(QStringLiteral("inScheduledDestruction")).toBool(), true);
     QCOMPARE(json.value(QStringLiteral("lockedZoom")).toBool(), true);
     QCOMPARE(json.value(QStringLiteral("colorizingBlocked")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("z")).toDouble(), 900.0);
 }
 
 void DbusReportsTest::appletRecordKeySet()
@@ -356,9 +361,30 @@ void DbusReportsTest::appletRecordKeySet()
         QStringLiteral("colorizingBlocked"), QStringLiteral("geometry"),
         QStringLiteral("id"), QStringLiteral("inScheduledDestruction"),
         QStringLiteral("index"), QStringLiteral("isExpanded"),
-        QStringLiteral("lockedZoom"), QStringLiteral("plugin")};
+        QStringLiteral("lockedZoom"), QStringLiteral("plugin"),
+        QStringLiteral("z")};
 
     QCOMPARE(sortedKeys(serializeAppletRecord(AppletRecord{})), expected);
+}
+
+//! The G2 stacking readback contract (docs/e2e-interaction-test-plan.md): the
+//! z field carries the applet delegate's stacking order as a real number, and
+//! its at-rest baseline is 0 (the layout default). An applet-reorder that
+//! stranded the dragged delegate lifted over the edit chrome shows here as a
+//! nonzero z (ConfigOverlay parks it at 900), so the 480ae30e3 "icons stuck
+//! over chrome" residue is queryable instead of golden-only. This pins the
+//! clean baseline and that fractional z survives serialization (wayland
+//! delivers fractional geometry; z is qreal, not int).
+void DbusReportsTest::appletZReportsStackingResidue()
+{
+    //! clean baseline: an at-rest applet reports z 0, the value an abort
+    //! assertion compares back to
+    QCOMPARE(serializeAppletRecord(AppletRecord{}).value(QStringLiteral("z")).toDouble(), 0.0);
+
+    //! a stranded lift reads as its real z, not rounded away
+    AppletRecord lifted;
+    lifted.z = 900.5;
+    QCOMPARE(serializeAppletRecord(lifted).value(QStringLiteral("z")).toDouble(), 900.5);
 }
 
 void DbusReportsTest::appletRecordsSerializeAsCompactJsonArray()

@@ -152,6 +152,14 @@ struct AppletRecord {
     bool inScheduledDestruction{false};
     bool lockedZoom{false};
     bool colorizingBlocked{false};
+    //! the G2 stacking readback (docs/e2e-interaction-test-plan.md): the z of
+    //! the applet's AppletItem delegate. At rest every applet sits at the
+    //! layout default (0); the applet-reorder machinery lifts the dragged
+    //! delegate to z=900 over the edit chrome and restores it on release, so a
+    //! reorder left stranded shows here as a delegate stuck above its
+    //! siblings - the 480ae30e3 "icons stuck over chrome" residue made
+    //! queryable instead of golden-only. Real (qreal z), not int.
+    double z{0};
 };
 
 struct ViewRecord {
@@ -392,6 +400,7 @@ inline QJsonObject serializeAppletRecord(const AppletRecord &record)
     json[QStringLiteral("inScheduledDestruction")] = record.inScheduledDestruction;
     json[QStringLiteral("lockedZoom")] = record.lockedZoom;
     json[QStringLiteral("colorizingBlocked")] = record.colorizingBlocked;
+    json[QStringLiteral("z")] = record.z;
 
     return json;
 }

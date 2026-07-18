@@ -86,6 +86,35 @@ ViewRecord collectViewRecord(const Latte::View *view, bool inConfigureAppletsMod
     return record;
 }
 
+namespace {
+
+//! The applet's STACKING delegate: the AppletItem.qml wrapper whose z is the
+//! applet's visual stacking order (the G2 readback). collectAppletsData holds
+//! the inner PlasmaQuick::AppletQuickItem (data.plasmoid), but the
+//! applet-reorder machinery lifts the OUTER AppletItem delegate - ConfigOverlay
+//! sets the delegate to z=900 and reparents it to root during a drag, restoring
+//! z=1 on release - so the stuck-over-chrome residue (480ae30e3 class) lives on
+//! the delegate, not on the inner quick item whose own z never moves. The
+//! delegate is the nearest ANCESTOR that declares isInternalViewSplitter. That
+//! property is NOT unique to AppletItem.qml (ParabolicEdgeSpacer.qml declares it
+//! too), but the spacer is a layout SIBLING of the applet items, never an
+//! ANCESTOR of an applet's quick item, so the parent walk never meets it. Of the
+//! actual ancestors - the wrapper items between the quick item and its
+//! AppletItem, and the layout containers above - only the AppletItem declares
+//! isInternalViewSplitter, so the first match up the chain is exactly it.
+QQuickItem *appletStackingDelegate(QQuickItem *appletQuickItem)
+{
+    for (QQuickItem *item = appletQuickItem; item; item = item->parentItem()) {
+        if (item->property("isInternalViewSplitter").isValid()) {
+            return item;
+        }
+    }
+
+    return nullptr;
+}
+
+}
+
 QString collectAppletsData(const Latte::View *view)
 {
     //! same invariant layer as collectViewRecord: the view comes from
@@ -127,6 +156,17 @@ QString collectAppletsData(const Latte::View *view)
         record.inScheduledDestruction = data.applet->destroyed();
         record.lockedZoom = interface->appletsInLockedZoom().contains(data.id);
         record.colorizingBlocked = interface->appletsDisabledColoring().contains(data.id);
+
+        //! G2 stacking readback: the delegate's z, so an applet left lifted
+        //! over the edit chrome (the reorder-residue class) is queryable. A
+        //! missing delegate is a QML-restructure code defect, reported loudly
+        //! rather than papered over with a plausible z=0.
+        if (QQuickItem *delegate = appletStackingDelegate(data.plasmoid)) {
+            record.z = delegate->z();
+        } else {
+            qWarning() << "dbusreports: applet" << data.id
+                       << "quick item has no AppletItem delegate ancestor; its stacking z cannot be read";
+        }
 
         records << record;
     }
