@@ -1405,6 +1405,34 @@ void Corona::setViewKeyboardNavigation(const uint &containmentId, const bool &na
     }
 }
 
+void Corona::setViewConfiguringApplets(const uint &containmentId, const bool &configuring)
+{
+    auto view = m_layoutsManager->synchronizer()->viewForContainment(containmentId);
+
+    if (!view) {
+        qWarning() << "corona: setViewConfiguringApplets requested for containment" << containmentId << "which has no view";
+        return;
+    }
+
+    //! inConfigureAppletsMode is a GLOBAL UniversalSettings flag the settings
+    //! header's rearrange button toggles (HeaderSettings.qml); the containment
+    //! QML gates the ConfigOverlay on `editMode && inConfigureAppletsMode`
+    //! (main.qml), so the sub-mode only takes visual effect on the view whose
+    //! settings window is open. Entering it while the target view is NOT in
+    //! edit mode would flip a global flag that reaches no ConfigOverlay - a
+    //! silent no-op the caller would misread as "rearrange active" - so it is
+    //! refused loudly here. Exiting is always honored (the flag goes false,
+    //! matching main.qml's own edit-exit reset). Readback:
+    //! viewsData()'s inConfigureAppletsMode field.
+    if (configuring && !view->inEditMode()) {
+        qWarning() << "corona: setViewConfiguringApplets(true) refused for containment" << containmentId
+                   << "which is not in edit mode (open it with setViewEditMode first; rearrange only runs inside an edit session)";
+        return;
+    }
+
+    m_universalSettings->setInConfigureAppletsMode(configuring);
+}
+
 QString Corona::viewTasksData(const uint &containmentId)
 {
     auto view = m_layoutsManager->synchronizer()->viewForContainment(containmentId);

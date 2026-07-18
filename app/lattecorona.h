@@ -315,6 +315,17 @@ public Q_SLOTS:
     //! shortcut drives; readback is viewsData()'s keyboardNavigation field
     void setViewKeyboardNavigation(const uint &containmentId, const bool &navigating);
 
+    //! D-Bus coarse action (docs/dbus-observability-interface.md): enter or
+    //! leave a view's applet-rearrange (configure-applets) sub-mode, the same
+    //! global toggle the settings-window header's rearrange button flips
+    //! (HeaderSettings.qml). It is the driving surface for the applet-reorder
+    //! e2e family (C-I7/P6): the ConfigOverlay drag machinery is only live
+    //! when a view is BOTH in edit mode and this sub-mode, and the sub-mode is
+    //! transient (never persisted), so a config seed cannot reach it. Entering
+    //! requires the view already in edit mode and is refused loudly otherwise;
+    //! readback is viewsData()'s inConfigureAppletsMode field.
+    void setViewConfiguringApplets(const uint &containmentId, const bool &configuring);
+
     void setBackgroundFromBroadcast(QString activity, QString screenName, QString filename);
     void setBroadcastedBackgroundsEnabled(QString activity, QString screenName, bool enabled);
     void showAlternativesForApplet(Plasma::Applet *applet);

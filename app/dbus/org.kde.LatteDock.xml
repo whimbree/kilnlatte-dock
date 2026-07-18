@@ -117,6 +117,10 @@
         <arg name="containmentId" type="u" direction="in"/>
         <arg name="navigating" type="b" direction="in"/>
     </method>
+    <method name="setViewConfiguringApplets">
+        <arg name="containmentId" type="u" direction="in"/>
+        <arg name="configuring" type="b" direction="in"/>
+    </method>
     <method name="setBackgroundFromBroadcast">
         <arg name="activity" type="s" direction="in"/>
         <arg name="screenName" type="s" direction="in"/>
