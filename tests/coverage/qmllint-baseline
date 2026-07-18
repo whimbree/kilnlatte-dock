@@ -113,7 +113,6 @@
 218	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/ContextMenu.qml
 77	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/main.qml
 2	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/previews/PipeWireThumbnail.qml
-1	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/previews/PlasmaCoreThumbnail.qml
 23	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/previews/ToolTipDelegate2.qml
 97	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/previews/ToolTipInstance.qml
 7	share/plasma/plasmoids/org.kde.latte.plasmoid/contents/ui/previews/ToolTipWindowMouseArea.qml

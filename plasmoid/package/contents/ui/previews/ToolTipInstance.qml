@@ -192,9 +192,10 @@ Column {
                 anchors.fill: parent
                 anchors.margins: Math.max(2, thumbnailSourceItem.shadowPx)
                 visible: !albumArtImage.visible && !thumbnailSourceItem.isMinimized
-                //! The Plasma 5 version ladder (5.24/5.25/5.26 variants) is dead on a
-                //! Plasma 6-only port; wayland always takes the kpipewire path.
-                source: LatteCore.WindowSystem.isPlatformWayland ? "PipeWireThumbnail.qml" : "PlasmaCoreThumbnail.qml"
+                //! Wayland-only port: every preview is a kpipewire screencast.
+                //! The X11 PlasmaCoreThumbnail alternative was removed with the
+                //! X11 backend, so no platform branch remains here.
+                source: "PipeWireThumbnail.qml"
 
                 LatteComponents.ShadowedItem {
                     anchors.fill: previewThumbLoader.item
@@ -258,8 +259,8 @@ Column {
                 anchors.horizontalCenter: parent.horizontalCenter
                 source: icon
                 animated: false
-                visible: (thumbnailSourceItem.isMinimized && !albumArtImage.visible) //X11 case
-                         || (!previewThumbLoader.active && !albumArtImage.visible) //Wayland case
+                visible: (thumbnailSourceItem.isMinimized && !albumArtImage.visible) //minimized: no live screencast
+                         || (!previewThumbLoader.active && !albumArtImage.visible)
                          //! Wayland stream warm-up: every preview is a live
                          //! kwin screencast, and the negotiation measured
                          //! 270-500ms per window (STREAM-PROBE, 2026-07-15).
@@ -267,9 +268,9 @@ Column {
                          //! rendered BLANK - crossing tasks at hover-trigger
                          //! speed felt like lag at the desk. The icon fills
                          //! that hole instantly and yields the moment the
-                         //! stream is ready. Strict === false: the X11
-                         //! thumbnail item has no hasThumbnail property, and
-                         //! undefined must never enable this branch there.
+                         //! stream is ready. Strict === false: the loader item
+                         //! is null before its first frame, so an undefined
+                         //! hasThumbnail must never enable this branch.
                          || (previewThumbLoader.active && previewThumbLoader.item !== null
                              && previewThumbLoader.item.hasThumbnail === false && !albumArtImage.visible)
             }
