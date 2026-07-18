@@ -1245,7 +1245,11 @@ QStringList Corona::viewAppletsOrder(const uint &containmentId)
     }
 
     QStringList order;
-    const QList<int> appletIds = view->extendedInterface()->appletsOrder();
+    //! the splitter-free applet-instance-id order (dbusreports.h): the raw
+    //! appletsOrder() interleaves justify-splitter sentinels, dropped here so
+    //! the readback is exactly the applets in visual order, consistent with
+    //! viewAppletsData - the G1 disambiguation readback
+    const QList<int> appletIds = DbusReports::appletIdOrder(view->extendedInterface()->appletsOrder());
 
     for (const int id : appletIds) {
         order << QString::number(id);

@@ -65,9 +65,11 @@ true with `isOffScreen`), what the compositor was told to reserve.
 ### Per-view reads (all take the containment id)
 
 ```bash
-call viewAppletsData u 1               # s: JSON array per applet
+call viewAppletsData u 1               # s: JSON array per applet, in visual order
 #   id, plugin, index, geometry, isExpanded, inScheduledDestruction,
 #   lockedZoom, colorizingBlocked
+#   id is the stable Plasma INSTANCE id: two applets of the same plugin
+#   are distinguishable by id and their order is unambiguous (G1)
 call viewTasksData u 1                 # s: JSON array per task entry (tasks views; else [])
 #   index, appletId, appId, launcherUrl, isLauncher, isGrouped,
 #   childCount, isActive, isMinimized, demandsAttention, badge,
@@ -82,7 +84,9 @@ call colorizerData u 1                 # s: JSON object - the colorizer decision
 #   colorizerPresent, enabled, themeColorsMode, windowColorsMode,
 #   mustBeShown, applyingWindowColors, backgroundIsBusy,
 #   currentBackgroundBrightness (-1000 = no measurement), scheme
-call viewAppletsOrder u 1              # as: plugin ids in visual order (cheap, stable)
+call viewAppletsOrder u 1              # as: applet INSTANCE ids in visual order (cheap, stable);
+#   justify-splitter sentinels (-10) excluded, so it agrees with
+#   viewAppletsData's order on justify views (G1)
 call contextMenuData u 1               # as: legacy ;;/** joined list (pre-JSON, kept)
 ```
 

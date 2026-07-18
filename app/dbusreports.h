@@ -380,6 +380,33 @@ inline QString serializeAppletRecords(const QList<AppletRecord> &records)
     return QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact));
 }
 
+//! The stable applet-instance-id order the viewAppletsOrder() D-Bus read
+//! reports: the raw ContainmentInterface::appletsOrder() with the justify
+//! layout's splitter markers removed. A justify view threads two
+//! JUSTIFYSPLITTERID (-10) sentinels into that list to mark its three zone
+//! boundaries; they are layout artifacts that own no applet, and
+//! collectAppletsData() already excludes them (it skips data.id < 0), so
+//! the id-order readback draws the same line and keeps only real Plasma
+//! applet ids in visual order. Two applets of the SAME plugin still carry
+//! distinct instance ids, so this order disambiguates them where the plugin
+//! string cannot - the G1 readback in docs/e2e-interaction-test-plan.md.
+inline QList<int> appletIdOrder(const QList<int> &appletsOrder)
+{
+    QList<int> ids;
+    ids.reserve(appletsOrder.count());
+
+    for (const int id : appletsOrder) {
+        //! real applet ids are non-negative; the only negative entries are
+        //! the justify-splitter sentinels (LayoutManager::JUSTIFYSPLITTERID),
+        //! the same boundary collectAppletsData draws with data.id < 0
+        if (id >= 0) {
+            ids << id;
+        }
+    }
+
+    return ids;
+}
+
 inline QJsonObject serializeLayoutRecord(const LayoutRecord &record)
 {
     QJsonObject json;

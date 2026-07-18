@@ -75,11 +75,21 @@ Landed before or during the 2026-07-16 stabilization session:
   lock/unlock "is it actually visible" question, and the
   startup-stranding watchdog's state dump (inStartup/isOffScreen are
   exactly the stranded bits).
-- `viewAppletsData(u containmentId) -> s` (JSON array). Per applet:
-  id, plugin, index in layout, geometry within the view, expanded
-  state, inScheduledDestruction, lockedZoom, colorizingBlocked.
-  Supersedes viewAppletsOrder for rich asserts; viewAppletsOrder
-  stays (cheap, stable, already used).
+- `viewAppletsData(u containmentId) -> s` (JSON array, in visual order).
+  Per applet: id, plugin, index in layout, geometry within the view,
+  expanded state, inScheduledDestruction, lockedZoom, colorizingBlocked.
+  The per-applet `id` is the stable Plasma instance id, so two applets
+  of the SAME plugin are distinguishable by id and their order is
+  unambiguous (the G1 disambiguation readback,
+  docs/e2e-interaction-test-plan.md - retires the same-plugin ambiguity
+  in the F2/F3/A1/A2 add/reorder/abort scenarios). Supersedes
+  viewAppletsOrder for rich asserts.
+- `viewAppletsOrder(u containmentId) -> as`: the cheap companion to
+  viewAppletsData - the same applets' instance ids (NOT plugin strings)
+  in visual order. Justify-splitter sentinels (JUSTIFYSPLITTERID = -10,
+  layout artifacts that own no applet) are EXCLUDED, the same line
+  viewAppletsData draws, so the two order readbacks agree on justify
+  views. Cheap, stable, already used.
 - `viewTasksData(u containmentId) -> s` (JSON array, tasks plasmoid
   views only). Per task item: index, appId/launcherUrl, isLauncher,
   isGrouped + childCount, isActive, isMinimized, demandsAttention,

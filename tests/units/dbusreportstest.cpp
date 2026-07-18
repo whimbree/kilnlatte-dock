@@ -40,6 +40,8 @@ private Q_SLOTS:
     void appletRecordSerialization();
     void appletRecordKeySet();
     void appletRecordsSerializeAsCompactJsonArray();
+    void appletIdOrderStripsSplitters();
+    void appletIdOrderDisambiguatesSamePluginApplets();
 
     void visibilityModeRoundTrip_data();
     void visibilityModeRoundTrip();
@@ -374,6 +376,44 @@ void DbusReportsTest::appletRecordsSerializeAsCompactJsonArray()
     QCOMPARE(document.array().at(1).toObject().value(QStringLiteral("id")).toInt(), 2);
 
     QCOMPARE(serializeAppletRecords({}), QStringLiteral("[]"));
+}
+
+//! The G1 applet-id-order readback (docs/e2e-interaction-test-plan.md):
+//! appletIdOrder() drops the justify-splitter sentinels
+//! (LayoutManager::JUSTIFYSPLITTERID = -10) from a raw appletsOrder() and
+//! keeps every real applet id in place, so viewAppletsOrder reports exactly
+//! the applets in visual order regardless of alignment (consistent with the
+//! splitter-skipping collectAppletsData already does for viewAppletsData).
+void DbusReportsTest::appletIdOrderStripsSplitters()
+{
+    //! a non-justify view carries no splitters: the order passes through
+    QCOMPARE(appletIdOrder(QList<int>{5, 7, 9}), (QList<int>{5, 7, 9}));
+    //! an empty view reports an empty order, not a crash
+    QCOMPARE(appletIdOrder(QList<int>{}), (QList<int>{}));
+    //! justify threads two -10 sentinels marking the three zones; both are
+    //! dropped and the applet ids keep their order
+    QCOMPARE(appletIdOrder(QList<int>{-10, 5, 7, -10, 9}), (QList<int>{5, 7, 9}));
+    //! a leading empty zone (two adjacent splitters) must not shift ids
+    QCOMPARE(appletIdOrder(QList<int>{-10, -10, 5, 7, 9}), (QList<int>{5, 7, 9}));
+    //! applet id 0 is a real id and survives the non-negative filter
+    QCOMPARE(appletIdOrder(QList<int>{0, -10, 3}), (QList<int>{0, 3}));
+}
+
+//! The disambiguation the readback exists for: two applets of the SAME
+//! plugin carry DISTINCT instance ids, and appletIdOrder keeps both in
+//! visual order, so a test can tell them apart and track their order even
+//! though the plugin string is identical - which the plugin string alone
+//! cannot express (F2/F3/A1/A2).
+void DbusReportsTest::appletIdOrderDisambiguatesSamePluginApplets()
+{
+    //! ids 11 and 14 stand in for two org.kde.plasma.marginsseparator
+    //! instances sitting either side of a justify splitter
+    const QList<int> order = appletIdOrder(QList<int>{11, -10, 14});
+
+    QCOMPARE(order.count(), 2);
+    QCOMPARE(order.at(0), 11);
+    QCOMPARE(order.at(1), 14);
+    QVERIFY(order.at(0) != order.at(1));
 }
 
 //! every visibility mode must survive name -> mode -> name, so the two
