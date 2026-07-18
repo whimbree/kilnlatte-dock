@@ -66,6 +66,27 @@ DISPLAYS = ("1out", "2out")
 
 LATTE_CONTAINMENT_PLUGIN = "org.kde.latte.containment"
 
+# A 2out view pins to a SECONDARY output by the pair Latte actually reads:
+# onPrimary=false plus lastScreen=<numeric ScreenPool id> (the dead
+# `explicitScreen` key earlier fixtures wrote is not consulted anywhere in the
+# app - grep app/ for it: only local variables and a computed list, never a
+# config read). ScreenPool resolves that id to a connector via the
+# [ScreenConnectors] group in lattedockrc, so a fixture that pins lastScreen
+# must ALSO seed that mapping or the id resolves to nothing.
+#
+# When the multi-output vehicle (C-I2/P1) has discovered the real secondary
+# connector it passes --screen/--screen-id/--screen-geometry and this fixture
+# seeds a valid mapping. When NO secondary was discovered (a single-output run
+# asked for a dual cell) the id defaults to this sentinel, which no connector
+# claims, so the dock REJECTS the view ("Adding View: ... Rejected because
+# Screen is not available", genericlayout.cpp) instead of silently placing it
+# on the primary. A silent wrong-output placement is exactly the class the
+# whole e2e suite exists to catch, so the degenerate case fails loud.
+SECONDARY_ABSENT_SCREEN_ID = 999
+LATTE_SCREEN_CONNECTORS_GROUP = "[ScreenConnectors]"
+# Data::Screen::serialize() (app/data/screendata.cpp): "<name>:::<x,y wxh>".
+SCREEN_SERIALIZE_SPLITTER = ":::"
+
 
 def die(msg):
     """Refuse loudly: name the boundary, print the offending input, exit 2."""
@@ -162,7 +183,7 @@ def set_key(groups, header, key, value):
 
 # --- the parametrization ----------------------------------------------------
 
-def patch_layout(text, view_type, edge, alignment, display, screen):
+def patch_layout(text, view_type, edge, alignment, display, screen, screen_id):
     preamble, groups = parse_kconfig(text)
     cont = find_latte_containment(groups)
     gen = general_group_header(cont)
@@ -216,22 +237,35 @@ def patch_layout(text, view_type, edge, alignment, display, screen):
         set_key(groups, cont, "onPrimary", "true")
         set_key(groups, cont, "screensGroup", 0)          # SingleScreenGroup
         set_key(groups, cont, "lastScreen", -1)           # primary / any
-    else:  # 2out - secondary output. The name<->connector mapping under a
-        # headless multi-output vehicle is P1's job (C-I2); P0 emits the
-        # per-screen pin the settings combo writes so a dual cell is fully
-        # declared, but the actual placement is only exercised once the
-        # multi-output vehicle lands. Single-output runs must not trust it.
+    else:  # 2out - pin to the SECONDARY output by the keys the app reads:
+        # onPrimary=false + lastScreen=<ScreenPool id>. The id resolves to a
+        # connector through the [ScreenConnectors] group in lattedockrc, seeded
+        # by patch_lattedockrc below (C-I2/P1: the multi-output vehicle
+        # discovers the real secondary; without one, screen_id is the
+        # SECONDARY_ABSENT_SCREEN_ID sentinel so the view is rejected, never
+        # mis-placed on the primary).
         set_key(groups, cont, "onPrimary", "false")
-        set_key(groups, cont, "screensGroup", 0)
-        if screen:
-            # explicitScreen is the connector name the view pins to; lastScreen
-            # is the numeric id ScreenPool resolves it to at runtime (P1).
-            set_key(groups, cont, "explicitScreen", screen)
+        set_key(groups, cont, "screensGroup", 0)          # SingleScreenGroup
+        set_key(groups, cont, "lastScreen", screen_id)
 
     # the readback strings the harness will assert the realized view against
     align_readback = (ALIGN_READBACK_HORIZONTAL if horizontal else ALIGN_READBACK_VERTICAL)[alignment]
     expect = {"type": view_type, "edge": edge, "alignment": align_readback}
     return serialize_kconfig(preamble, groups), expect
+
+
+def patch_lattedockrc(text, screen_id, screen_name, screen_geometry):
+    """Seed the [ScreenConnectors] mapping so a 2out view's lastScreen=<screen_id>
+    resolves to <screen_name>. The value mirrors Data::Screen::serialize()
+    (app/data/screendata.cpp): "<name>:::<x,y wxh>". The geometry half is
+    optional (ScreenPool refreshes it from the live output on load), but a real
+    one avoids the transient default rect ever being observed."""
+    preamble, groups = parse_kconfig(text)
+    value = screen_name
+    if screen_geometry:
+        value = screen_name + SCREEN_SERIALIZE_SPLITTER + screen_geometry
+    set_key(groups, LATTE_SCREEN_CONNECTORS_GROUP, str(screen_id), value)
+    return serialize_kconfig(preamble, groups)
 
 
 def find_seed_layout(seed_dir):
@@ -271,7 +305,13 @@ def main():
     ap.add_argument("--edge", required=True)
     ap.add_argument("--alignment", required=True)
     ap.add_argument("--display", default="1out")
-    ap.add_argument("--screen", default="", help="connector name for a 2out secondary pin (P1)")
+    ap.add_argument("--screen", default="", help="connector name for a 2out secondary pin (P1); "
+                    "when given, its [ScreenConnectors] mapping is seeded so lastScreen resolves")
+    ap.add_argument("--screen-id", type=int, default=SECONDARY_ABSENT_SCREEN_ID,
+                    help="numeric ScreenPool id a 2out view pins lastScreen to (P1). Defaults to a "
+                    "sentinel no connector claims so an undiscovered secondary is refused, not mis-placed")
+    ap.add_argument("--screen-geometry", default="", help="the secondary output geometry as 'x,y WxH' "
+                    "(Latte's rect string) for the seeded [ScreenConnectors] entry")
     ap.add_argument("--cell", default="", help="cell id for the manifest (default: derived)")
     args = ap.parse_args()
 
@@ -290,7 +330,8 @@ def main():
         text = fh.read()
     # patch first (may refuse) BEFORE writing anything, so a refused fixture
     # leaves no half-written output dir behind
-    patched, expect = patch_layout(text, args.view_type, args.edge, args.alignment, args.display, args.screen)
+    patched, expect = patch_layout(text, args.view_type, args.edge, args.alignment,
+                                   args.display, args.screen, args.screen_id)
 
     # stage the whole seed dir, then overwrite the one layout we patched
     if os.path.exists(args.out_dir):
@@ -301,6 +342,20 @@ def main():
     with open(out_layout, "w") as fh:
         fh.write(patched)
 
+    # a 2out pin to a NAMED secondary also needs the [ScreenConnectors] mapping
+    # so ScreenPool resolves lastScreen to that connector. The sentinel case
+    # (no --screen) writes no mapping on purpose: the id then resolves to
+    # nothing and the dock refuses the view (the "no such output" negative).
+    if args.display == "2out" and args.screen:
+        rc_path = os.path.join(args.out_dir, "lattedockrc")
+        if not os.path.isfile(rc_path):
+            die("seed dir %r has no lattedockrc to seed [ScreenConnectors] into (a 2out pin needs it)"
+                % args.seed_dir)
+        with open(rc_path) as fh:
+            rc_text = fh.read()
+        with open(rc_path, "w") as fh:
+            fh.write(patch_lattedockrc(rc_text, args.screen_id, args.screen, args.screen_geometry))
+
     manifest = {
         "cell": cell,
         "viewType": args.view_type,
@@ -308,6 +363,8 @@ def main():
         "alignment": args.alignment,
         "display": args.display,
         "screen": args.screen,
+        "screenId": args.screen_id,
+        "screenGeometry": args.screen_geometry,
         "layout": os.path.basename(seed_layout),
         "expect": expect,
     }
