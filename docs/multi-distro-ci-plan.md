@@ -584,12 +584,46 @@ pass on every distro regardless of tier.
       Commits: 18aac31b0, 79a8008f0, 3eaa21261, a14c6efef, 2b2469b5e, 0d052f3b7, 72dc44dab, 8838dcf31
 
 ### Phase C - per-distro golden tiers
-- [ ] C1 Extend the sceneprobe device/tier axis to per-distro naming
+- [x] C1 Extend the sceneprobe device/tier axis to per-distro naming
       (`*.expected.<tier>.png`) and wire the graduated-rigor selection
       (bit-exact NixOS / bless-frozen stable / invariant+tolerance
-      rolling). Commits:
-- [ ] C2 Bless the pinned-tag tiers for the stable distros; set
-      tolerances for the rolling tier. Commits:
+      rolling). DONE by DECOUPLING rigor from the device: the compare
+      keyed both the golden filename and the tolerance off
+      SCENEPROBE_DEVICE, which denied Fedora/neon (rendering the lavapipe
+      device, comparing `.expected.lavapipe.png`) the tolerance they
+      render at. Added an orthogonal SCENEPROBE_TIER axis, an enum-class
+      GoldenTier {BitExact, Tolerance} in imagecompare.{h,cpp}
+      (parseGoldenTier: unset->BitExact so the merge gate is unchanged,
+      unknown->nullopt refused LOUDLY at the boundary; toleranceForTier:
+      exhaustive switch to the CompareTolerance). The three graduated tiers
+      are all expressible: bit-exact NixOS (default), invariant+tolerance
+      rolling (SCENEPROBE_TIER=tolerance vs the SAME nix goldens with a
+      delta), and bless-frozen stable (the pre-existing device-keyed naming
+      already gives `.expected.<distro>.png` via SCENEPROBE_DEVICE=<distro>
+      - no new naming machinery needed, and no unused scaffold built). The
+      device still keys the golden filename + the missing-golden hard-fail;
+      only the tolerance selection moved to the tier. Detail:
+      docs/agent-logs/2026-07-17-phase-c-tiers.md.
+      Commits: 67f24ad44, 139b123fe
+- [x] C2 Bless the pinned-tag tiers for the stable distros; set
+      tolerances for the rolling tier. TOLERANCE SET: the tolerance tier
+      gates at CompareTolerance{2, 0.005} - Fedora (Mesa LLVM 21.1.8) and
+      neon (LLVM 20) show max per-channel Δ=2 with NO pixel exceeding Δ2,
+      so perChannelDelta=2 filters every differing pixel (measured 0%
+      exceed on all 13 scenes on both distros) and the 0.5% budget is
+      margin; it is the value the compare already used for non-lavapipe
+      devices, now owned by the tier. Each Containerfile declares its tier
+      (Fedora/neon=tolerance; Arch/Debian/openSUSE/Void/Gentoo=bitexact,
+      explicit + commented as a rolling-Mesa accident with the tier as the
+      flip knob). NO per-distro bit-exact golden was blessed: the matrix
+      put Fedora/neon in the tolerance tier (compare nix goldens with a
+      delta), not the bless-frozen tier, so no `.expected.<distro>.png`
+      set exists - that path stays an available extension (device-keyed
+      naming supports it) for a future pinned-tag decision, deliberately
+      not built now. Verified in-container: nix bit-exact 13/13 UNCHANGED
+      (unset->bitexact), Fedora+neon 13/13 at tolerance (and Fedora FAILS
+      5 scenes at bitexact, proving the tier is load-bearing), Arch 13/13
+      still bit-exact. Commits: 67f24ad44, 139b123fe
 
 ### Phase D - CI matrix workflow (runner-agnostic)
 Runner is UNDECIDED (DECISION 6): self-hosted Forgejo runners or GitHub
