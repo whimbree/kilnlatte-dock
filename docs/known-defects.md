@@ -123,6 +123,31 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   (third enum value or a minimumApplies flag) and skip the minLength floor for
   Justify. Touches core + bridge + both slider handlers.
 
+### D18 - Widget-explorer drag flickers the containment enter/leave
+- STATUS: OPEN (found live 2026-07-18 driving the C-I9/P8 explorer DnD, PR for
+  C-I9). Correctness is NOT affected - the drop still adds exactly one and an
+  abort adds zero - so it did not block C-I9; filed so the jitter is not lost.
+- SYMPTOM: during a real explorer->containment drag, the containment DropArea
+  receives a rapid onDragEnter / onDragLeave / onDragLeave cycle repeating on
+  every motion step, and NO onDragMove ever fires. The dndSpacer therefore
+  toggles live/parked many times per second instead of tracking the pointer
+  smoothly; viewDropMarkerIndex flickers between the insert index and -1.
+- EVIDENCE: temporary console.warn in DragDropArea.qml onDragEnter/Move/Leave/Drop
+  during the C-I9 feasibility probe logged, per drag: [enter, leave, leave] x ~16,
+  then a final enter + onDrop; onDragMove never logged. The drop coordinates were
+  correct (window-local 800,340 = the aimed screen 800,956) and one applet was
+  added.
+- SUSPECTED ROOT: onDragEnter calls animations.needLength.addEvent(dragArea),
+  which grows the view to make room for the spacer; the relayout momentarily
+  moves the surface/item out from under the pointer, KWin sends a dnd leave, the
+  view shrinks, re-enter - a resize/hit-test feedback loop. onDragLeave reparents
+  the spacer to the containment each time, so the spacer never settles.
+- DISPOSITION PENDING: is this Qt5-faithful (Qt5 draganddrop may debounce
+  enter/leave differently) or a Qt6 regression in the needLength-on-enter grow?
+  Qt5 Latte is the spec - compare its drag-hover behaviour before deciding FIX
+  vs ACCEPTED. Not in C-I9 scope (the driver's job is to drive and observe the
+  drop, which it does correctly); a future F2-add investigation owns it.
+
 ## Recorded elsewhere - indexed here so the flat scan is complete
 
 These predate the registry and are detailed in their source docs; indexed here

@@ -461,7 +461,7 @@ a success.
       pieces those chunks consume; the launcher sub-model, exercising the exact
       same handler, is the proven vehicle-friendly stand-in).
       Commits:
-- [ ] **P8 Widget-explorer DND driver (commit + non-drop abort).** Blocks F2 DND
+- [x] **P8 Widget-explorer DND driver (commit + non-drop abort).** Blocks F2 DND
       leg + A1 (deterministic add leg needs only P3). Open the explorer, locate
       a widget delegate (dumpwins + screenshot calibration, `050`-style), drag
       onto the view (commit) or release over a NON-drop zone (A1 abort). Respect
@@ -479,6 +479,31 @@ a success.
       DND here. A degrade to xfail is a LAST RESORT only if PROVEN infeasible
       after honest effort, with the blocking root cause recorded - never an
       assumed skip. Depends on P0, maybe P1.
+      Landed: REAL cross-surface Wayland DnD, no xfail. The driver is
+      `tests/e2e/matrix/dnd-lib.sh`: `dnd_open_explorer` (opens the explorer via
+      a new `showWidgetExplorer` coarse action and finds its window structurally
+      - the only tall-and-narrow dock surface, no fixed caption), `dnd_drag_widget`
+      (the DR-1 primitive: press a delegate, glide through arbitrary target
+      waypoints, release at the last - commit vs abort is just where the last
+      waypoint lands), `dnd_drag_widget_watched` (same, backgrounded with a gentle
+      viewDropMarkerIndex poll that echoes the PEAK marker seen), plus
+      `dnd_view_center`/`dnd_empty_point` targets and the `matrix_verb_addwidget_*`
+      wrapper for C-S4/C-S5/C-A1. The drag SOURCE is the explorer's AppletDelegate
+      DragArea (`text/x-plasmoidservicename`), started by a real `QDrag::exec` from
+      the fakepointer press; gliding onto the dock delivers dnd enter/move to the
+      containment DragDropArea and the release fires its onDrop. PROVEN in the
+      nested vehicle (`tests/e2e/093-widget-explorer-dnd.sh`, HC3, stable x3):
+      a bad containment id to showWidgetExplorer is refused (qWarning, no window);
+      a COMMIT drop adds EXACTLY ONE applet with the dndSpacer live mid-drag
+      (peak marker 1) and back to -1 after (no ng double-create); the HC3
+      REJECTION - a hover-then-release over empty space adds ZERO with the spacer
+      proven live (1) then cleaned to -1; a straight-off release that never enters
+      the dock adds ZERO with no phantom insert. CADENCE TRAP recorded in the
+      driver: a tight busctl spin during the drag disrupts the compositor DnD
+      grab (the first probe never landed); a ~40ms poll cadence lands cleanly.
+      The `showWidgetExplorer(u)` coarse action (corona + View::openWidgetExplorer
+      + XML + both dbus docs) is the driving surface. Found D18 (drag-time
+      enter/leave flicker, OPEN, correctness unaffected).
       Commits:
 - [x] **P9 fakepointer key injection (`key <keysym>`).** Blocks the
       Escape-CANCEL sub-path of A2/A3/A4/A5 (release/drop-back aborts do not need
@@ -1174,7 +1199,12 @@ merge --rebase`, re-resolve hashes, fetch).
       via appId), fakepointer `dragkey` verb (DR-6 escape-in-held-drag), G4
       confirmed + documented + `dbusreportstest`, `tests/e2e/092-task-reorder.sh`
       (HC3 + D1 evidence). D1 -> ACCEPTED (Qt5-faithful live-move). Commits:
-- [ ] **C-I9 = P8** widget-explorer DND driver (commit + non-drop abort). Commits:
+- [x] **C-I9 = P8** widget-explorer DND driver (commit + non-drop abort).
+      `tests/e2e/matrix/dnd-lib.sh` (the driver + `matrix_verb_addwidget_*`),
+      `tests/e2e/093-widget-explorer-dnd.sh` (HC3), the `showWidgetExplorer(u)`
+      coarse action (app/lattecorona.{h,cpp}, app/view/view.{h,cpp}
+      openWidgetExplorer, app/dbus/org.kde.LatteDock.xml, both dbus docs). REAL
+      cross-surface Wayland DnD proven, no xfail. Commits:
 - [x] **C-I10 = P9** fakepointer key injection. Commits: <this PR - `key <keysym>` verb (keyboard_keysym/xkbcommon) + tests/e2e/080-key-escape-cancels-move.sh>
 
 ### Committed scenario chunks
@@ -1294,7 +1324,9 @@ lands in the three required places + `dbusreportstest`):**
       surface, decide in review (O-gap). Commits:
 
 **Mutating actions to ADD (coarse user actions, section 5):** `addApplet` (P3),
-`removeApplet` (P4), `moveViewToScreen` (P5).
+`removeApplet` (P4), `moveViewToScreen` (P5), `showWidgetExplorer` (P8, the
+"Add Widgets..." context-menu action, the DRIVING SURFACE for the explorer DnD
+driver - it opens the real drag source, no readback of its own).
 
 Goldens that SURVIVE HC2 (the only blessed images): F1 blueprint-grid render
 (~8, edge x vt centered), F2/F3 justify pixel distribution (~8), A5 PR#20
@@ -1322,14 +1354,18 @@ one-per-scenario. Everything else asserts by readback.
   highest-value aborts A2-vertical, A4-split-brain, A5) in `gate-all` as the
   per-commit gate, the full 196 as a periodic / pre-release gate in the
   multi-distro matrix. Confirm split + tier-1 membership.
-- **O5 Widget-explorer DND: EXPECTED DOABLE (Bree directive, 2026-07-18), not an
-  open question.** The Phase 7 "defer to a GUI CI vm" note is STALE - it predates
-  the nested vehicle (kwin_wayland + fakepointer press-glide-release + a live
-  client surface in ONE compositor), which is exactly the infra a Wayland
-  explorer->containment DND needs. P8 implements REAL DND. A degrade to xfail is a
-  last resort only if PROVEN infeasible after honest effort, with the blocking
-  root cause recorded - never an assumed skip. C-I9's acceptance bar (HC3 rejected
-  drop) requires the driver to actually drive DND, so xfail is not a shortcut.
+- **O5 Widget-explorer DND: PROVEN DOABLE (C-I9/P8, 2026-07-18). RESOLVED.** The
+  Phase 7 "defer to a GUI CI vm" note was stale, as the directive said. A real
+  cross-surface Wayland DnD works in the nested vehicle: the explorer's
+  AppletDelegate DragArea starts a `QDrag::exec` from a fakepointer press, gliding
+  onto the dock delivers dnd enter/move to the containment DragDropArea, and the
+  release fires onDrop. Measured (`tests/e2e/093-widget-explorer-dnd.sh`): a drop
+  adds EXACTLY ONE (dndSpacer live mid-drag, back to -1 after), a release over
+  nothing adds ZERO with the spacer cleaned - the HC3 rejection. No xfail. Two
+  findings recorded: the CADENCE TRAP (a tight busctl poll during the drag
+  disrupts the DnD grab; a gentle ~40ms cadence lands - baked into
+  `dnd_drag_widget_watched`), and D18 (drag-time enter/leave flicker, OPEN,
+  correctness unaffected).
 - **O6 Window-task fixtures.** F4/A3 window sub-model needs real reorderable
   client windows. Confirm spawning N deterministic throwaway windows, or scope to
   launcher reorder only (window-task = live-desk).
