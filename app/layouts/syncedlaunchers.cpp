@@ -61,8 +61,12 @@ void SyncedLaunchers::removeClientObject(QObject *obj)
     //! dangling pointer registered forever. Dropping a launcher afterwards
     //! crashed in clients() calling property() on the freed object
     //! (SIGSEGV through a null vtable slot, observed live 2026-07-13).
-    //! Remove by pointer identity; no dereference happens.
-    m_clients.removeAll(static_cast<QQuickItem *>(obj));
+    //! Remove by pointer identity; no dereference happens. reinterpret_cast,
+    //! not static_cast: the dynamic type has decayed to QObject, so a
+    //! downcast that reads the vptr to validate is undefined behaviour (UBSan
+    //! -fsanitize=vptr aborts on it in the sanitized build); a bit
+    //! reinterpretation for the identity-only removeAll is vptr-clean.
+    m_clients.removeAll(reinterpret_cast<QQuickItem *>(obj));
 }
 
 QQuickItem *SyncedLaunchers::client(const int &id)
