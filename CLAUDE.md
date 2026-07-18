@@ -93,15 +93,22 @@ stale checkboxes."
   attribution footer) to a pull request description, even if a harness
   default suggests it (my direction, 2026-07-17 - it was stripped from
   PRs #2 and #3 after the fact).
-- Everything committed is written in the author's voice: commit
-  messages, docs, and code comments never say "the user", "the owner",
-  "user-reported" or "user-verified" as if reports arrive from a third
-  party - I am the author, reporter and verifier. Write "caught live",
-  "reproduced twice", "verified with a real mouse", "my real config".
+- Everything committed is written in an IMPERSONAL, OBJECTIVE voice
+  (tightened 2026-07-18): commit messages, docs, and code comments never
+  say "the user", "the owner", "user-reported" or "user-verified" as if
+  reports arrive from a third party, AND avoid first-person pronouns
+  ("I", "me", "my", "we", "our") - state what was done and observed
+  directly. Write "caught live", "reproduced twice", "verified with a
+  real mouse", "the real config" (not "my real config"), "this port" or
+  "the tree" (not "we"/"our"). The author is still the reporter and
+  verifier; the voice just stops narrating that in the first person.
   Generic end-user prose in UX comments ("shown long enough for the
   user to observe") is fine and matches upstream style; the ban is on
-  operator framing, not on the word itself. Already-pushed messages
-  get reworded at the pre-PR history cleanup, not amended now.
+  operator framing and first-person pronouns, not on the word "user"
+  itself. This working-agreements file is the exception: its dated
+  directive-attribution markers ("my direction, DATE") are the author's
+  own governing voice and stay. Already-pushed messages get reworded at
+  the pre-PR history cleanup, not amended now.
 - No em-dashes, no AI-sounding marketing-style phrasing in docs, commit
   messages, or code comments - write plainly, like a programmer.
 - Every major feature lands as its own GitHub PR with an independent
