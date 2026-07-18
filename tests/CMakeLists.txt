@@ -471,6 +471,15 @@ set_tests_properties(qmllintgate PROPERTIES
 add_test(NAME qmleffectrules
     COMMAND ${CMAKE_SOURCE_DIR}/scripts/qml-effect-rules.sh)
 
+# Wayland popup-tooltip-surface rule (latte-plasma6-defect-families; issue 3
+# of docs/panel-issues-plan.md): the edit-mode canvas overlay click-target
+# controls must not carry an attached QQC2/Controls.ToolTip, whose separate
+# Wayland surface maps at the cursor and swallows the press (the
+# "Rearrange..." toggle went unclickable in tight edit-mode space). Pins the
+# in-window-hint fix in place. Pure source scan, no staging or engine needed.
+add_test(NAME qmltooltiprules
+    COMMAND ${CMAKE_SOURCE_DIR}/scripts/qml-tooltip-rules.sh)
+
 # Previews-pipeline contract scan: pins the ten line-level invariants the
 # 2026-07-15 hover-lag excavation earned (burst debounce ordering and
 # numbers, hide-countdown cancel, direct settle adoption, rootIndex token
