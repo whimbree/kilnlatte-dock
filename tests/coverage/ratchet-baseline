@@ -1,4 +1,4 @@
-84
+85
 abstractlayouttest
 activitiesinfotest
 activitysetalgebratest
@@ -30,6 +30,7 @@ importerregressiontest
 indicatorfactoryremovaltest
 indicatormetadatatest
 indicatorsknsrctest
+inputmaskflushtest
 justifysplitterstest
 lastactivewindowtest
 launcherlistopstest
