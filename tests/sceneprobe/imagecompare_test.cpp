@@ -2,10 +2,12 @@
 // SPDX-FileCopyrightText: 2026 David Goree <davidgoree2003@gmail.com> (latte-dock-qt6, transplanted)
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Adopted unchanged from David Goree's latte-dock-qt6
+// Adopted from David Goree's latte-dock-qt6
 // (tests/sceneprobe/imagecompare_test.cpp at c3633f1a,
 // github.com/CaptSilver/latte-dock-qt6; see
-// docs/captsilver-testability-adoption.md, P1).
+// docs/captsilver-testability-adoption.md, P1) - Goree's cases are unchanged.
+// Local addition (multi-distro CI Phase C): the GoldenTier parse + tolerance
+// mapping cases at the bottom, covering the merge-gate-critical default.
 #include <QtTest>
 #include "imagecompare.h"
 using namespace LatteProbe;
@@ -37,6 +39,13 @@ private Q_SLOTS:
     void expect_minOpaqueFractionShape();
     void expect_pixelOutOfBounds();
     void expect_unrecognizedEntry();
+    // GoldenTier parse + tolerance mapping (multi-distro CI Phase C)
+    void tier_unsetDefaultsBitExact();
+    void tier_explicitBitExact();
+    void tier_tolerance();
+    void tier_unknownIsRefused();
+    void tier_bitExactMapsToExact();
+    void tier_toleranceMapAcceptsDelta2RejectsDelta3();
 };
 
 void ImageCompareTest::invariants_blankFails() {
@@ -191,6 +200,52 @@ void ImageCompareTest::expect_unrecognizedEntry() {
     QImage img(8, 8, QImage::Format_RGBA8888); img.fill(QColor(0,0,0,255));
     QVariantList exps{ QVariantMap{{QStringLiteral("bogus"), 1}} };
     QVERIFY(checkExpectations(img, exps).contains(QStringLiteral("unrecognized")));
+}
+
+// --- GoldenTier parse + tolerance mapping ---
+
+// The merge-gate-critical contract: an UNSET SCENEPROBE_TIER must resolve to
+// BitExact, or the NixOS/dev sceneprobe gate would silently loosen when the
+// env is not set. Pin it explicitly.
+void ImageCompareTest::tier_unsetDefaultsBitExact() {
+    const auto t = parseGoldenTier(QByteArray());
+    QVERIFY(t.has_value());
+    QCOMPARE(*t, GoldenTier::BitExact);
+}
+void ImageCompareTest::tier_explicitBitExact() {
+    const auto t = parseGoldenTier(QByteArrayLiteral("bitexact"));
+    QVERIFY(t.has_value());
+    QCOMPARE(*t, GoldenTier::BitExact);
+}
+void ImageCompareTest::tier_tolerance() {
+    const auto t = parseGoldenTier(QByteArrayLiteral("tolerance"));
+    QVERIFY(t.has_value());
+    QCOMPARE(*t, GoldenTier::Tolerance);
+}
+// An unknown value returns nullopt so the probe refuses it loudly rather than
+// falling through to a wrong rigor. Case-sensitive by design.
+void ImageCompareTest::tier_unknownIsRefused() {
+    QVERIFY(!parseGoldenTier(QByteArrayLiteral("BitExact")).has_value()); // wrong case
+    QVERIFY(!parseGoldenTier(QByteArrayLiteral("loose")).has_value());
+    QVERIFY(!parseGoldenTier(QByteArrayLiteral("bit-exact")).has_value());
+}
+void ImageCompareTest::tier_bitExactMapsToExact() {
+    const CompareTolerance tol = toleranceForTier(GoldenTier::BitExact);
+    QCOMPARE(tol.perChannelDelta, 0);
+    QCOMPARE(tol.maxExceedFraction, 0.0);
+}
+// The tolerance tier's mapping must let the observed Fedora/neon Δ=2 through
+// (max per-channel delta 2, ~0% exceed) while still catching a Δ=3 regression.
+// Driven through the real compareImages so the mapping and the comparator are
+// tested together, not the tolerance value in isolation.
+void ImageCompareTest::tier_toleranceMapAcceptsDelta2RejectsDelta3() {
+    const CompareTolerance tol = toleranceForTier(GoldenTier::Tolerance);
+    QCOMPARE(tol.perChannelDelta, 2);
+    QImage ref(16, 16, QImage::Format_RGBA8888);    ref.fill(QColor(40, 80, 120, 255));
+    QImage delta2(16, 16, QImage::Format_RGBA8888); delta2.fill(QColor(42, 82, 122, 255)); // every px Δ=2
+    QVERIFY(compareImages(delta2, ref, tol).match);                    // within tier
+    QImage delta3(16, 16, QImage::Format_RGBA8888); delta3.fill(QColor(43, 80, 120, 255)); // every px Δ=3
+    QVERIFY(!compareImages(delta3, ref, tol).match);                   // exceeds tier
 }
 
 QTEST_GUILESS_MAIN(ImageCompareTest)

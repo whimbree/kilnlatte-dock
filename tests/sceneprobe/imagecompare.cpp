@@ -2,10 +2,12 @@
 // SPDX-FileCopyrightText: 2026 David Goree <davidgoree2003@gmail.com> (latte-dock-qt6, transplanted)
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Adopted unchanged from David Goree's latte-dock-qt6
+// Adopted from David Goree's latte-dock-qt6
 // (tests/sceneprobe/imagecompare.cpp at c3633f1a,
 // github.com/CaptSilver/latte-dock-qt6; see
-// docs/captsilver-testability-adoption.md, P1).
+// docs/captsilver-testability-adoption.md, P1) - Goree's comparator
+// functions are unchanged. Local addition (multi-distro CI Phase C):
+// parseGoldenTier + toleranceForTier at the bottom of the namespace.
 #include "imagecompare.h"
 
 namespace LatteProbe {
@@ -156,6 +158,31 @@ QString verdictLine(const QString &scene, const QString &device, const CompareRe
         .arg(QString::number(r.diffFraction * 100.0, 'f', 2))
         .arg(r.maxDelta).arg(r.maxX).arg(r.maxY)
         .arg(r.expectedAtMax.name(QColor::HexArgb), r.actualAtMax.name(QColor::HexArgb));
+}
+
+std::optional<GoldenTier> parseGoldenTier(const QByteArray &raw) {
+    if (raw.isEmpty() || raw == "bitexact") return GoldenTier::BitExact;
+    if (raw == "tolerance") return GoldenTier::Tolerance;
+    return std::nullopt;
+}
+
+CompareTolerance toleranceForTier(GoldenTier tier) {
+    switch (tier) {
+    case GoldenTier::BitExact:
+        // The NixOS/dev merge gate: exact, no pixel may differ at all.
+        return {0, 0.0};
+    case GoldenTier::Tolerance:
+        // Fedora and KDE neon render the SAME 5 scenes with a max per-channel
+        // Δ of 2 (a single-LSB rounding difference between their Mesa/LLVM -
+        // Fedora LLVM 21.1.8, neon LLVM 20 - and the nix pin's LLVM 22) and
+        // NO pixel exceeds Δ2, so perChannelDelta=2 filters every differing
+        // pixel and the measured exceed fraction is 0% on all 13 scenes on
+        // both distros (2026-07-17). The 0.5% budget is margin, not need; it
+        // is the value the compare already used for non-lavapipe devices
+        // before this tier/device split, kept for continuity.
+        return {2, 0.005};
+    }
+    Q_UNREACHABLE(); // GoldenTier is exhaustively handled above.
 }
 
 } // namespace LatteProbe

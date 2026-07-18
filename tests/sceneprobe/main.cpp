@@ -14,9 +14,12 @@
 //  - The validation layer's presence is verified before instance creation:
 //    QVulkanInstance drops unsupported layers SILENTLY, which would turn the
 //    whole validation gate into a no-op on a machine without the layer.
-//  - Missing goldens are tier-aware: a hard failure on lavapipe (the CI
-//    tier), a loud golden-compare-skipped notice on opt-in devices (dgpu),
-//    so a desktop GPU run is useful without a blessed dgpu set.
+//  - Missing goldens are device-aware: a hard failure on lavapipe (the CI
+//    device), a loud golden-compare-skipped notice on opt-in devices (dgpu),
+//    so a desktop GPU run is useful without a blessed dgpu set. (The compare
+//    RIGOR is a separate axis, SCENEPROBE_TIER; see GoldenTier in
+//    imagecompare.h - the device keys the golden filename, the tier keys how
+//    tightly it compares.)
 #include <QGuiApplication>
 #include <QAnimationDriver>
 #include <QScopeGuard>
@@ -34,6 +37,7 @@
 #include <atomic>
 #include <cstdio>
 #include <fstream>
+#include <optional>
 #include <set>
 #include <string>
 #include "imagecompare.h"
@@ -112,6 +116,21 @@ int main(int argc, char **argv)
     const QString scenePath = app.arguments().at(1);
     const int frames = 5;
     const QSize size(256, 256);
+
+    // Golden-compare rigor is chosen by SCENEPROBE_TIER, decoupled from the
+    // render device: the device keys the golden filename, the tier keys how
+    // tightly the compare gates. Parse once at startup and refuse an unknown
+    // value loudly here at the boundary - a typo'd tier must never silently
+    // fall through to bit-exact (masking a real regression) or to tolerance
+    // (hiding one). Unset defaults to bit-exact, so the NixOS/dev merge gate
+    // is byte-unchanged when nothing sets it.
+    const std::optional<LatteProbe::GoldenTier> tier =
+        LatteProbe::parseGoldenTier(qgetenv("SCENEPROBE_TIER"));
+    if (!tier) {
+        std::fprintf(stderr, "FATAL: SCENEPROBE_TIER='%s' is not a known golden tier "
+                             "(bitexact|tolerance)\n", qgetenv("SCENEPROBE_TIER").constData());
+        return 2;
+    }
 
     QVulkanInstance inst;
     // Refuse to run without the validation layer instead of letting
@@ -269,9 +288,12 @@ int main(int argc, char **argv)
                                  qPrintable(device), qPrintable(QFileInfo(scenePath).fileName()));
                 }
             } else {
-                LatteProbe::CompareTolerance tol = (device == QLatin1String("lavapipe"))
-                    ? LatteProbe::CompareTolerance{0, 0.0}
-                    : LatteProbe::CompareTolerance{2, 0.005};
+                // The TIER (not the device) selects the compare rigor: every
+                // matrix distro renders the lavapipe device and compares the
+                // same .expected.lavapipe.png goldens, but a tolerance-tier
+                // distro gates at a bounded delta rather than bit-exact. The
+                // per-scene probeTolerance override below still layers on top.
+                LatteProbe::CompareTolerance tol = LatteProbe::toleranceForTier(*tier);
                 const QVariantMap pt = root->property("probeTolerance").toMap();
                 if (pt.contains(QLatin1String("delta")) || pt.contains(QLatin1String("budget"))) {
                     tol.perChannelDelta = pt.value(QStringLiteral("delta"), tol.perChannelDelta).toInt();
