@@ -1,0 +1,128 @@
+# SPDX-FileCopyrightText: 2026 Latte Dock contributors
+# SPDX-FileCopyrightText: 2026 Bree Spektor
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# KDE neon build+gate environment for the multi-distro CI matrix
+# (docs/multi-distro-ci-plan.md, Phase A). neon is the KDE-made Ubuntu-family
+# reference environment: always-current Plasma on an Ubuntu LTS base, built by
+# KDE itself, so it is THE deb-family KDE-enthusiast leg and covers
+# Kubuntu/Pop!_OS/Mint-KDE (stock Ubuntu LTS 24.04 stays excluded - it ships
+# Plasma 5.27, below the floor). It gates at the invariant+tolerance tier like
+# the other non-NixOS legs. This layer installs ONLY the build/runtime/gate
+# dependencies; the port itself is built by ci/build-and-gate.sh against a
+# bind-mounted or copied source tree, so this image is a cacheable deps-only
+# layer.
+#
+# Base: the neon User Edition image from the KDE registry. The stale Docker
+# Hub kdeneon/* tags are frozen on Ubuntu 22.04 / Plasma 5.27 (below floor);
+# the LIVE neon images are published to invent-registry.kde.org, and the User
+# Edition is the stable release channel real neon users run.
+#
+# Floor check (observed 2026-07-17 in plasma:user, apt candidates on noble):
+#   Qt      6.11.1  (floor Qt6      >= 6.6 - PASS)
+#   KF6     6.28.0  (floor KF6      >= 6.5 - PASS)
+#   Plasma  6.7.3   (floor Plasma   >= 6.5 - PASS)
+#   kwin_wayland 6.7.3
+# neon User Edition is on the Plasma 6.7 branch (same as the NixOS 6.7.3 pin),
+# so the libplasma-6.7 contract tests (askDestroy widened-guard) pin the same
+# ordering the merge gate does - no version-skew delta like Debian's 6.6.5.
+# A3 pins the digest below once the leg is proven; neon User rolls with each
+# Plasma release, so a digest pin is what freezes the tag for reproducible CI.
+FROM invent-registry.kde.org/neon/docker-images/plasma:user
+
+# The neon images default to an unprivileged USER neon (uid 1001) so the live
+# desktop does not run as root; apt and the build/gate driver both need root,
+# and the other matrix legs (debian/arch/fedora/opensuse) all run as root, so
+# switch to root for parity. The nested-kwin gate sets KWIN_WAYLAND_NO_
+# PERMISSION_CHECKS and a private XDG_RUNTIME_DIR, so root is fine for the
+# throwaway compositor.
+USER root
+
+# neon inherits Ubuntu's Debian tooling: installs are non-interactive in CI so
+# tzdata/debconf never prompt.
+ENV DEBIAN_FRONTEND=noninteractive
+
+# One update+install+clean layer. --no-install-recommends keeps the image lean
+# (the neon base already carries the full Plasma desktop as runtime; we add the
+# -dev headers and the gate deps on top); the apt lists are removed so the deps
+# layer caches small.
+#
+# Package-name notes - neon builds its OWN KF6/Plasma packages, so several dev
+# names diverge from BOTH Arch and Debian/Ubuntu-official (resolved by dry-run
+# in-image against plasma:user; see docs/agent-logs/2026-07-17-neon-leg.md):
+#   - Most KF6 frameworks are libkf6<component>-dev (Config, CoreAddons, ...),
+#     same as Debian - BUT KSvg is kf6-ksvg-dev on neon (libkf6svg-dev does not
+#     exist here; neon carries a mixed libkf6*-dev / kf6-*-dev naming).
+#   - qqc2-desktop-style (the org.kde.desktop QML style) is kf6-qqc2-desktop-
+#     style on neon, NOT Debian's qml6-module-org-kde-desktop.
+#   - plasma5support is plasma5support-dev (kf6-plasma5support-dev is a neon
+#     "Dummy transitional"); Debian used libplasma5support-dev.
+#   - PlasmaActivities/Stats are plasma-activities-dev / plasma-activities-
+#     stats-dev on neon, NOT Debian's libplasmaactivities{,stats}-dev.
+#   - qt5compat is qt6-5compat-dev; shadertools qt6-shadertools-dev; Qt SVG is
+#     qt6-svg-dev (libqt6svg6-dev is a transitional dummy pointing at it).
+#   - Kirigami is libkirigami-dev; layer-shell-qt is liblayershellqtinterface-
+#     dev; PlasmaQuick/LibTaskManager/LibNotificationManager come from
+#     plasma-workspace-dev; libplasma is libplasma-dev; libksysguard is
+#     libksysguard-dev; kpipewire is libkpipewire-dev - all as on Debian.
+#   - lavapipe (software Vulkan) ships in mesa-vulkan-drivers.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        cmake extra-cmake-modules ninja-build git pkgconf jq file gettext \
+        build-essential \
+        qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-wayland-dev \
+        qt6-5compat-dev qt6-shadertools-dev qt6-tools-dev qt6-tools-dev-tools \
+        qt6-svg-dev \
+        libkf6config-dev libkf6coreaddons-dev libkf6guiaddons-dev \
+        libkf6dbusaddons-dev libkf6declarative-dev libkf6itemmodels-dev \
+        libkf6xmlgui-dev libkf6iconthemes-dev libkf6kio-dev libkf6i18n-dev \
+        libkf6notifications-dev libkf6newstuff-dev libkf6archive-dev \
+        libkf6globalaccel-dev libkf6crash-dev libkf6windowsystem-dev \
+        libkf6package-dev kf6-ksvg-dev libkf6service-dev \
+        libkf6kcmutils-dev libkirigami-dev libkf6solid-dev libkf6sonnet-dev \
+        libkf6textwidgets-dev libkf6idletime-dev libkf6doctools-dev \
+        kf6-qqc2-desktop-style plasma-pa libkpipewire-dev \
+        plasma5support-dev libplasma-dev plasma-activities-dev \
+        plasma-activities-stats-dev plasma-workspace-dev kwayland-dev \
+        libksysguard-dev plasma-wayland-protocols libwayland-dev \
+        wayland-protocols liblayershellqtinterface-dev \
+        kwin-wayland \
+        libvulkan-dev libvulkan1 vulkan-validationlayers mesa-vulkan-drivers \
+        fonts-noto-core dbus libcap2-bin rsync perl python3 imagemagick \
+    && rm -rf /var/lib/apt/lists/*
+
+# Strip any file capabilities from kwin_wayland. On Arch this was load-bearing:
+# its kwin ships cap_sys_nice=ep, and podman's default cap set excludes
+# CAP_SYS_NICE, so execve of a file whose effective caps aren't in the
+# container bounding set fails EPERM and the nested compositor never comes up.
+# neon's kwin_wayland ships WITHOUT the cap here (getcap empty), so this is a
+# no-op on the current package - kept for parity with the Arch/Debian legs and
+# as robustness in case a future neon build adds the cap. The cap only lets
+# kwin raise its scheduler priority, meaningless for a throwaway headless CI
+# compositor, so stripping it is always safe.
+RUN setcap -r /usr/bin/kwin_wayland 2>/dev/null || true
+
+# The nested-kwin harness and sceneprobe gate read these to find the distro's
+# lavapipe ICD and Vulkan validation layers instead of the nix devShell's, and
+# the QML gates read LATTE_QML_MODULE_PATH to locate the distro's KF6/Qt
+# framework qml tree. neon uses the Ubuntu multiarch libdir
+# (/usr/lib/x86_64-linux-gnu), same as Debian. All three paths were confirmed
+# with ls in the built image: neon's lavapipe ICD manifest is the UNSUFFIXED
+# lvp_icd.json (not the arch-suffixed lvp_icd.x86_64.json some distros ship).
+ENV LATTE_VULKAN_LAVAPIPE_ICD=/usr/share/vulkan/icd.d/lvp_icd.json \
+    LATTE_VK_LAYER_PATH=/usr/share/vulkan/explicit_layer.d \
+    LATTE_QML_MODULE_PATH=/usr/lib/x86_64-linux-gnu/qt6/qml
+
+# neon installs the Qt6 host development tools (qmltestrunner, qmllint,
+# qmlcachegen, ...) under /usr/lib/qt6/bin, which is NOT on the default PATH
+# (Arch/Fedora put them in /usr/bin). The QML ctest gates call qmltestrunner
+# and qmllint by bare name, so without this the qmlcompile/qmlinteraction/
+# qmlcontracts gates fail "command not found". Adding a host-tool bin dir to
+# PATH does not shadow the build's Qt tools - cmake resolves moc/rcc/uic from
+# the Qt6 package's absolute IMPORTED_LOCATION, never PATH - so the blast
+# radius is limited to making the gate tools findable. (The qmllint RATCHET
+# gate stays a NixOS-tier merge gate: its baseline is calibrated to the pinned
+# qmllint version and it deliberately refuses a foreign qmllint, so it is
+# excluded from the distro gate stage rather than run against neon's.)
+ENV PATH=/usr/lib/qt6/bin:${PATH}
+
+WORKDIR /src
