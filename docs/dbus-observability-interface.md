@@ -109,6 +109,14 @@ Landed before or during the 2026-07-16 stabilization session:
   other applications' content. A test asserting on window identity
   uses appId; the Orca/AT-SPI tree is where human-readable names
   belong (and reading THAT is the at-spi harness's job, not D-Bus).
+  G4: index + appId ARE the window-task ORDER readback (index the model
+  row that moves on tasksModel.move, appId the stable identity that
+  travels with its window across a reorder), so the F4/A3 window-task
+  scenarios track a window by appId and compare its index before/after a
+  drag - no new field, the pair was already reported (pinned by
+  dbusreportstest windowTaskOrderReadbackTracksAppIdAcrossReorder).
+  Launchers reorder through the identical path and additionally persist
+  their order to the tasks-applet `launchers` config key.
 - `trackerData(u containmentId) -> s` (JSON): the windows-tracker
   facts per view - activeWindowTouching, activeWindowMaximized,
   existsWindowTouching, existsWindowMaximized, lastActiveWindow

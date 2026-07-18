@@ -115,6 +115,17 @@ struct ColorizerRecord {
 //! (docs/dbus-observability-interface.md, step 4). Identity is
 //! appId/launcherUrl only - window titles are other applications'
 //! content and stay out by design (the interface doc records the rule).
+//!
+//! G4 (docs/e2e-interaction-test-plan.md section 9): index + appId ARE the
+//! window-task order readback. index is the tasks model ROW (records are
+//! emitted in row order, so the array position and index agree), and it moves
+//! when a reorder calls tasksModel.move; appId is the stable per-window
+//! identity that travels WITH its window across the reorder. Tracking a window
+//! by appId and reading its index before/after a drag is how the F4/A3
+//! window-task reorder scenarios assert the order changed (launchers, whose
+//! order also persists to the launchers config key, use launcherUrl the same
+//! way). No new field is needed for G4 - the pair was already reported; this
+//! note records that the pair is the order contract those scenarios rely on.
 struct TaskRecord {
     int appletId{-1};
     int index{-1};

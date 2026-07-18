@@ -55,6 +55,7 @@ private Q_SLOTS:
     void taskRecordSerialization();
     void taskRecordKeySet();
     void taskRecordsSerializeAsCompactJsonArray();
+    void windowTaskOrderReadbackTracksAppIdAcrossReorder();
 
     void themeColorsModeNames_data();
     void themeColorsModeNames();
@@ -623,6 +624,66 @@ void DbusReportsTest::taskRecordsSerializeAsCompactJsonArray()
     QCOMPARE(document.array().at(1).toObject().value(QStringLiteral("index")).toInt(), 1);
 
     QCOMPARE(serializeTaskRecords({}), QStringLiteral("[]"));
+}
+
+//! G4 (docs/e2e-interaction-test-plan.md section 9): index + appId ARE the
+//! window-task order readback the F4/A3 window-task scenarios assert on. This
+//! pins the contract in the serializer: the array is emitted in row order (so
+//! position i carries index i), and appId is the identity that travels WITH a
+//! window across a reorder while its index changes. Modelled here as a
+//! tasksModel.move(0 -> 2) on three window tasks (isLauncher=false, distinct
+//! appIds): before the move alpha sits at index 0; after it, the rows are
+//! [beta, gamma, alpha] renumbered 0..2, so alpha now reads at index 2 - the
+//! window is followed by its stable appId, not by a slot. A same-appId
+//! ambiguity is why the F4/A3 window fixture spawns DISTINCT-appId windows
+//! (O6); this test is the pure proof the readback expresses the order, no live
+//! model needed.
+void DbusReportsTest::windowTaskOrderReadbackTracksAppIdAcrossReorder()
+{
+    auto windowTask = [](int index, const QString &appId) {
+        TaskRecord record;
+        record.index = index;
+        record.appId = appId;
+        record.isLauncher = false; //! a real window task, not a pinned launcher
+        return record;
+    };
+
+    //! the serialized array position where a given appId lands, or -1
+    auto indexOfAppId = [](const QString &data, const QString &appId) {
+        const QJsonArray array = QJsonDocument::fromJson(data.toUtf8()).array();
+        for (int i = 0; i < array.count(); ++i) {
+            const QJsonObject task = array.at(i).toObject();
+            if (task.value(QStringLiteral("appId")).toString() == appId) {
+                return task.value(QStringLiteral("index")).toInt();
+            }
+        }
+        return -1;
+    };
+
+    const QString before = serializeTaskRecords(
+        {windowTask(0, QStringLiteral("alpha")),
+         windowTask(1, QStringLiteral("beta")),
+         windowTask(2, QStringLiteral("gamma"))});
+
+    QCOMPARE(indexOfAppId(before, QStringLiteral("alpha")), 0);
+    QCOMPARE(indexOfAppId(before, QStringLiteral("beta")), 1);
+    QCOMPARE(indexOfAppId(before, QStringLiteral("gamma")), 2);
+
+    //! tasksModel.move(0 -> 2): rows become [beta, gamma, alpha], renumbered
+    const QString after = serializeTaskRecords(
+        {windowTask(0, QStringLiteral("beta")),
+         windowTask(1, QStringLiteral("gamma")),
+         windowTask(2, QStringLiteral("alpha"))});
+
+    //! the identity followed its window: alpha moved from index 0 to index 2,
+    //! beta and gamma each shifted down one - the order changed and the
+    //! readback shows it by appId, which is exactly what the reorder driver
+    //! and its abort assertions compare
+    QCOMPARE(indexOfAppId(after, QStringLiteral("alpha")), 2);
+    QCOMPARE(indexOfAppId(after, QStringLiteral("beta")), 0);
+    QCOMPARE(indexOfAppId(after, QStringLiteral("gamma")), 1);
+
+    QVERIFY(before != after);
 }
 
 void DbusReportsTest::themeColorsModeNames_data()

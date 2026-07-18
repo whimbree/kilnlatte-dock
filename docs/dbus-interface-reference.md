@@ -74,6 +74,9 @@ call viewTasksData u 1                 # s: JSON array per task entry (tasks vie
 #   index, appletId, appId, launcherUrl, isLauncher, isGrouped,
 #   childCount, isActive, isMinimized, demandsAttention, badge,
 #   geometry   - NO window titles, by design (appId is app identity)
+#   index+appId are the window-task ORDER readback (G4): index is the
+#   model row (moves on reorder), appId the stable per-window identity;
+#   track a window by appId, read its index before/after a task drag
 call trackerData u 1                   # s: JSON object - the windows-tracker facts
 #   enabled, activeWindowTouching, activeWindowTouchingEdge,
 #   activeWindowMaximized, existsWindowTouching,
