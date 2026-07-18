@@ -58,6 +58,11 @@
 # --- configuration ----------------------------------------------------------
 MATRIX_DIR="${E2E_REPO:?matrix-lib must run through run-e2e/run-matrix}/tests/e2e/matrix"
 MATRIX_FIXTURE="$MATRIX_DIR/fixture.py"
+
+# The render-golden bridge (P2 / C-I6): e2e_golden_compare (tier-aware pixel
+# compare) backs the abort backbone's visual-residue hook below, and
+# e2e_assert_golden / e2e_screenshot_crop serve the committed-golden scenarios.
+source "$MATRIX_DIR/golden-bridge.sh"
 MATRIX_WORK="${E2E_ARTIFACTS:?}/matrix"
 MATRIX_PRISTINE="$MATRIX_WORK/_pristine-seed"
 MATRIX_BASELINE="$MATRIX_WORK/_baseline"
@@ -254,9 +259,10 @@ matrix_baseline_capture() {
     matrix_verb_probe "$verb" "$view"  > "$MATRIX_BASELINE/verb"
     if [[ "${MATRIX_CAPTURE_FRAME:-0}" == 1 ]]; then
         # visual-only residue (PR #20 ghost overlay): the clean baseline frame.
-        # The pixel comparison is the golden bridge's job (P2 / C-I6); this
-        # only preserves the frame so that helper has a baseline to diff.
-        e2e_screenshot "$MATRIX_BASELINE/frame.png" 2>/dev/null || true
+        # Cursor excluded so a pointer moved between capture and re-shoot cannot
+        # masquerade as residue. The pixel comparison is the golden bridge's job
+        # (matrix_frame_equals_baseline below); this only preserves the frame.
+        e2e_screenshot "$MATRIX_BASELINE/frame.png" include-cursor b false 2>/dev/null || true
     fi
 }
 
@@ -280,7 +286,7 @@ matrix_assert_baseline_restored() {
     done
     if [[ "${MATRIX_CAPTURE_FRAME:-0}" == 1 && -f "$MATRIX_BASELINE/frame.png" ]]; then
         local nowframe="$MATRIX_BASELINE/frame.after.png"
-        if e2e_screenshot "$nowframe" 2>/dev/null; then
+        if e2e_screenshot "$nowframe" include-cursor b false 2>/dev/null; then
             if ! matrix_frame_equals_baseline "$MATRIX_BASELINE/frame.png" "$nowframe"; then
                 echo "matrix: VISUAL RESIDUE: post-abort frame differs from the clean baseline" >&2
                 bad=1
@@ -292,13 +298,16 @@ matrix_assert_baseline_restored() {
 }
 
 # matrix_frame_equals_baseline <baseline.png> <after.png>: the visual-residue
-# comparison. P0 ships a raw byte-equality floor; the golden bridge (P2 /
-# C-I6) replaces this with a latte-imgdiff tier compare so live-compositor
-# noise is tolerated. Marked so the bridge chunk knows exactly what to swap.
-# STUB: raw cmp only, no tolerance tier. Finished by C-I6 (P2), which routes
-# this through latte-imgdiff at the SCENEPROBE_TIER tolerance.
+# comparison for the abort backbone (P2 / C-I6 hook, now LIVE). Routes through
+# the render-golden bridge's tier-aware latte-imgdiff compare instead of the
+# old raw byte floor, so live-compositor noise is tolerated at the interaction
+# Tolerance tier while a real ghost-overlay residue (the PR #20 class) still
+# shows as a diff. The clean baseline frame captured before the abort IS the
+# expected image, so no NEW golden is blessed here: residue is a diff against a
+# known-clean frame, not against a committed reference.
 matrix_frame_equals_baseline() {
-    cmp -s "$1" "$2"
+    local baseline="$1" after="$2"
+    e2e_golden_compare "$after" "$baseline"
 }
 
 # --- verb dispatch ----------------------------------------------------------

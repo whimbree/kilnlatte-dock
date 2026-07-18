@@ -155,10 +155,21 @@ e2e_dumpwins() {
 # call would be refused there - by design, do not work around it).
 e2e_screenshot() {
     _e2e_require_nested e2e_screenshot || return 2
-    local out="$1" raw reply w h stride format
+    local out="$1"; shift
+    #! extra a{sv} option triples (key type value ...) are forwarded verbatim
+    #! into CaptureWorkspace's option dict; native-resolution stays always-on.
+    #! The golden bridge passes 'include-cursor b false' so a stray pointer can
+    #! never land in a golden shot (the biggest live-shot nondeterminism after
+    #! animation). No extra args = the original single-option behavior.
+    local -a opts=(native-resolution b true "$@")
+    if (( ${#opts[@]} % 3 != 0 )); then
+        echo "e2e_screenshot: option args must be (key type value) triples, got: $*" >&2
+        return 2
+    fi
+    local count=$(( ${#opts[@]} / 3 )) raw reply w h stride format
     raw="$(mktemp)"
     reply="$(busctl --user call org.kde.KWin /org/kde/KWin/ScreenShot2 \
-        org.kde.KWin.ScreenShot2 CaptureWorkspace "a{sv}h" 1 native-resolution b true 3 3>"$raw")" \
+        org.kde.KWin.ScreenShot2 CaptureWorkspace "a{sv}h" "$count" "${opts[@]}" 3 3>"$raw")" \
         || { rm -f "$raw"; echo "e2e_screenshot: CaptureWorkspace failed" >&2; return 1; }
     w="$(grep -oE '"width" u [0-9]+' <<<"$reply" | awk '{print $3}')"
     h="$(grep -oE '"height" u [0-9]+' <<<"$reply" | awk '{print $3}')"
