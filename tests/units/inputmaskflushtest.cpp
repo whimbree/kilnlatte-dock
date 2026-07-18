@@ -8,17 +8,24 @@
 // QWindow::setMask" decision behind Effects::applyInputMaskToWindow. It exists
 // because Qt6's wayland backend clips each frame's submitted buffer damage to
 // the window mask: narrowing the mask the instant a masked dock's band shrinks
-// strands the just-vacated edge pixels, whose transparent repaint is dropped,
-// and the compositor keeps compositing stale semi-transparent panel content
-// there (a lighter frosted band at the former extent - caught live on a real
-// top dock 2026-07-18 when "maximize panel length in presence of maximized
-// windows" grew the dock to full width and released on un-maximize).
+// along its LENGTH axis strands the just-vacated edge pixels, whose transparent
+// repaint is dropped, and the compositor keeps compositing stale semi-
+// transparent panel content there (a lighter frosted band at the former extent
+// - caught live on a real top dock 2026-07-18 when "maximize panel length in
+// presence of maximized windows" grew the dock to full width and released on
+// un-maximize).
 //
-// The invariant this pins: a SHRINK keeps the window mask at the union of the
-// bands (never clips the vacated region) and only a settle collapse narrows it
-// back to the band. Reverting the seam to a direct setMask(band) - the shape
-// both reference forks still ship - reintroduces the stale band and fails
-// shrinkKeepsUnionUntilSettle below.
+// The invariant this pins: a LENGTH-axis SHRINK keeps the window mask at the
+// union of the bands (never clips the vacated region) and only a settle collapse
+// narrows it back to the band. Reverting the seam to a direct setMask(band) -
+// the shape both reference forks still ship - reintroduces the stale band and
+// fails shrinkKeepsUnionUntilSettle below.
+//
+// The scoping this pins: a THICKNESS-axis shrink (the autohide/dodge HIDE
+// collapsing the band to its reveal strip, same length, thinner) is NOT held -
+// the dock leaves, nothing is stranded where it stood, and holding the former
+// band as the window mask would over-capture pointer input across the hidden
+// dock's body. thicknessShrinkAppliesBandDirectly pins that.
 //
 // Every expected rect is hand-derived from the QRect union geometry, not
 // produced by running the header under test.
@@ -36,9 +43,10 @@
 using namespace Latte::ViewPart::InputMaskFlush;
 
 // invalid states designed out (step-2.5 law): the decision is a pure function
-// of two plain value types, no object, no sentinel to misread
-static_assert(std::is_same_v<decltype(windowMaskFor(QRect(), QRect())), QRect>,
-              "windowMaskFor stays a pure QRect->QRect->QRect decision");
+// of two plain value types plus the length axis, no object, no sentinel to
+// misread
+static_assert(std::is_same_v<decltype(windowMaskFor(QRect(), QRect(), Qt::Horizontal)), QRect>,
+              "windowMaskFor stays a pure QRect->QRect->axis->QRect decision");
 static_assert(std::is_same_v<decltype(needsSettleCollapse(QRect(), QRect())), bool>,
               "needsSettleCollapse stays a pure predicate");
 
@@ -49,12 +57,14 @@ class InputMaskFlushTest : public QObject
 private Q_SLOTS:
     void clearBandClearsMask();
     void firstBandAppliedAsIs();
-    void growCollapsesToBandImmediately();
+    void growAppliesBandDirectly();
     void shrinkKeepsUnionNotBand();
     void settlePredicateTracksWidth();
     void maximizeCycleReproduction();
     void shrinkKeepsUnionUntilSettle();
     void animatedShrinkNeverClipsVacatedEdges();
+    void thicknessShrinkAppliesBandDirectly();
+    void verticalDockHoldsOnHeightShrink();
 };
 
 //! A degenerate/clear band (width 0, or the Qt.rect(0,0,-1,-1) explicit clear
@@ -64,9 +74,9 @@ void InputMaskFlushTest::clearBandClearsMask()
 {
     const QRect applied(0, 0, 1440, 32);
 
-    QCOMPARE(windowMaskFor(applied, QRect()), QRect());
-    QCOMPARE(windowMaskFor(applied, QRect(0, 0, 0, 0)), QRect());
-    QCOMPARE(windowMaskFor(applied, QRect(0, 0, -1, -1)), QRect());
+    QCOMPARE(windowMaskFor(applied, QRect(), Qt::Horizontal), QRect());
+    QCOMPARE(windowMaskFor(applied, QRect(0, 0, 0, 0), Qt::Horizontal), QRect());
+    QCOMPARE(windowMaskFor(applied, QRect(0, 0, -1, -1), Qt::Horizontal), QRect());
     // nothing to collapse to once cleared
     QVERIFY(!needsSettleCollapse(QRect(), QRect()));
 }
@@ -77,33 +87,33 @@ void InputMaskFlushTest::firstBandAppliedAsIs()
 {
     const QRect band(44, 8, 1353, 24);
 
-    QCOMPARE(windowMaskFor(QRect(), band), band);
-    QCOMPARE(windowMaskFor(QRect(0, 0, 0, 0), band), band);
+    QCOMPARE(windowMaskFor(QRect(), band, Qt::Horizontal), band);
+    QCOMPARE(windowMaskFor(QRect(0, 0, 0, 0), band, Qt::Horizontal), band);
     QVERIFY(!needsSettleCollapse(band, band));
 }
 
-//! Growing (un-maximized band -> full width): the wider band already contains
-//! the old applied region, so the union equals the band and no collapse is
-//! owed. Growing never strands, so it applies immediately.
-void InputMaskFlushTest::growCollapsesToBandImmediately()
+//! Growing (un-maximized band -> full width): a grow is not a length shrink, so
+//! the band is applied directly and no collapse is owed. Growing never strands.
+void InputMaskFlushTest::growAppliesBandDirectly()
 {
     const QRect band(44, 8, 1353, 24);
     const QRect full(0, 0, 1440, 32);
 
-    const QRect grown = windowMaskFor(band, full);
+    const QRect grown = windowMaskFor(band, full, Qt::Horizontal);
     QCOMPARE(grown, full);
     QVERIFY(!needsSettleCollapse(grown, full));
 }
 
-//! Shrinking (full width -> band): the union stays at the wider applied region,
-//! NOT the band, so the vacated edges [0,44) and [1397,1440) remain inside the
-//! window mask and their clearing damage is not clipped. A collapse is owed.
+//! Shrinking along the length axis (full width -> band): the union stays at the
+//! wider applied region, NOT the band, so the vacated edges [0,44) and
+//! [1397,1440) remain inside the window mask and their clearing damage is not
+//! clipped. A collapse is owed.
 void InputMaskFlushTest::shrinkKeepsUnionNotBand()
 {
     const QRect full(0, 0, 1440, 32);
     const QRect band(44, 8, 1353, 24);
 
-    const QRect shrunk = windowMaskFor(full, band);
+    const QRect shrunk = windowMaskFor(full, band, Qt::Horizontal);
     QCOMPARE(shrunk, full);                 // stays wide, does not narrow to band
     QVERIFY(shrunk.contains(band));
     QVERIFY(needsSettleCollapse(shrunk, band));
@@ -139,12 +149,12 @@ void InputMaskFlushTest::maximizeCycleReproduction()
     QRect applied = band;                        // steady state before maximize
 
     // maximize: band grows to full
-    applied = windowMaskFor(applied, full);
+    applied = windowMaskFor(applied, full, Qt::Horizontal);
     QCOMPARE(applied, full);
     QVERIFY(!needsSettleCollapse(applied, full));
 
     // un-maximize: band shrinks; the applied mask must NOT snap to the band
-    applied = windowMaskFor(applied, band);
+    applied = windowMaskFor(applied, band, Qt::Horizontal);
     QCOMPARE(applied, full);
     QVERIFY(needsSettleCollapse(applied, band));
 
@@ -162,7 +172,7 @@ void InputMaskFlushTest::shrinkKeepsUnionUntilSettle()
     const QRect full(0, 0, 1440, 32);
     const QRect band(44, 8, 1353, 24);
 
-    const QRect appliedDuringShrink = windowMaskFor(full, band);
+    const QRect appliedDuringShrink = windowMaskFor(full, band, Qt::Horizontal);
     QVERIFY2(appliedDuringShrink == full,
              "a shrinking band must keep the window mask at the former (wider) "
              "extent so Qt6 wayland does not clip the vacated region's clearing "
@@ -185,7 +195,7 @@ void InputMaskFlushTest::animatedShrinkNeverClipsVacatedEdges()
 
     QRect applied;
     for (const QRect &step : steps) {
-        applied = windowMaskFor(applied, step);
+        applied = windowMaskFor(applied, step, Qt::Horizontal);
         // never clips below the widest band seen so far in the burst
         QVERIFY(applied.contains(steps[0]));
     }
@@ -193,6 +203,46 @@ void InputMaskFlushTest::animatedShrinkNeverClipsVacatedEdges()
     // and the whole burst stayed pinned at the burst maximum until settle
     QCOMPARE(applied, steps[0]);
     QVERIFY(needsSettleCollapse(applied, steps[3]));
+}
+
+//! An autohide/dodge HIDE collapses the band to its reveal strip: same LENGTH
+//! (width, for a horizontal dock), thinner. That is a THICKNESS-axis shrink, not
+//! a length one - the dock leaves, nothing stale is stranded where it stood - so
+//! the band (the strip) is applied DIRECTLY, never the union. Holding the former
+//! band here would keep the whole vacated dock body as the window mask while the
+//! dock is hidden, over-capturing pointer input (clicks swallowed, the reveal
+//! strip widened). No collapse is owed.
+void InputMaskFlushTest::thicknessShrinkAppliesBandDirectly()
+{
+    const QRect shown(44, 8, 1353, 24);   // shown band, 24px thick
+    const QRect strip(44, 30, 1353, 2);   // reveal strip, same width, 2px thick
+
+    const QRect hidden = windowMaskFor(shown, strip, Qt::Horizontal);
+    QCOMPARE(hidden, strip);               // strip applied directly, not united
+    QVERIFY(!needsSettleCollapse(hidden, strip));
+
+    // and the reverse (strip -> shown, a thickness GROW on reveal) also applies
+    // the band directly
+    QCOMPARE(windowMaskFor(strip, shown, Qt::Horizontal), shown);
+}
+
+//! For a Left/Right dock the LENGTH axis is vertical: a height shrink is the
+//! frosted-band case and is held at the union, while a width (thickness) shrink
+//! is applied directly. The mirror of the horizontal cases above.
+void InputMaskFlushTest::verticalDockHoldsOnHeightShrink()
+{
+    const QRect fullV(0, 0, 32, 1440);    // full-height left dock band
+    const QRect bandV(8, 44, 24, 1353);   // shorter band
+
+    // length (height) shrink: union held
+    const QRect shrunk = windowMaskFor(fullV, bandV, Qt::Vertical);
+    QCOMPARE(shrunk, fullV);
+    QVERIFY(needsSettleCollapse(shrunk, bandV));
+
+    // thickness (width) shrink to a reveal strip: applied directly
+    const QRect stripV(0, 44, 2, 1353);   // same height as bandV, 2px thick
+    QCOMPARE(windowMaskFor(bandV, stripV, Qt::Vertical), stripV);
+    QVERIFY(!needsSettleCollapse(windowMaskFor(bandV, stripV, Qt::Vertical), stripV));
 }
 
 QTEST_APPLESS_MAIN(InputMaskFlushTest)

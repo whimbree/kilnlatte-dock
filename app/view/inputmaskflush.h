@@ -16,31 +16,50 @@ namespace ViewPart {
 //! Qt6's wayland backend couples QWindow::mask() to each frame's submitted
 //! buffer damage (Effects::setInputMask records the history: an empty mask
 //! froze the whole surface at its last content). The consequence that forced
-//! this seam: when a masked dock's visible band SHRINKS - e.g. "maximize panel
-//! length in presence of maximized windows" grew it to full width and releases
-//! on un-maximize - the just-vacated edge pixels are repainted transparent by
-//! the scene graph, but that damage falls outside the new, smaller mask and is
-//! dropped. The compositor keeps compositing the stale semi-transparent panel
-//! pixels there, a lighter frosted band at the former extent (reproduced live
-//! on a real top dock, 2026-07-18). Qt5/X11 shape masks did not clip damage, so
-//! this is a platform-forced Qt6 deviation with no upstream precedent.
+//! this seam: when a masked dock's visible band shrinks along its LENGTH axis,
+//! the just-vacated edge pixels are repainted transparent by the scene graph,
+//! but that damage falls outside the new, smaller mask and is dropped. The
+//! compositor keeps compositing the stale semi-transparent panel pixels there,
+//! a lighter frosted band at the former extent (reproduced live on a real top
+//! dock, 2026-07-18). Qt5/X11 shape masks did not clip damage, so this is a
+//! platform-forced Qt6 deviation with no upstream precedent.
 //!
-//! The fix keeps the WINDOW mask at the union of the bands seen since the band
-//! last settled, so a shrink never clips the vacated region's clearing damage,
-//! and collapses back to the exact band once the band stops changing (a
-//! coalescing timer in Effects). These pure helpers own the "what region to
-//! hand QWindow::setMask" decision so the invariant is testable without a live
-//! compositor. m_inputMask still reports the logical band for readback.
+//! BLAST RADIUS - the only external driver of the input mask is
+//! VisibilityManager.qml -> effects.inputMask, so this decision governs EVERY
+//! input-mask shrink, not just maximize-length. computeInputMask shrinks the
+//! band along the LENGTH axis on two paths - "maximize panel length in presence
+//! of maximized windows" releasing on un-maximize, and parabolic zoom-OUT
+//! (unhover) narrowing the full-length zoomed band back to the applet band -
+//! and BOTH are the same frosted-band bug, so BOTH are held by design. It also
+//! shrinks the band along the THICKNESS axis on autohide/dodge HIDE (the band
+//! collapses to its reveal strip); that is deliberately NOT held (see below).
+//!
+//! The fix keeps the WINDOW mask at the union of the bands seen since a
+//! LENGTH-axis shrink began, so the shrink never clips the vacated region's
+//! clearing damage, and collapses back to the exact band once the band stops
+//! changing (a coalescing timer in Effects). These pure helpers own the "what
+//! region to hand QWindow::setMask" decision so the invariant is testable
+//! without a live compositor. m_inputMask still reports the logical band for
+//! readback.
 namespace InputMaskFlush {
 
 //! The region to hand QWindow::setMask, given the region currently applied to
-//! the window and the new logical band. A clear/degenerate band clears the
-//! mask; a first band with no prior applied mask is used as-is; otherwise the
-//! union is kept. Growing therefore collapses to the band on its own (a wider
-//! band already contains the old applied region, union == band), while a shrink
-//! stays wide (union == the old, wider applied region) and must be narrowed
-//! later by the settle collapse.
-inline QRect windowMaskFor(const QRect &applied, const QRect &band)
+//! the window, the new logical band, and the dock's LENGTH axis (horizontal for
+//! Top/Bottom docks, vertical for Left/Right). A clear/degenerate band clears
+//! the mask; a first band with no prior applied mask is used as-is.
+//!
+//! The union is held ONLY for a shrink along the LENGTH axis: that is the
+//! frosted-band case (the dock stays put and its length-ends vacate), so the
+//! union keeps the vacated ends inside the mask and their clearing damage is
+//! submitted. A grow, or a THICKNESS-axis shrink, returns the band directly. The
+//! thickness shrink is the autohide/dodge HIDE collapsing the band to its reveal
+//! strip: the dock leaves, nothing stale is stranded where it stood, so there is
+//! nothing to hold - and holding the former (thick) band as the WINDOW mask
+//! would over-capture pointer input across the vacated dock body while the dock
+//! is hidden (clicks swallowed instead of falling through, the reveal strip
+//! widened to the whole former dock). Input hit-testing rides the same mask as
+//! the damage clip, so the hold is scoped to exactly where the frosted band is.
+inline QRect windowMaskFor(const QRect &applied, const QRect &band, Qt::Orientation lengthAxis)
 {
     if (!band.isValid() || band.isEmpty()) {
         return QRect();
@@ -50,14 +69,22 @@ inline QRect windowMaskFor(const QRect &applied, const QRect &band)
         return band;
     }
 
-    //! Contract: the region handed to setMask never drops coverage of what is
-    //! currently applied. A shrink therefore keeps the union so the vacated
-    //! edges' clearing damage stays inside the mask (the whole reason this seam
-    //! exists); coverage only narrows through the deliberate settle collapse in
-    //! Effects, never here. united() satisfies this by construction. A naive
-    //! `return band` violates it on a shrink and trips this assert under the
-    //! sanitized tests (QT_FORCE_ASSERTS live, stripped in the shipped dock) -
-    //! the tripwire that keeps a future "simplification" from reintroducing the
+    const bool lengthShrank = (lengthAxis == Qt::Horizontal)
+            ? band.width() < applied.width()
+            : band.height() < applied.height();
+
+    if (!lengthShrank) {
+        return band;
+    }
+
+    //! Contract: on a length shrink the region handed to setMask never drops
+    //! coverage of what is currently applied. The union keeps the vacated ends'
+    //! clearing damage inside the mask (the whole reason this seam exists);
+    //! coverage only narrows through the deliberate settle collapse in Effects,
+    //! never here. united() satisfies this by construction. A naive `return
+    //! band` violates it on a shrink and trips this assert under the sanitized
+    //! tests (QT_FORCE_ASSERTS live, stripped in the shipped dock) - the
+    //! tripwire that keeps a future "simplification" from reintroducing the
     //! stale frosted band.
     const QRect result = applied.united(band);
     Q_ASSERT(result.contains(applied));

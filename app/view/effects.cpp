@@ -317,22 +317,35 @@ QRect Effects::appliedInputMask() const
     return m_appliedInputMask;
 }
 
+Qt::Orientation Effects::lengthAxis() const
+{
+    const Plasma::Types::Location location = m_view->location();
+    return (location == Plasma::Types::LeftEdge || location == Plasma::Types::RightEdge)
+            ? Qt::Vertical : Qt::Horizontal;
+}
+
 void Effects::applyInputMaskToWindow()
 {
     if (!m_view) {
         return;
     }
 
-    //! Under Qt6's wayland backend the window mask no longer carries only the
-    //! input area: Qt also restricts each frame's submitted damage to it, so an
-    //! empty or degenerate region freezes the surface at its last content -
-    //! initially fully transparent, which made the whole dock render 30fps into
-    //! buffers that never showed. The mask computation legitimately passes
-    //! degenerate rects while the layouter is still warming up (localGeometry
-    //! width 0) and Qt.rect(0,0,-1,-1) as the explicit clear request; both must
-    //! clear the mask instead of being forwarded.
-    const QRect toApply = InputMaskFlush::windowMaskFor(m_appliedInputMask, m_inputMask);
+    //! InputMaskFlush owns the region decision: on a Qt6-wayland masked dock the
+    //! window mask both gates input AND clips each frame's submitted damage, so a
+    //! LENGTH-axis shrink (maximize-length release, parabolic zoom-out) is held at
+    //! the union until it settles, keeping the vacated ends' clearing damage
+    //! inside the mask (the frosted-band fix caught live 2026-07-18); a grow or a
+    //! thickness-axis shrink (autohide/dodge HIDE collapsing to the reveal strip)
+    //! is applied straight through, so a hidden dock never over-captures input
+    //! across its vacated body. See inputmaskflush.h.
+    const QRect toApply = InputMaskFlush::windowMaskFor(m_appliedInputMask, m_inputMask, lengthAxis());
 
+    //! The mask computation legitimately passes degenerate rects while the
+    //! layouter is still warming up (localGeometry width 0) and Qt.rect(0,0,-1,-1)
+    //! as the explicit clear request. Under the same mask/damage coupling an empty
+    //! or degenerate region freezes the surface at its last content (initially
+    //! transparent, which once made the whole dock render 30fps into buffers that
+    //! never showed), so those clear the mask instead of being forwarded.
     if (!toApply.isValid() || toApply.isEmpty()) {
         m_inputMaskSettleTimer.stop();
         m_appliedInputMask = QRect();
@@ -340,16 +353,11 @@ void Effects::applyInputMaskToWindow()
         return;
     }
 
-    //! Keep the window mask at the union across a SHRINK so the just-vacated
-    //! edge pixels' transparent repaint is not clipped out of submitted damage
-    //! (else the compositor freezes stale semi-transparent panel pixels there,
-    //! the lighter band caught live on 2026-07-18 when maximizeWhenMaximized
-    //! released on un-maximize). inputmaskflush.h carries the full rationale.
     m_appliedInputMask = toApply;
     m_view->setMask(m_appliedInputMask);
 
-    //! While the band is still shrinking the applied mask stays wider than it;
-    //! (re)arm the collapse so the window narrows back to the band once quiet.
+    //! While the length band is still shrinking the applied mask stays wider than
+    //! it; (re)arm the collapse so the window narrows back to the band once quiet.
     if (InputMaskFlush::needsSettleCollapse(m_appliedInputMask, m_inputMask)) {
         m_inputMaskSettleTimer.start();
     } else {

@@ -6,10 +6,14 @@
 #
 # The maximize-length repaint fix (app/view/inputmaskflush.h, Effects). On Qt6
 # wayland a masked dock's window mask clips each frame's submitted damage, so
-# when the input band SHRINKS the vacated edge pixels' clearing damage is
-# dropped and the compositor keeps a stale frosted band. The fix keeps the
-# WINDOW mask at the union across the shrink and collapses it back to the band
-# once the band settles (~100ms, a coalescing timer in Effects).
+# when the input band shrinks along its LENGTH axis the vacated edge pixels'
+# clearing damage is dropped and the compositor keeps a stale frosted band. The
+# fix keeps the WINDOW mask at the union across a length shrink and collapses it
+# back to the band once the band settles (~100ms, a coalescing timer in
+# Effects). A THICKNESS shrink (autohide/dodge HIDE collapsing to the reveal
+# strip) is deliberately NOT held - inputmaskflushtest pins that scoping, and it
+# was verified in the vehicle that a hidden dock applies its reveal strip
+# directly (docs/agent-logs/2026-07-18-maximize-length-repaint.md).
 #
 # The motivating trigger is "maximize panel length in presence of maximized
 # windows" (maximizeWhenMaximized): a maximized client overrides the dock's

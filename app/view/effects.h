@@ -99,9 +99,10 @@ public:
     void setInputMask(QRect area);
 
     //! the region actually handed to QWindow::setMask (the union kept across a
-    //! shrink, collapsing back to inputMask() once the band settles); differs
-    //! from inputMask() only mid-shrink. Read back over D-Bus (viewsData's
-    //! appliedInputRegionRects) so the settle can be asserted without pixels.
+    //! LENGTH-axis shrink, collapsing back to inputMask() once the band settles);
+    //! differs from inputMask() only mid length-shrink. Read back over D-Bus
+    //! (viewsData's appliedInputRegionRects) so the settle can be asserted
+    //! without pixels.
     QRect appliedInputMask() const;
 
     QRect rect() const;
@@ -155,9 +156,13 @@ private:
     QRegion customMask(const QRect &rect);
 
     //! hand m_inputMask to the QWindow, keeping the window mask wide across a
-    //! shrink so the vacated region's clearing damage is not clipped (Qt6
-    //! wayland couples mask() to submitted damage; see inputmaskflush.h)
+    //! LENGTH-axis shrink so the vacated region's clearing damage is not clipped
+    //! (Qt6 wayland couples mask() to submitted damage; see inputmaskflush.h)
     void applyInputMaskToWindow();
+
+    //! the dock's length axis: horizontal for Top/Bottom docks, vertical for
+    //! Left/Right - the axis whose shrink InputMaskFlush holds the union across
+    Qt::Orientation lengthAxis() const;
 
 private:
     bool m_animationsBlocked{false};
@@ -187,8 +192,8 @@ private:
     QRect m_mask;
     QRect m_inputMask;
     //! the region actually handed to QWindow::setMask; kept at the union of
-    //! the bands seen since the last settle so a shrinking band never clips
-    //! the vacated region's clearing damage (inputmaskflush.h)
+    //! the bands seen since the last settle so a LENGTH-shrinking band never
+    //! clips the vacated region's clearing damage (inputmaskflush.h)
     QRect m_appliedInputMask;
     QRect m_appletsLayoutGeometry;
 
