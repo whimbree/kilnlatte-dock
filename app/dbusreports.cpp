@@ -43,6 +43,12 @@
 namespace Latte {
 namespace DbusReports {
 
+namespace {
+//! forward declaration: collectAppletsData reads the AppletItem delegate's
+//! live colorize properties before this helper is defined further down
+QVariant readLiveProperty(const QObject *object, const char *name);
+}
+
 ViewRecord collectViewRecord(const Latte::View *view, bool inConfigureAppletsMode)
 {
     //! views come from Synchronizer::currentViews(), not from outside the
@@ -165,6 +171,12 @@ QString collectAppletsData(const Latte::View *view)
         //! rather than papered over with a plausible z=0.
         if (QQuickItem *delegate = appletStackingDelegate(data.plasmoid)) {
             record.z = delegate->z();
+            //! D21: the effective colorize decision lives on the AppletItem
+            //! delegate (it folds the manager decision, the user opt-out, the
+            //! colorfulness probe and the inline-full state); read it here so a
+            //! contrast test can assert per applet why it is or is not recoloured
+            record.colorizerActive = readLiveProperty(delegate, "colorizerPaletteActive").toBool();
+            record.colorizerReason = readLiveProperty(delegate, "colorizerExemptionReason").toString();
         } else {
             qWarning() << "dbusreports: applet" << data.id
                        << "quick item has no AppletItem delegate ancestor; its stacking z cannot be read";
@@ -441,6 +453,16 @@ QString collectColorizerData(const Latte::View *view)
         //! basename per the interface doc; the decider's named kdeglobals
         //! fallback has no path and passes through unchanged
         record.scheme = QFileInfo(readLiveProperty(colorizer, "scheme").toString()).fileName();
+
+        //! D21: the decided colours the applets are pushed to. applyColor is
+        //! Manager.applyColor (its foreground, equal to textColor); its
+        //! brightness is Manager.themeTextColorBrightness (0..255, computed the
+        //! same way the decision core measures).
+        record.applyColor = readLiveProperty(colorizer, "applyColor").value<QColor>();
+        record.textColor = readLiveProperty(colorizer, "textColor").value<QColor>();
+        record.backgroundColor = readLiveProperty(colorizer, "backgroundColor").value<QColor>();
+        record.applyColorBrightness = readLiveProperty(colorizer, "themeTextColorBrightness").toDouble();
+        record.backgroundColorBrightness = readLiveProperty(colorizer, "backgroundColorBrightness").toDouble();
     }
 
     return serializeColorizerData(record);

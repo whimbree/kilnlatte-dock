@@ -82,6 +82,13 @@
     <method name="viewsData">
         <arg name="data" type="s" direction="out"/>
     </method>
+    <!-- D21: each applet's JSON payload adds colorizerActive (the colorizer
+         scheme is EFFECTIVELY pushed into the applet's own colour group) and
+         colorizerReason (applied / notEngaged / splitter / selfColored /
+         userBlocked / inlineFull / colorful). This is the whole decision, wider
+         than colorizingBlocked (the user opt-out list only). Signature stays s
+         (JSON string). See DbusReports::AppletRecord and
+         AppletItem.colorizerPaletteActive. -->
     <method name="viewAppletsData">
         <arg name="data" type="s" direction="out"/>
         <arg name="containmentId" type="u" direction="in"/>
@@ -99,6 +106,11 @@
         <arg name="data" type="s" direction="out"/>
         <arg name="containmentId" type="u" direction="in"/>
     </method>
+    <!-- D21: the JSON payload adds the resolved applyColor/textColor/
+         backgroundColor ("#rrggbb", "" when unresolved) and their
+         applyColorBrightness/backgroundColorBrightness (0..255), so an applet
+         contrast check can assert foreground-vs-background at the state level.
+         Signature stays s (JSON string). See DbusReports::ColorizerRecord. -->
     <method name="colorizerData">
         <arg name="data" type="s" direction="out"/>
         <arg name="containmentId" type="u" direction="in"/>
