@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: 2026 Latte Dock contributors
+# SPDX-FileCopyrightText: 2026 Bree Spektor
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Tier-1 Arch Linux packaging recipe for lattecotta-dock.
+# Builds from the local source tree (ci/containers/Containerfile.arch is the
+# reference environment). The source tarball is generated from the mounted
+# worktree; this recipe does not fetch a remote tarball.
+
+pkgname=lattedock
+pkgver=0.20.0
+pkgrel=1
+pkgdesc='Lattecotta Dock - a Plasma 6 / Qt6 port of Latte Dock'
+arch=(x86_64)
+url='https://github.com/whimbree/lattecotta-dock'
+license=(GPL-2.0-or-later LGPL-2.0-or-later)
+
+depends=(
+    qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools
+    karchive kcmutils kconfig kcoreaddons kcrash kdbusaddons kdeclarative
+    kglobalaccel kguiaddons ki18n kiconthemes kio kirigami knewstuff
+    knotifications kpackage ksvg kwindowsystem kxmlgui kitemmodels solid
+    sonnet ktextwidgets kidletime
+    libplasma plasma-activities plasma-activities-stats plasma-workspace
+    plasma-pa kpipewire plasma5support libksysguard kwayland
+    layer-shell-qt kwin wayland
+    vulkan-icd-loader vulkan-swrast
+    noto-fonts dbus
+    qqc2-desktop-style
+)
+
+makedepends=(
+    cmake ninja extra-cmake-modules pkgconf kdoctools qt6-tools
+    vulkan-headers wayland-protocols plasma-wayland-protocols
+    "${depends[@]}"
+)
+
+# Build a separate debug package so symbols are preserved and available for
+# the RelWithDebInfo dev build without stripping the main binary bare.
+options=(debug strip)
+
+# Local source: a tarball generated from the mounted worktree before makepkg.
+source=("${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cmake -S "${pkgname}-${pkgver}" -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DBUILD_TESTING=ON
+    cmake --build build
+}
+
+check() {
+    # Container contract: the Arch image exports LATTE_QML_MODULE_PATH to the
+    # distro framework QML tree and puts Qt6 host tools under /usr/lib/qt6/bin.
+    # makepkg runs check() in a sanitized environment, so mirror the image env
+    # here so the QML-loading ctest entries resolve their imports and tools.
+    export LATTE_QML_MODULE_PATH=/usr/lib/qt6/qml
+    export PATH="/usr/lib/qt6/bin:${PATH}"
+
+    # qmllintgate and schemesmodeltest are NixOS-tier gates: the ratchet pins
+    # the pinned nix qmllint and the scheme test is non-hermetic against the
+    # distro's real color-scheme files. They are excluded from the distro
+    # matrix by design (docs/tracking/multi-distro-ci-plan.md, Phase B2).
+    ctest --test-dir build --output-on-failure \
+        -E '^(qmllintgate|schemesmodeltest)$'
+}
+
+package() {
+    DESTDIR="${pkgdir}" cmake --install build
+}
