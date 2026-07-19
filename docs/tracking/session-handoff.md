@@ -31,9 +31,10 @@ add/remove/close control-level live drives are deferred; the D24 disposition.
 
 NEXT for a fresh session - drive it with docs/prompts/orchestrator-prompt.md (the
 reusable farm/review/merge workflow + subagent templates):
-1. Farm CL-5 (tasks page / D10 - DECIDED: WIRE IT UP; the ng eabf7c89a pattern) -
-   the last audit cluster: first prove whether tasks.plasmoid.configuration.*
-   writes apply, then wire them if not, then audit each control.
+1. The edit-mode settings-audit epic is COMPLETE (CL-0..CL-6 all landed; CL-5
+   settled D10 as "applies" - the port already wires the Tasks config, no wire-up
+   needed). Remaining tail: the control 56 / 90 readback gaps and the D24
+   dead-keys disposition (remove or accept).
 2. X11 hygiene, best-practice sequence (docs/tracking/x11-cleanup-audit.md has the plain-
    English plan): one small PR = D3 (collapse the dead windowColorScheme else-arm)
    + D2 (mark the D19 keep-above an explicit `// STUB`); THEN a deliberate isolated
