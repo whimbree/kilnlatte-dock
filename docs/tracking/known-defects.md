@@ -330,7 +330,7 @@ carries its own detail or points into the plan and the reference docs.
 ## Fixed (kept for the record)
 
 ### D27 - Maximize state detection delayed by geometryChanged re-arming the debounce timer
-- STATUS: FIXED (branch d27-windowchanged-immediate-flush, de9cc4f6a + 15d71f04b; PR number to be added at merge).
+- STATUS: FIXED (PR #61, branch d27-windowchanged-immediate-flush, de9cc4f6a + 15d71f04b + 4f61732c4).
 - FOUND: 2026-07-19, code-reading of the window-tracking signal path while investigating a maximize gap.
 - SYMPTOM: when a window is maximized, the dock does not update its maximize-state consumers (autohide, colorizer, maximize-length, etc.) until the maximize animation finishes, leaving a visible gap where the old state is still acted on.
 - ROOT CAUSE: AbstractWindowInterface::considerWindowChanged() batches windowChanged signals behind a 150 ms single-shot timer to avoid high CPU from rapid signal churn. PlasmaWindow::geometryChanged() fires repeatedly during the KWin maximize animation, so each geometry change re-armed the timer and the maximize edge did not propagate until the animation stream ended.
