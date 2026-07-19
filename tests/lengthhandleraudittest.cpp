@@ -79,6 +79,11 @@ private Q_SLOTS:
     void offsetWritePathWritesOnlyOffsetWhenInRange();
     void offsetWritePathHealsMaxLengthOnlyWhenCorrupt();
 
+    //! AU-1f: the fine value scroll/click rows (controls 51, 53, 55)
+    void maxLengthCtrlWheelWritesOnlyMaximumEvenWhenCoupled();
+    void maxLengthClickRoundsOnlyMaximum();
+    void minAndOffsetFineRowsWriteOnlyTheirOwnKey();
+
 private:
     static void seed(QQmlPropertyMap &config,
                      std::initializer_list<std::pair<QString, QVariant>> pairs);
@@ -371,6 +376,75 @@ void LengthHandlerAuditTest::offsetWritePathHealsMaxLengthOnlyWhenCorrupt()
                                     {QStringLiteral("maxLength"), QStringLiteral("offset")}));
     QVERIFY(valueReflects(after, QStringLiteral("maxLength"), 50));
     QVERIFY(valueReflects(after, QStringLiteral("offset"), -25));
+}
+
+//! AU-1f: the Maximum value's ctrl-wheel row (control 51) writes maxLength
+//! RAW - it does not route through the clamp - so it can never drag minLength,
+//! not even at the max==min boundary where the RULER wheel does (AU-1a). Pinned
+//! at that exact boundary to contrast the two Maximum paths: the ruler couples,
+//! the fine value does not.
+void LengthHandlerAuditTest::maxLengthCtrlWheelWritesOnlyMaximumEvenWhenCoupled()
+{
+    QQmlPropertyMap config;
+    seed(config, {{QStringLiteral("maxLength"), 90}, {QStringLiteral("minLength"), 90},
+                  {QStringLiteral("offset"), 0}, {QStringLiteral("alignment"), 0}}); // coupled at 90
+
+    const QJsonObject before = snapshot(config);
+    //! the ScrollArea onScrolledUp ctrl-modifier body, smallStep 0.1
+    QCOMPARE(runHandler(config,
+             QStringLiteral("configuration.maxLength = configuration.maxLength + 0.1;")), QString());
+    const QJsonObject after = snapshot(config);
+
+    QVERIFY(controlApplies(before, after, QStringLiteral("maxLength")));
+    QVERIFY(onlyExpectedKeysChanged(before, after, {QStringLiteral("maxLength")}));
+    QVERIFY2(!changedConfigKeys(before, after).contains(QStringLiteral("minLength")),
+             "the fine-value ctrl-wheel bypasses the clamp, so it must not drag "
+             "minLength even at the coupled boundary");
+}
+
+//! AU-1f: the Maximum value's click row (control 51) rounds maxLength to a
+//! whole percent and writes only maxLength (P2 + P3).
+void LengthHandlerAuditTest::maxLengthClickRoundsOnlyMaximum()
+{
+    QQmlPropertyMap config;
+    seed(config, {{QStringLiteral("maxLength"), 90.4}, {QStringLiteral("minLength"), 30},
+                  {QStringLiteral("offset"), 0}, {QStringLiteral("alignment"), 0}});
+
+    const QJsonObject before = snapshot(config);
+    QCOMPARE(runHandler(config,
+             QStringLiteral("configuration.maxLength = Math.round(configuration.maxLength);")), QString());
+    const QJsonObject after = snapshot(config);
+
+    QVERIFY(onlyExpectedKeysChanged(before, after, {QStringLiteral("maxLength")}));
+    QVERIFY(valueReflects(after, QStringLiteral("maxLength"), 90));
+}
+
+//! AU-1f: the Minimum (control 53) and Offset (control 55) fine rows each write
+//! only their own key - the same raw-write shape, no coupling, no clamp.
+void LengthHandlerAuditTest::minAndOffsetFineRowsWriteOnlyTheirOwnKey()
+{
+    {
+        QQmlPropertyMap config;
+        seed(config, {{QStringLiteral("maxLength"), 100}, {QStringLiteral("minLength"), 30},
+                      {QStringLiteral("offset"), 0}, {QStringLiteral("alignment"), 0}});
+        const QJsonObject before = snapshot(config);
+        QCOMPARE(runHandler(config,
+                 QStringLiteral("configuration.minLength = configuration.minLength + 0.1;")), QString());
+        const QJsonObject after = snapshot(config);
+        QVERIFY(controlApplies(before, after, QStringLiteral("minLength")));
+        QVERIFY(onlyExpectedKeysChanged(before, after, {QStringLiteral("minLength")}));
+    }
+    {
+        QQmlPropertyMap config;
+        seed(config, {{QStringLiteral("maxLength"), 100}, {QStringLiteral("minLength"), 30},
+                      {QStringLiteral("offset"), 5.4}, {QStringLiteral("alignment"), 0}});
+        const QJsonObject before = snapshot(config);
+        QCOMPARE(runHandler(config,
+                 QStringLiteral("configuration.offset = Math.round(configuration.offset);")), QString());
+        const QJsonObject after = snapshot(config);
+        QVERIFY(onlyExpectedKeysChanged(before, after, {QStringLiteral("offset")}));
+        QVERIFY(valueReflects(after, QStringLiteral("offset"), 5));
+    }
 }
 
 QTEST_GUILESS_MAIN(LengthHandlerAuditTest)
