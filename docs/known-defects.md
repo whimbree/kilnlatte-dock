@@ -111,7 +111,9 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   Qt5 behaviour (latte-dock-qt6 carries the identical coupling).
 
 ### D16 - settings length sliders desync from the on-canvas ruler
-- STATUS: OPEN (fix - this is the real culprit behind the D15 confusion).
+- STATUS: FIXED (768fe8c99 re-sync + 6775d0850 cross-view guard; PR #43/CL-1).
+  Was the real culprit behind the D15 confusion - the settings did not SHOW the
+  coupled minimum moving because the handle binding was clobbered.
 - FOUND: 2026-07-18, edit-mode settings audit.
 - SYMPTOM: after a settings-window Max/Min slider is dragged once, changing the
   same length from the on-canvas ruler no longer moves the slider handle - the
@@ -125,7 +127,12 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   handle followed).
 
 ### D17 - the Maximum clamp floors by minLength even for Justify (alignment-blind)
-- STATUS: OPEN (fix).
+- STATUS: FIXED (5baab3621; PR #43/CL-1). Landed via a distinct `Alignment::
+  Justify` enum in the clamp core (both clamp functions skip the minLength floor
+  for Justify only; geometry stays shared via `hasCenteredGeometry`). DELIBERATE
+  QT5 DEVIATION, recorded at the site + commit + test: Qt5 floors Maximum by
+  minLength for every alignment AND disables the Minimum slider for Justify, so
+  the stranding is an upstream defect this port fixes (Justify effective min = 0).
 - FOUND: 2026-07-18, edit-mode settings audit.
 - SYMPTOM: on a Justify dock the Minimum slider is correctly disabled, but the
   Maximum cannot be lowered below the frozen stored minLength (stuck at an

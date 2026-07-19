@@ -529,23 +529,30 @@ CL-0 review follow-up nits (from the PR #40 independent review, non-blocking):
       own bus, within the read-surface safety contract). Commits:
 
 ### CL-1 - length cluster (seed defects)
-- [ ] **AU-1a D15** Drive the Maximum ruler; assert via snapshot-diff which keys
-      change at and away from the `max == min` boundary; record the disposition
-      (FIX-deviation or ACCEPTED) with Bree. Commits:
-- [ ] **AU-1b D16** QML integration test reproducing the slider binding: simulate
-      a drag then an external config change, assert the handle re-tracks. RED
-      until the re-sync fix lands. Commits:
-- [ ] **AU-1c D16** Live cross-view test: ruler scroll (fakepointer) -> config
-      readback -> settings slider renders the new value (golden crop or
-      control-value readback). Commits:
-- [ ] **AU-1d D17** Core test: a Justify request below the stored minLength is
-      honoured; Edge/Center still floored. Requires the core Justify
-      representation. RED until the alignment-aware clamp lands. Commits:
-- [ ] **AU-1e** Offset slider audit (control 54): confirm it is the correct
-      re-sync reference and stays P3-correct after the D16 fix generalizes its
-      pattern. Commits:
-- [ ] **AU-1f** Fine value scroll/click rows (controls 51, 53, 55): P2/P3 for the
-      ctrl-wheel and click-to-round paths. Commits:
+- [x] **AU-1a D15** Drove the Maximum ruler; snapshot-diff pinned the keys that
+      change at vs away from the `max == min` boundary. DISPOSITION: ACCEPTED
+      (Bree) - keep the coupling. Pinned as a passing regression documenting the
+      trigger. NOTE: the coupling stays alignment-blind by design, so under
+      Justify a carried-over `max == min` config still writes the disabled
+      minLength key (harmless - justified rendering ignores minLength). Commits:
+      914bc601c
+- [x] **AU-1b D16** QML wiring test reproducing the clobbered binding (drag then
+      external config change); RED on the plain binding, GREEN after the re-sync.
+      Commits: 768fe8c99
+- [x] **AU-1c D16** Live cross-view guard: ruler scroll -> config readback ->
+      settings slider re-tracks (host-rendered golden, ~14% mismatch on revert).
+      Commits: 6775d0850
+- [x] **AU-1d D17** Core test: a Justify request below the stored minLength is
+      honoured; Edge/Center still floored. Landed via a distinct `Alignment::
+      Justify` enum value. FIX IS A DELIBERATE QT5 DEVIATION (recorded at the
+      site + commit body + test): Qt5 floors Maximum by minLength for all
+      alignments AND disables the Minimum slider for Justify, so the stranding is
+      an upstream defect this port fixes. Commits: 5baab3621
+- [x] **AU-1e** Offset slider audit (control 54): confirmed the P2-correct re-sync
+      reference; heals maxLength only when the stored value is corrupt. Commits:
+      17f4909e0
+- [x] **AU-1f** Fine value scroll/click rows (controls 51, 53, 55): P2/P3 - write
+      only their own key, no coupling even at the boundary. Commits: fe36bf088
 
 ### CL-2 - appearance non-length
 - [ ] **AU-2a** Items (47-49): iconSize/proportionIconSize/zoomLevel apply to geo

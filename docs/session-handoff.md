@@ -2,10 +2,21 @@
 
 Rolling handoff for the next session to pick up without re-deriving context.
 Last updated 2026-07-18 (trunk renamed master->main; the e2e interaction DRIVER
-layer is fully landed - C-I7/C-I8/C-I9 merged as PRs #37/#38/#39 atop the
-earlier infra chunks; the edit-mode settings audit harness CL-0 merged as PR
-#40, unblocking the audit clusters; CL-1 length cluster and an X11-ism cleanup
-audit are farmed and in flight, below).
+layer is fully landed - C-I7/C-I8/C-I9 merged as PRs #37/#38/#39; the edit-mode
+settings audit harness CL-0 merged as PR #40; and a second merge wave cleared:
+CL-1 length cluster (PR #43 - D15 ACCEPTED, D16 slider-desync + D17 Justify
+stranding FIXED), the X11 survivor sweep (PR #42 - dead-code removals, D19 filed,
+proposals D1/D2/D3/D5/S1 awaiting sign-off in docs/x11-cleanup-audit.md), and the
+D20 normal-mode menu guard (PR #44 - the write-path emptying was disproven).
+D20-class menu emptying was also fixed live on the real dock by restoring the
+contextMenuActionsAlwaysShown key. IN FLIGHT: the Light/Layout colorizer contrast
+fix (D21/D22/D23) developing in the NESTED vehicle - approach B, push the resolved
+scheme into applets' color groups (Bree's call), a recorded Qt5 divergence. NEXT:
+wave-2 audit clusters {CL-2, CL-3, CL-4, CL-6} + CL-5 fan out from clean main.
+Note: a live-dock regression scare this session (an agent restarted the real dock
+with its WIP worktree build, breaking floating-gap/maximize behavior) reaffirmed
+that AGENTS DEVELOP IN THE NESTED VEHICLE, never the real session - see the
+live-system consent memory.)
 
 ## 2026-07-18 WAVE: e2e driver layer complete + settings-audit harness (CL-0)
 
