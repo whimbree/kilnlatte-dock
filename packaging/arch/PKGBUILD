@@ -5,7 +5,12 @@
 # Tier-1 Arch Linux packaging recipe for lattecotta-dock.
 # Builds from the local source tree (ci/containers/Containerfile.arch is the
 # reference environment). The source tarball is generated from the mounted
-# worktree; this recipe does not fetch a remote tarball.
+# worktree before makepkg; this recipe does not fetch a remote tarball.
+#
+# Source tarball generation (run from the repo root):
+#   git archive --format=tar.gz --prefix=lattedock-${pkgver}/ \
+#       -o packaging/arch/lattedock-${pkgver}.tar.gz HEAD
+# Then makepkg in packaging/arch.
 
 pkgname=lattedock
 pkgver=0.20.0
@@ -13,7 +18,15 @@ pkgrel=1
 pkgdesc='Lattecotta Dock - a Plasma 6 / Qt6 port of Latte Dock'
 arch=(x86_64)
 url='https://github.com/whimbree/lattecotta-dock'
-license=(GPL-2.0-or-later LGPL-2.0-or-later)
+license=(
+    GPL-2.0-or-later
+    LGPL-2.0-or-later
+    # app/wm/tasktools.cpp and app/wm/tasktools.h carry the upstream
+    # plasma-desktop task-manager tri-license.
+    LGPL-2.1-only
+    LGPL-3.0-only
+    LicenseRef-KDE-Accepted-LGPL
+)
 
 depends=(
     qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools
@@ -65,8 +78,27 @@ check() {
     # matrix by design (docs/tracking/multi-distro-ci-plan.md, Phase B2).
     ctest --test-dir build --output-on-failure \
         -E '^(qmllintgate|schemesmodeltest)$'
+
+    # Packaging smoke: the build tree gate above exercises the unstaged binary;
+    # this exercises the installed package layout by staging it in a throwaway
+    # DESTDIR prefix and driving the installed /usr/bin/latte-dock under a
+    # private nested kwin_wayland + lavapipe compositor.
+    local smoke_root="$srcdir/.smoke-install"
+    rm -rf "$smoke_root"
+    DESTDIR="$smoke_root" cmake --install build
+    SMOKE_PREFIX="$smoke_root" "$srcdir/${pkgname}-${pkgver}/packaging/arch/smoke-installed.sh"
 }
 
 package() {
     DESTDIR="${pkgdir}" cmake --install build
+
+    # Install the full SPDX license text set. LicenseRef-KDE-Accepted-LGPL is
+    # required by the tri-license on app/wm/tasktools.cpp and tasktools.h.
+    install -d "${pkgdir}/usr/share/licenses/${pkgname}"
+    local lic
+    for lic in GPL-2.0-or-later LGPL-2.0-or-later LGPL-2.1-only \
+               LGPL-3.0-only LicenseRef-KDE-Accepted-LGPL; do
+        install -m644 "${pkgname}-${pkgver}/LICENSES/${lic}.txt" \
+            "${pkgdir}/usr/share/licenses/${pkgname}/${lic}.txt"
+    done
 }
