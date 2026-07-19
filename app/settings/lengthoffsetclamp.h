@@ -40,15 +40,49 @@ namespace Settings {
 //! the input handling.
 namespace LengthOffsetClamp {
 
-//! the clamp math only ever distinguishes Center/Justify from the edge
-//! alignments; WHICH edge is deliberately unrepresentable here because
-//! no branch reads it. The bridge maps the raw Latte::Types::Alignment
-//! int totally: Center or Justify -> Centered, every other value ->
-//! Edge (the same predicate the shipped QML applied with ===).
+//! the clamp math distinguishes three alignment kinds; WHICH edge is
+//! deliberately unrepresentable here because no branch reads it. Center
+//! and Justify share the same on-screen GEOMETRY (a symmetric offset that
+//! can push either half past the screen middle), so the offset math treats
+//! them alike; Justify is a distinct value only because its Maximum is NOT
+//! floored by minLength (D17, maximumIsFlooredByMinimum below). The bridge
+//! maps the raw Latte::Types::Alignment int totally: Justify -> Justify,
+//! Center -> Centered, every other value -> Edge (the same predicate the
+//! shipped QML applied with ===, split so the floor can tell Justify apart).
 enum class Alignment {
     Edge,
-    Centered
+    Centered,
+    Justify
 };
+
+//! Center and Justify share on-screen GEOMETRY: every offset/overflow
+//! branch treats them identically. Only the minLength floor tells them
+//! apart, so the geometry predicate is named separately from the enum
+//! comparison to keep that single distinction legible at each call site.
+constexpr bool hasCenteredGeometry(Alignment alignment)
+{
+    return alignment == Alignment::Centered || alignment == Alignment::Justify;
+}
+
+//! the stored Minimum length floors the Maximum for every alignment EXCEPT
+//! Justify. A Justify dock has no independent minimum (its Minimum slider
+//! is disabled for Justify in AppearanceConfig.qml), so flooring Maximum by
+//! a frozen, un-editable leftover minLength strands Maximum above it (D17).
+//!
+//! DEVIATION from Qt5, recorded deliberately (CLAUDE.md Qt5-faithful rule):
+//! Qt5 Latte floored Maximum by minLength UNCONDITIONALLY - the ruler body's
+//! `value = Math.max(minLength, value)` and the slider's
+//! `Math.max(value, minLength, localMinValue)` are both alignment-blind
+//! (verified in latte-dock-qt6 RulerMouseArea.qml:47 and AppearanceConfig
+//! .qml:274, 2026-07-18) - so a Justify dock there could not lower Maximum
+//! below a stale minLength either. This maintained continuation treats that
+//! as an upstream defect and diverges: Justify's effective minimum is 0. The
+//! Minimum-slider-disabled-for-Justify half stays Qt5-faithful; only the
+//! floor becomes alignment-aware.
+constexpr bool maximumIsFlooredByMinimum(Alignment alignment)
+{
+    return alignment != Alignment::Justify;
+}
 
 struct LengthState {
     double maxLength;
@@ -79,7 +113,7 @@ inline LengthState pullOffsetOnScreen(LengthState state, Alignment alignment)
     Q_ASSERT(std::isfinite(state.maxLength) && std::isfinite(state.minLength)
              && std::isfinite(state.offset));
 
-    const bool centered = (alignment == Alignment::Centered);
+    const bool centered = hasCenteredGeometry(alignment);
     const bool overflows = (std::fabs(state.offset) + state.maxLength) > 100.0;
     //! a centered dock leaves the screen earlier: each half extends
     //! maxLength/2 from the offset anchor around the screen middle
@@ -109,8 +143,8 @@ inline LengthState pullOffsetOnScreen(LengthState state, Alignment alignment)
 
 //! the maxLength ruler's wheel step (RulerMouseArea.qml body): a coupled
 //! max==min pair moves as one, the step clamps to the ruler's 30..100
-//! rails, minLength stays a floor the wheel cannot cross, then the
-//! off-screen correction runs
+//! rails, minLength stays a floor the wheel cannot cross (except under
+//! Justify, D17), then the off-screen correction runs
 inline LengthState clampMaxLengthByStep(LengthState state, double step, Alignment alignment)
 {
     Q_ASSERT(std::isfinite(state.maxLength) && std::isfinite(state.minLength)
@@ -118,7 +152,9 @@ inline LengthState clampMaxLengthByStep(LengthState state, double step, Alignmen
 
     //! exact equality on purpose: both values come from the same config
     //! keys, so a coupled pair was written as exactly-equal doubles (the
-    //! shipped QML compared with ===)
+    //! shipped QML compared with ===). The coupling stays alignment-blind
+    //! and Qt5-faithful (ACCEPTED, D15): it keeps a fixed-length dock
+    //! (max==min) fixed as the ruler scrolls.
     const bool minimumIsCoupled = (state.maxLength == state.minLength);
 
     double value = std::max(std::min(state.maxLength + step, 100.0), 30.0);
@@ -127,16 +163,21 @@ inline LengthState clampMaxLengthByStep(LengthState state, double step, Alignmen
         state.minLength = std::max(30.0, value);
     }
 
-    value = std::max(state.minLength, value);
+    //! the stored minimum floors the wheel for every alignment but Justify,
+    //! whose Maximum is not bounded below by a disabled Minimum slider (D17)
+    if (maximumIsFlooredByMinimum(alignment)) {
+        value = std::max(state.minLength, value);
+    }
     state.maxLength = value;
 
     return pullOffsetOnScreen(state, alignment);
 }
 
 //! the Appearance page's Maximum slider (maxLengthSlider.updateMaxLength
-//! body): an absolute request floored by minLength and the slider's
-//! localMinValue of 1, then the off-screen correction. The current
-//! maxLength is never read by this path, so it is not a parameter.
+//! body): an absolute request floored by minLength (except under Justify,
+//! D17) and the slider's localMinValue of 1, then the off-screen
+//! correction. The current maxLength is never read by this path, so it is
+//! not a parameter.
 //!
 //! DEVIATION from Qt5, recorded in the spec and docs/agent-logs/EX-18.md:
 //! the correction runs on the EFFECTIVE (floored) maxLength where Qt5
@@ -151,7 +192,12 @@ inline LengthState clampMaxLengthToValue(double requestedMaxLength, double minLe
     Q_ASSERT(std::isfinite(requestedMaxLength) && std::isfinite(minLength)
              && std::isfinite(offset));
 
-    LengthState state{std::max({requestedMaxLength, minLength, 1.0}), minLength, offset};
+    //! Justify's effective minimum is 0: its Minimum slider is disabled, so
+    //! flooring by the stored minLength would strand Maximum (D17). The
+    //! localMinValue floor of 1 still applies to every alignment - a dock
+    //! is never zero-length.
+    const double effectiveMinimum = maximumIsFlooredByMinimum(alignment) ? minLength : 0.0;
+    LengthState state{std::max({requestedMaxLength, effectiveMinimum, 1.0}), minLength, offset};
 
     return pullOffsetOnScreen(state, alignment);
 }
@@ -172,7 +218,7 @@ inline OffsetBounds offsetSliderBounds(double maxLength, Alignment alignment)
     //! the bounds by one for odd lengths.
     const double factor = std::trunc((100.0 - maxLength) / 2.0);
 
-    if (alignment == Alignment::Centered) {
+    if (hasCenteredGeometry(alignment)) {
         return {-factor, factor};
     }
 
@@ -193,7 +239,7 @@ inline OffsetClamp clampOffset(double maxLength, double requestedOffset, Alignme
     //! the result (= to) where std::clamp would be undefined behavior
     const double offset = std::min(std::max(bounds.from, requestedOffset), bounds.to);
 
-    const bool centered = (alignment == Alignment::Centered);
+    const bool centered = hasCenteredGeometry(alignment);
     const bool overflows = (std::fabs(offset) + maxLength) > 100.0;
     const bool centeredSpills = centered && (std::fabs(offset) + maxLength / 2.0 > 50.0);
 

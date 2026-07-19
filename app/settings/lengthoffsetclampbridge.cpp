@@ -22,15 +22,21 @@ namespace {
 using Latte::Settings::LengthOffsetClamp::Alignment;
 using Latte::Settings::LengthOffsetClamp::LengthState;
 
-//! the same total predicate the shipped QML applied with ===: Center and
-//! Justify take the centered branches, every other int (edges,
-//! NoneAlignment, out-of-domain values from a hand-edited config)
-//! behaves as an edge alignment
+//! the same total predicate the shipped QML applied with ===, split so the
+//! minLength floor can tell Justify apart (D17): Justify -> Justify (centered
+//! geometry, no minLength floor), Center -> Centered (centered geometry,
+//! floored), every other int (edges, NoneAlignment, out-of-domain values
+//! from a hand-edited config) -> Edge. Center and Justify still share every
+//! offset/overflow branch through LengthOffsetClamp::hasCenteredGeometry.
 Alignment alignmentKindOf(int alignment)
 {
-    const bool centered = (alignment == Latte::Types::Center)
-                          || (alignment == Latte::Types::Justify);
-    return centered ? Alignment::Centered : Alignment::Edge;
+    if (alignment == Latte::Types::Justify) {
+        return Alignment::Justify;
+    }
+    if (alignment == Latte::Types::Center) {
+        return Alignment::Centered;
+    }
+    return Alignment::Edge;
 }
 
 //! boundary refusal (qCritical-and-refuse; the parabolic router wrapper

@@ -298,9 +298,20 @@ PlasmaComponents.Page {
                                 if (plasmoid.configuration.offset !== clamped.offset) {
                                     plasmoid.configuration.offset = clamped.offset;
                                 }
-                            } else if ((value < plasmoid.configuration.minLength) || (value < localMinValue)) {
-                                //! view-side snap while dragging; the config math lives in the core
-                                value = Math.max(plasmoid.configuration.minLength, localMinValue);
+                            } else {
+                                //! view-side snap while dragging; the config math lives in the core.
+                                //! Justify has no independent minimum (its Minimum slider is
+                                //! disabled below), so its drag floor is localMinValue only -
+                                //! flooring by a frozen leftover minLength would strand the handle
+                                //! above an un-editable floor (D17, matching the core's
+                                //! maximumIsFlooredByMinimum). Non-Justify keeps the min floor,
+                                //! bit-for-bit the old `(value < minLength) || (value < localMinValue)`.
+                                var effectiveMin = (plasmoid.configuration.alignment === LatteCore.Types.Justify)
+                                                   ? localMinValue
+                                                   : Math.max(plasmoid.configuration.minLength, localMinValue);
+                                if (value < effectiveMin) {
+                                    value = effectiveMin;
+                                }
                             }
                         }
 

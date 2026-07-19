@@ -67,6 +67,10 @@ private Q_SLOTS:
     void toValue_correctionUsesEffectiveMaxLength();
     void toValue_maxNeverEndsBelowMin();
 
+    // D17: the Maximum floor is alignment-aware - Justify has no minLength floor
+    void toValue_justifyHonoursRequestBelowStoredMinimum();
+    void byStep_justifyIgnoresStoredMinimumFloorButKeepsTheRail();
+
     // offset slider bounds (fromValue/toValue/screenLengthMaxFactor)
     void offsetSliderBounds_table_data();
     void offsetSliderBounds_table();
@@ -88,6 +92,7 @@ private Q_SLOTS:
 
     // the QML boundary (bridge compiled into this binary, sanitized)
     void bridge_mapsAlignmentTotally();
+    void bridge_mapsJustifyToItsOwnFloor();
     void bridge_resultsMatchCore();
     void bridge_refusesNonFiniteLoudly();
 };
@@ -334,6 +339,50 @@ void LengthOffsetClampTest::toValue_maxNeverEndsBelowMin()
                                     .arg(requested).arg(min).arg(result.maxLength)));
         }
     }
+}
+
+void LengthOffsetClampTest::toValue_justifyHonoursRequestBelowStoredMinimum()
+{
+    // D17: a Justify dock's Minimum slider is disabled, so a stale stored
+    // minLength must NOT floor its Maximum. The same request under Edge and
+    // Center IS floored (the floor stays alignment-aware, not removed).
+    //
+    // DEVIATION from Qt5, recorded: Qt5 floored Maximum by minLength for
+    // every alignment (latte-dock-qt6 AppearanceConfig.qml:274), so a Justify
+    // dock there was stranded above a frozen minLength. This port diverges
+    // deliberately (lengthoffsetclamp.h maximumIsFlooredByMinimum).
+    const LengthState justify = clampMaxLengthToValue(40.0, 50.0, 0.0, Alignment::Justify);
+    QCOMPARE(justify.maxLength, 40.0);        // honoured: 40 < stored min 50
+    QCOMPARE(justify.minLength, 50.0);        // this path never edits the min
+
+    const LengthState edge = clampMaxLengthToValue(40.0, 50.0, 0.0, Alignment::Edge);
+    QCOMPARE(edge.maxLength, 50.0);           // still floored by the stored min
+
+    const LengthState centered = clampMaxLengthToValue(40.0, 50.0, 0.0, Alignment::Centered);
+    QCOMPARE(centered.maxLength, 50.0);       // Center keeps the floor too
+
+    // the localMinValue floor of 1 is NOT alignment-specific: even Justify
+    // cannot go to zero length
+    const LengthState justifyZero = clampMaxLengthToValue(0.0, 50.0, 0.0, Alignment::Justify);
+    QCOMPARE(justifyZero.maxLength, 1.0);
+}
+
+void LengthOffsetClampTest::byStep_justifyIgnoresStoredMinimumFloorButKeepsTheRail()
+{
+    // the ruler path skips the stored-min floor under Justify too, so a wheel
+    // step can carry Maximum below a frozen minLength...
+    const LengthState justify = clampMaxLengthByStep({52.0, 50.0, 0.0}, -6.0, Alignment::Justify);
+    QCOMPARE(justify.maxLength, 46.0);        // 52 - 6, not floored up to 50
+    QCOMPARE(justify.minLength, 50.0);        // uncoupled, the min is untouched
+
+    // ...while an Edge step is still caught by the stored-min floor
+    const LengthState edge = clampMaxLengthByStep({52.0, 50.0, 0.0}, -6.0, Alignment::Edge);
+    QCOMPARE(edge.maxLength, 50.0);
+
+    // the 30..100 ruler rail is alignment-independent: Justify still cannot
+    // cross 30, only the stored-min floor is skipped
+    const LengthState justifyRail = clampMaxLengthByStep({33.0, 80.0, 0.0}, -6.0, Alignment::Justify);
+    QCOMPARE(justifyRail.maxLength, 30.0);
 }
 
 void LengthOffsetClampTest::offsetSliderBounds_table_data()
@@ -657,6 +706,24 @@ void LengthOffsetClampTest::bridge_mapsAlignmentTotally()
         QCOMPARE(from, row.centered ? -50.0 : 0.0);
         const double to = bridge.offsetSliderTo(0.0, row.alignment);
         QCOMPARE(to, row.centered ? 50.0 : 100.0);
+    }
+}
+
+void LengthOffsetClampTest::bridge_mapsJustifyToItsOwnFloor()
+{
+    // D17 through the QML boundary: Justify (Latte::Types::Justify == 10)
+    // honours a Maximum below the stored minimum; Center (0) and the edges
+    // (1..4) still floor. The geometry stays shared - Justify's offset bounds
+    // remain the centered bounds (bridge_mapsAlignmentTotally pins that half).
+    Latte::Settings::LengthOffsetClampBridge bridge;
+
+    const QVariantMap justify = bridge.clampMaxLengthToValue(40.0, 50.0, 0.0, 10);
+    QCOMPARE(justify.value(QStringLiteral("maxLength")).toDouble(), 40.0);
+    QCOMPARE(justify.value(QStringLiteral("minLength")).toDouble(), 50.0);
+
+    for (const int floored : {0, 1, 2, 3, 4}) {   // Center, Left, Right, Top, Bottom
+        const QVariantMap map = bridge.clampMaxLengthToValue(40.0, 50.0, 0.0, floored);
+        QCOMPARE(map.value(QStringLiteral("maxLength")).toDouble(), 50.0);
     }
 }
 

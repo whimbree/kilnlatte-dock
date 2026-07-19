@@ -20,7 +20,8 @@ namespace Settings {
 //! (PrimaryConfigView hosts pages/AppearanceConfig.qml, CanvasConfigView
 //! hosts canvas/maxlength/RulerMouseArea.qml; both share that init). The
 //! core decides (lengthoffsetclamp.h); this class maps the raw
-//! Latte::Types::Alignment int onto the core's two-valued Alignment,
+//! Latte::Types::Alignment int onto the core's Alignment (Justify kept
+//! distinct so the Maximum floor can skip it, D17),
 //! refuses non-finite input loudly (KConfig happily parses "nan" into a
 //! double, and the Qt5 QML silently pushed it back into the config), and
 //! packs results into maps keyed like the config keys.
