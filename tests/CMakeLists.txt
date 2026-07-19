@@ -230,6 +230,22 @@ target_include_directories(lengthhandleraudittest PRIVATE
     ${CMAKE_SOURCE_DIR}/app/settings     # lengthoffsetclampbridge.h / lengthoffsetclamp.h
     ${CMAKE_BINARY_DIR}/app)             # coretypes.h is generated there
 
+# The Behavior page's real-handler wiring audit (CL-3,
+# docs/edit-mode-settings-audit-plan.md): the same QML-fragment/stub-map pattern
+# as settingswiringharnesstest. Pins the Actions/Environment/Items cfg checkboxes
+# and the two action combos to their own key (P2, S-d identity round-trips), the
+# Location/Alignment/Visibility buttons' `checked` reflection (P3), and the S-a
+# finding - the TypeSelection Dock/Panel preset writes solidPanel /
+# colorizeTransparentPanels to schema-absent keys nothing reads.
+ecm_add_test(behaviorwiringaudittest.cpp
+    TEST_NAME behaviorwiringaudittest
+    LINK_LIBRARIES Qt6::Test Qt6::Qml Qt6::Gui
+)
+set_tests_properties(behaviorwiringaudittest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_include_directories(behaviorwiringaudittest PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/units) # configsnapshotdiff.h
+
 # The shell view wrapper's no-band contract: the legacy backgroundHints
 # ternary demonstrably falls through on Plasma 6 (live engine), and the
 # shipped Panel.qml keeps its imagePath empty (source scan).
