@@ -78,6 +78,11 @@ Landed before or during the 2026-07-16 stabilization session:
 - `viewAppletsData(u containmentId) -> s` (JSON array, in visual order).
   Per applet: id, plugin, index in layout, geometry within the view,
   expanded state, inScheduledDestruction, lockedZoom, colorizingBlocked,
+  colorizerActive + colorizerReason (D21, added 2026-07-18: whether the
+  colorizer scheme is EFFECTIVELY pushed into the applet's own colour
+  group, and the single winning reason - applied / notEngaged / splitter
+  / selfColored / userBlocked / inlineFull / colorful; colorizingBlocked
+  stays the narrower user-opt-out list),
   z (stacking order). The per-applet `id` is the stable Plasma instance
   id, so two applets of the SAME plugin are distinguishable by id and
   their order is unambiguous (the G1 disambiguation readback,
@@ -133,8 +138,11 @@ Landed before or during the 2026-07-16 stabilization session:
   touching" checks the handoff lists as pending).
 - `colorizerData(u containmentId) -> s` (JSON): the colorizer
   decision in force - mode, exempted or not, measured saturation
-  bucket, active scheme file basename. Replaces the palette-flip
-  screenshot bisections of rounds twenty-one/twenty-eight.
+  bucket, active scheme file basename, and (D21, added 2026-07-18) the
+  resolved applyColor/textColor/backgroundColor plus their brightnesses,
+  so an applet-contrast test asserts foreground-vs-background at the
+  state level. Replaces the palette-flip screenshot bisections of rounds
+  twenty-one/twenty-eight.
 - `viewConfigData(u containmentId) -> s` (JSON object, added 2026-07-18
   for the edit-mode settings audit's CL-0 prerequisite,
   docs/edit-mode-settings-audit-plan.md). Two objects: `config`, the

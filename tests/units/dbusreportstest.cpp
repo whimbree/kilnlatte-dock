@@ -349,6 +349,9 @@ void DbusReportsTest::appletRecordSerialization()
     record.inScheduledDestruction = true;
     record.lockedZoom = true;
     record.colorizingBlocked = true;
+    //! D21: the effective colorize decision and its reason
+    record.colorizerActive = true;
+    record.colorizerReason = QStringLiteral("applied");
     //! a lifted delegate: 900 is the z ConfigOverlay parks a dragged applet at
     //! over the edit chrome, the residue value the G2 readback exists to surface
     record.z = 900;
@@ -363,12 +366,15 @@ void DbusReportsTest::appletRecordSerialization()
     QCOMPARE(json.value(QStringLiteral("inScheduledDestruction")).toBool(), true);
     QCOMPARE(json.value(QStringLiteral("lockedZoom")).toBool(), true);
     QCOMPARE(json.value(QStringLiteral("colorizingBlocked")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("colorizerActive")).toBool(), true);
+    QCOMPARE(json.value(QStringLiteral("colorizerReason")).toString(), QStringLiteral("applied"));
     QCOMPARE(json.value(QStringLiteral("z")).toDouble(), 900.0);
 }
 
 void DbusReportsTest::appletRecordKeySet()
 {
     const QStringList expected{
+        QStringLiteral("colorizerActive"), QStringLiteral("colorizerReason"),
         QStringLiteral("colorizingBlocked"), QStringLiteral("geometry"),
         QStringLiteral("id"), QStringLiteral("inScheduledDestruction"),
         QStringLiteral("index"), QStringLiteral("isExpanded"),
@@ -819,6 +825,12 @@ void DbusReportsTest::colorizerRecordSerialization()
     record.backgroundIsBusy = true;
     record.currentBackgroundBrightness = 42.5;
     record.scheme = QStringLiteral("DarkScheme.colors");
+    //! D21: the resolved colours + brightnesses
+    record.applyColor = QColor(QStringLiteral("#202326"));
+    record.textColor = QColor(QStringLiteral("#202326"));
+    record.backgroundColor = QColor(QStringLiteral("#fcfcfc"));
+    record.applyColorBrightness = 34.5;
+    record.backgroundColorBrightness = 240.0;
 
     const QJsonObject json = serializeColorizerRecord(record);
 
@@ -832,16 +844,27 @@ void DbusReportsTest::colorizerRecordSerialization()
     QCOMPARE(json.value(QStringLiteral("backgroundIsBusy")).toBool(), true);
     QCOMPARE(json.value(QStringLiteral("currentBackgroundBrightness")).toDouble(), 42.5);
     QCOMPARE(json.value(QStringLiteral("scheme")).toString(), QStringLiteral("DarkScheme.colors"));
+    QCOMPARE(json.value(QStringLiteral("applyColor")).toString(), QStringLiteral("#202326"));
+    QCOMPARE(json.value(QStringLiteral("textColor")).toString(), QStringLiteral("#202326"));
+    QCOMPARE(json.value(QStringLiteral("backgroundColor")).toString(), QStringLiteral("#fcfcfc"));
+    QCOMPARE(json.value(QStringLiteral("applyColorBrightness")).toDouble(), 34.5);
+    QCOMPARE(json.value(QStringLiteral("backgroundColorBrightness")).toDouble(), 240.0);
+    //! an unresolved (invalid) colour serialises to "" not QColor's "#000000"
+    ColorizerRecord unresolved;
+    QCOMPARE(serializeColorizerRecord(unresolved).value(QStringLiteral("applyColor")).toString(), QString());
 }
 
 void DbusReportsTest::colorizerRecordKeySet()
 {
     const QStringList expected{
-        QStringLiteral("applyingWindowColors"), QStringLiteral("backgroundIsBusy"),
+        QStringLiteral("applyColor"), QStringLiteral("applyColorBrightness"),
+        QStringLiteral("applyingWindowColors"), QStringLiteral("backgroundColor"),
+        QStringLiteral("backgroundColorBrightness"), QStringLiteral("backgroundIsBusy"),
         QStringLiteral("colorizerPresent"), QStringLiteral("containmentId"),
         QStringLiteral("currentBackgroundBrightness"), QStringLiteral("enabled"),
         QStringLiteral("mustBeShown"), QStringLiteral("scheme"),
-        QStringLiteral("themeColorsMode"), QStringLiteral("windowColorsMode")};
+        QStringLiteral("textColor"), QStringLiteral("themeColorsMode"),
+        QStringLiteral("windowColorsMode")};
 
     QCOMPARE(sortedKeys(serializeColorizerRecord(ColorizerRecord{})), expected);
 

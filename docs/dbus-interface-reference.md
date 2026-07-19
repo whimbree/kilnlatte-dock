@@ -67,7 +67,11 @@ true with `isOffScreen`), what the compositor was told to reserve.
 ```bash
 call viewAppletsData u 1               # s: JSON array per applet, in visual order
 #   id, plugin, index, geometry, isExpanded, inScheduledDestruction,
-#   lockedZoom, colorizingBlocked, z
+#   lockedZoom, colorizingBlocked, colorizerActive, colorizerReason, z
+#   colorizerActive (D21): true when the colorizer scheme is pushed into this
+#   applet's own colour group; colorizerReason names the decision - applied /
+#   notEngaged / splitter / selfColored / userBlocked / inlineFull / colorful.
+#   colorizingBlocked stays the user opt-out list ONLY (narrower than the above)
 #   id is the stable Plasma INSTANCE id: two applets of the same plugin
 #   are distinguishable by id and their order is unambiguous (G1)
 #   z is the delegate STACKING order (G2): 0 at rest, 900 while ConfigOverlay
@@ -88,7 +92,10 @@ call trackerData u 1                   # s: JSON object - the windows-tracker fa
 call colorizerData u 1                 # s: JSON object - the colorizer decision in force
 #   colorizerPresent, enabled, themeColorsMode, windowColorsMode,
 #   mustBeShown, applyingWindowColors, backgroundIsBusy,
-#   currentBackgroundBrightness (-1000 = no measurement), scheme
+#   currentBackgroundBrightness (-1000 = no measurement), scheme,
+#   applyColor, textColor, backgroundColor ("#rrggbb", "" if unresolved),
+#   applyColorBrightness, backgroundColorBrightness (0..255) - the resolved
+#   foreground/background so a D21 contrast test can assert at the state level
 call viewConfigData u 1                # s: JSON object - the settings-panel config VALUES
 #   { containmentId, config:{<every General-group key> -> value},
 #     view:{byPassWM, isPreferredForShortcuts, visibilityTimerShow,

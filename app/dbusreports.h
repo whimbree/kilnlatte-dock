@@ -113,6 +113,17 @@ struct ColorizerRecord {
     bool backgroundIsBusy{false};
     double currentBackgroundBrightness{-1000};
     QString scheme;
+    //! D21: the decided colours the colorizer resolves. applyColor is the
+    //! foreground the applets are pushed to (Manager.applyColor, which equals
+    //! its textColor); backgroundColor is the scheme background the contrast is
+    //! measured against. The brightnesses are the Manager's own values (0..255),
+    //! so a D21 regression test can assert foreground/background contrast at the
+    //! STATE level, complementing the rendered-pixel check.
+    QColor applyColor;
+    QColor textColor;
+    QColor backgroundColor;
+    double applyColorBrightness{-1};
+    double backgroundColorBrightness{-1};
 };
 
 //! One task item of a view's tasks plasmoid as viewTasksData() reports it
@@ -156,6 +167,14 @@ struct AppletRecord {
     bool inScheduledDestruction{false};
     bool lockedZoom{false};
     bool colorizingBlocked{false};
+    //! D21: whether the colorizer's scheme is EFFECTIVELY pushed into this
+    //! applet's own colour group (AppletItem.colorizerPaletteActive), and the
+    //! single reason it is not when it is not ("applied" when it is). Unlike
+    //! colorizingBlocked - which reflects only the user opt-out list - this is
+    //! the whole decision: applied / notEngaged / splitter / selfColored /
+    //! userBlocked / inlineFull / colorful.
+    bool colorizerActive{false};
+    QString colorizerReason;
     //! the G2 stacking readback (docs/e2e-interaction-test-plan.md): the z of
     //! the applet's AppletItem delegate. At rest every applet sits at the
     //! layout default (0); the applet-reorder machinery lifts the dragged
@@ -428,6 +447,8 @@ inline QJsonObject serializeAppletRecord(const AppletRecord &record)
     json[QStringLiteral("inScheduledDestruction")] = record.inScheduledDestruction;
     json[QStringLiteral("lockedZoom")] = record.lockedZoom;
     json[QStringLiteral("colorizingBlocked")] = record.colorizingBlocked;
+    json[QStringLiteral("colorizerActive")] = record.colorizerActive;
+    json[QStringLiteral("colorizerReason")] = record.colorizerReason;
     json[QStringLiteral("z")] = record.z;
 
     return json;
@@ -546,6 +567,13 @@ inline QJsonObject serializeColorizerRecord(const ColorizerRecord &record)
     json[QStringLiteral("backgroundIsBusy")] = record.backgroundIsBusy;
     json[QStringLiteral("currentBackgroundBrightness")] = record.currentBackgroundBrightness;
     json[QStringLiteral("scheme")] = record.scheme;
+    //! "#rrggbb" hex, or empty for an unresolved (invalid) colour rather than
+    //! QColor's silent "#000000" default which would read as a real black
+    json[QStringLiteral("applyColor")] = record.applyColor.isValid() ? record.applyColor.name() : QString();
+    json[QStringLiteral("textColor")] = record.textColor.isValid() ? record.textColor.name() : QString();
+    json[QStringLiteral("backgroundColor")] = record.backgroundColor.isValid() ? record.backgroundColor.name() : QString();
+    json[QStringLiteral("applyColorBrightness")] = record.applyColorBrightness;
+    json[QStringLiteral("backgroundColorBrightness")] = record.backgroundColorBrightness;
 
     return json;
 }
