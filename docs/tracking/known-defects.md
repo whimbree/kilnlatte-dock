@@ -250,11 +250,16 @@ These predate the registry and are detailed in their source docs; indexed here
 so "what is known broken" is one scan. Full detail migrates on next touch.
 
 ### D10 - Tasks config page renders but does not apply its settings
-- STATUS: OPEN (inherited upstream half-finished feature; decide wire-up vs hide).
-- LatteDockConfiguration.qml still exposes the Tasks config tab; latte-dock-ng
-  hid theirs (9faccabda) after judging it non-applying. Detail:
-  docs/reference/ng-upstream-audit.md:322, docs/tracking/REVIEW_NOTES.md, and CLAUDE.md's
-  stub-tracking cautionary tale (this is that exact case).
+- STATUS: RESOLVED - DOES NOT REPRODUCE in this port (CL-5, 09b59045f). The Tasks
+  config APPLIES here: `tasks.plasmoid.configuration.*` resolves through the
+  plasmoid's live KConfigPropertyMap (the ng eabf7c89a config-access root cause is
+  avoided) and action dispatch is single-source via TaskActions.js (the second ng
+  root cause avoided). Driven proof: 30 seeded tasks-page values reflect through
+  appletConfigData, and a launchersGroup Unique->Global change alters the running
+  bar. So this port needs neither wire-up nor hide.
+- HISTORY: the inherited upstream half-finished feature that latte-dock-ng hid
+  (9faccabda). Detail: docs/reference/ng-upstream-audit.md:322,
+  docs/tracking/REVIEW_NOTES.md, and CLAUDE.md's stub-tracking cautionary tale.
 
 ### D11 - Dev-dock env leak into child Qt apps
 - STATUS: OPEN (re-evaluate at Phase 11 packaging).

@@ -599,12 +599,17 @@ CL-0 review follow-up nits (from the PR #40 independent review, non-blocking):
       sub-audit needs a new readback. Commits: ccc0a45ff, 0ba0fa024
 
 ### CL-5 - tasks page (D10)
-- [ ] **AU-5a D10** Prove whether `tasks.plasmoid.configuration.*` writes apply
-      at all (page-level P1); settle the D10 disposition with Bree. Commits:
-- [ ] **AU-5b** Badges + Interaction + Filters (91-105): P1/P2/P3 via tasks-config
-      readback and viewTasksData where observable. Commits:
-- [ ] **AU-5c** Animations + Launchers + Scrolling + Actions (106-121): P1/P2/P3;
-      behavioural drive for the click/hover/wheel actions. Commits:
+- [x] **AU-5a D10** Proved the Tasks config APPLIES in this port (page-level P1,
+      driven): `tasks.plasmoid.configuration.*` resolves through the plasmoid's
+      live KConfigPropertyMap (the ng eabf7c89a config-access root cause is
+      avoided) and action dispatch is single-source (TaskActions.js). D10 does NOT
+      reproduce - no wire-up needed. Commits: 09b59045f, 8f4f6fbf3
+- [x] **AU-5b** Badges + Interaction + Filters (91-105): P1/P2/P3 via the
+      appletConfigData tasks-config readback + viewTasksData. Commits: 09b59045f
+- [x] **AU-5c** Animations + Launchers + Scrolling + Actions (106-121): P1/P2/P3;
+      the launchersGroup drive changed the running bar live; the identity combos
+      re-fire as no-ops (S-d cleared for the tasks combos). Commits: 09b59045f,
+      8f4f6fbf3
 
 ### CL-6 - chrome and on-canvas non-length
 - [x] **AU-6a** On-canvas non-length (2-5): the edit-background wheel keeps

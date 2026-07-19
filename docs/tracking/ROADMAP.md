@@ -18,10 +18,10 @@ every target, at which point VERSION bumps to 0.20.0 and the tag lands.
   the other distro legs and the release tag are pending.
 - [Edit-mode settings audit](edit-mode-settings-audit-plan.md) - a driven audit
   proving every edit-mode control keeps its contract (applies, right key, stays
-  in sync). CL-0 (harness), CL-1 (length), and wave-2 (CL-2/3/4/6: appearance,
-  behavior, effects, chrome) landed; CL-5 (tasks page and the D10 wire-up) is in
-  flight; follow-ups cover the control 56-90 readback gaps and the D24
-  disposition.
+  in sync). COMPLETE - CL-0 (harness), CL-1 (length), wave-2 (CL-2/3/4/6:
+  appearance, behavior, effects, chrome), and CL-5 (tasks page; D10 resolved as
+  "applies", no wire-up needed) all landed. Small follow-ups remain: the control
+  56 / 90 readback gaps and the D24 dead-keys disposition.
 - [E2e interaction tests](e2e-interaction-test-plan.md) - the nested-vehicle
   interaction matrix. The interaction DRIVER layer (C-I chunks) landed; the
   scenario and abort chunks (C-S/C-A) and C-I5 (moveViewToScreen) are pending; a
