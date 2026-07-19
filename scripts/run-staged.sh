@@ -19,6 +19,24 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Installed-package mode: run the distro-installed binary directly instead of
+# staging a worktree build. This is the path the packaging verification gate
+# uses to drive scripts/run-e2e.sh against an RPM/DEB-installed /usr/bin/latte-dock.
+if [[ -n "${LATTE_INSTALLED_DOCK:-}" ]]; then
+    [[ -x "$LATTE_INSTALLED_DOCK" ]] || { echo "LATTE_INSTALLED_DOCK=$LATTE_INSTALLED_DOCK is not executable"; exit 2; }
+    : "${LATTE_QML_MODULE_PATH:?LATTE_INSTALLED_DOCK mode needs LATTE_QML_MODULE_PATH (distro Qt6 QML tree)}"
+    confighome="${LATTE_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}}"
+    mkdir -p "$confighome"
+    export XDG_CONFIG_HOME="$confighome"
+    export QML2_IMPORT_PATH="$LATTE_QML_MODULE_PATH"
+    export QT_QPA_PLATFORM=wayland
+    export QT_FORCE_STDERR_LOGGING=1
+    unset QT_PLUGIN_PATH
+    echo "installed-dock mode: $LATTE_INSTALLED_DOCK (qml $LATTE_QML_MODULE_PATH, config $confighome)"
+    exec ${LATTE_RUN_WRAPPER:-} "$LATTE_INSTALLED_DOCK" "$@"
+fi
+
 source "$repo/scripts/lib-qml-env.sh"
 
 qml_env_setup "$repo"

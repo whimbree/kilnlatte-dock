@@ -69,7 +69,11 @@ mkdir -p "$E2E_ARTIFACTS"
 if [[ ! -x "$E2E_FAKEPOINTER" ]]; then
     echo "run-e2e: FAIL fakepointer not found at $E2E_FAKEPOINTER (build recipe: scripts/tools/fakepointer.c header)"; exit 2
 fi
-if [[ ! -x "$E2E_BUILD/bin/latte-dock" ]]; then
+if [[ -n "${LATTE_INSTALLED_DOCK:-}" ]]; then
+    if [[ ! -x "$LATTE_INSTALLED_DOCK" ]]; then
+        echo "run-e2e: LATTE_INSTALLED_DOCK=$LATTE_INSTALLED_DOCK is not executable"; exit 2
+    fi
+elif [[ ! -x "$E2E_BUILD/bin/latte-dock" ]]; then
     echo "run-e2e: FAIL no built binary at $E2E_BUILD/bin/latte-dock (build first)"; exit 2
 fi
 

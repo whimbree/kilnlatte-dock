@@ -84,6 +84,8 @@ e2e_dock_start() {
     #! action-refusal warnings a rejection recipe asserts on
     setsid env LATTE_CONFIG_HOME="$E2E_CONFIG_HOME" BUILD="$E2E_BUILD" \
         QT_FORCE_STDERR_LOGGING=1 \
+        LATTE_INSTALLED_DOCK="${LATTE_INSTALLED_DOCK:-}" \
+        LATTE_QML_MODULE_PATH="${LATTE_QML_MODULE_PATH:-}" \
         "$E2E_REPO/scripts/run-staged.sh" -d >>"$E2E_DOCK_LOG" 2>&1 &
     echo $! > "$E2E_DOCK_PIDFILE"
     e2e_wait_running "$timeout" && e2e_wait_settled "$timeout"
