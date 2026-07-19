@@ -26,7 +26,7 @@
 #include <KConfigGroup>
 #include <KSharedConfig>
 
-// X11
+// KDE
 #include <KWindowSystem>
 
 #define DEFAULTCOLORSCHEME "default.colors"
