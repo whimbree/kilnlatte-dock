@@ -3,6 +3,7 @@
     SPDX-FileCopyrightText: 2014 Martin Gräßlin <mgraesslin@kde.org>
     SPDX-FileCopyrightText: 2016 Kai Uwe Broulik <kde@privat.broulik.de>
     SPDX-FileCopyrightText: 2017 Roman Gilg <subdiff@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
 
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
@@ -27,6 +28,8 @@ import org.kde.draganddrop 2.0
 import org.kde.taskmanager 0.1 as TaskManager
 
 import org.kde.plasma.private.mpris as Mpris
+
+import "../components" as TaskComponents
 
 Column {
     id: instance
@@ -88,10 +91,10 @@ Column {
         anchors.horizontalCenter: parent.horizontalCenter
 
         // launcher icon
-        Kirigami.Icon {
+        TaskComponents.ThemeAwareIcon {
             Layout.preferredWidth: Kirigami.Units.iconSizes.medium
             Layout.preferredHeight: Kirigami.Units.iconSizes.medium
-            source: icon
+            iconSource: icon
             animated: false
             visible: !isWin
         }
@@ -253,11 +256,11 @@ Column {
             }
 
             // when minimized, we don't have a preview, so show the icon
-            Kirigami.Icon {
+            TaskComponents.ThemeAwareIcon {
                 width: parent.width
                 height: thumbnail.height - playbackLoader.realHeight
                 anchors.horizontalCenter: parent.horizontalCenter
-                source: icon
+                iconSource: icon
                 animated: false
                 visible: (thumbnailSourceItem.isMinimized && !albumArtImage.visible) //minimized: no live screencast
                          || (!previewThumbLoader.active && !albumArtImage.visible)

@@ -135,6 +135,6 @@ void CoreToolsTest::compareWithinMachineEpsilon()
     QVERIFY(almost_equal(0.0, 0.0, 1));
 }
 
-QTEST_GUILESS_MAIN(CoreToolsTest)
+QTEST_MAIN(CoreToolsTest)
 
 #include "coretoolstest.moc"

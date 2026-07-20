@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Bree Spektor
+# SPDX-FileCopyrightText: 2026 Latte Dock contributors
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+[Icon Theme]
+Name=Latte Theme Refresh Blue Fixture
+Comment=Solid blue icon used by the task icon refresh regression
+Directories=32x32/apps
+
+[32x32/apps]
+Size=32
+Context=Applications
+Type=Fixed

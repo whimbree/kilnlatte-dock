@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2021 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -18,6 +19,7 @@ import org.kde.kirigami 2.0 as Kirigami
 import org.kde.latte.core 0.2 as LatteCore
 import org.kde.latte.components 1.0 as LatteComponents
 
+import "../components" as TaskComponents
 import "animations" as TaskAnimations
 
 Item {
@@ -97,11 +99,11 @@ Item {
                                                 || hoveredImage.opacity > 0
                                                 || clickedAnimation.running
 
-    Kirigami.Icon {
+    TaskComponents.ThemeAwareIcon {
         id: taskIconItem
         anchors.fill: parent
         //roundToIconSize: false
-        source: decoration
+        iconSource: decoration
         visible: !badgesLoader.active
 
         //! forceMonochromaticIcons keeps the layer on PERMANENTLY while the
