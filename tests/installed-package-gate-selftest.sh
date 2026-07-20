@@ -195,7 +195,17 @@ expect_failure "partial find producer" "scan failed before a complete result was
     LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$good" --prefix /usr --check-only
 
-echo "PASS: a partial find producer cannot yield validation success"
+real_readelf="$(command -v readelf)"
+partial_readelf_bin="$work/partial-readelf-bin"
+mkdir -p "$partial_readelf_bin"
+printf '#!/usr/bin/env bash\nif [[ "$1" == -d ]]; then\n  %q "$@"\n  exit 73\nfi\nexec %q "$@"\n' \
+    "$real_readelf" "$real_readelf" >"$partial_readelf_bin/readelf"
+chmod +x "$partial_readelf_bin/readelf"
+expect_failure "partial readelf producer" "ELF search metadata could not be read completely" \
+    env PATH="$partial_readelf_bin:$PATH" LATTE_QML_MODULE_PATH="$framework" \
+    LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root "$good" --prefix /usr --check-only
+echo "PASS: partial find and readelf producers cannot yield validation success"
 
 loader_probe="$({
     LD_AUDIT=/dev/null LD_PRELOAD=/dev/null \
@@ -431,7 +441,9 @@ rpath_binary="$work/rpath-binary"
 cp -a "$good" "$rpath_binary"
 NIX_LDFLAGS= NIX_LDFLAGS_BEFORE= \
     cc "$elf_source" -Wl,-rpath,"$hostile_loader" -o "$rpath_binary/usr/bin/latte-dock"
-readelf -d "$rpath_binary/usr/bin/latte-dock" | grep -Fq "$hostile_loader" \
+binary_dynamic_metadata="$(readelf -d "$rpath_binary/usr/bin/latte-dock")" \
+    || { echo "FAIL: hostile binary RUNPATH metadata could not be read" >&2; exit 1; }
+[[ "$binary_dynamic_metadata" == *"$hostile_loader"* ]] \
     || { echo "FAIL: hostile binary RUNPATH fixture has no requested entry" >&2; exit 1; }
 expect_failure "binary ELF RUNPATH escape" "installed binary ELF RUNPATH/RPATH entry escapes the package prefix" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
@@ -441,8 +453,10 @@ rpath_action="$work/rpath-action-plugin"
 cp -a "$good" "$rpath_action"
 NIX_LDFLAGS= NIX_LDFLAGS_BEFORE= ld -shared "$fixture_object" -rpath "$hostile_loader" \
     -o "$rpath_action/usr/lib/qt6/plugins/plasma/containmentactions/org.kde.latte.contextmenu.so"
-readelf -d "$rpath_action/usr/lib/qt6/plugins/plasma/containmentactions/org.kde.latte.contextmenu.so" \
-    | grep -Fq "$hostile_loader" \
+action_dynamic_metadata="$(readelf -d \
+    "$rpath_action/usr/lib/qt6/plugins/plasma/containmentactions/org.kde.latte.contextmenu.so")" \
+    || { echo "FAIL: hostile containment-actions RUNPATH metadata could not be read" >&2; exit 1; }
+[[ "$action_dynamic_metadata" == *"$hostile_loader"* ]] \
     || { echo "FAIL: hostile containment-actions RUNPATH fixture has no requested entry" >&2; exit 1; }
 expect_failure "lazy containment-actions ELF RUNPATH escape" "Latte containment-actions plugin ELF RUNPATH/RPATH entry escapes the package prefix" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
@@ -458,7 +472,8 @@ mapped_core="$mapped_prefix/lib/qt6/qml/org/kde/latte/core/liblattecoreplugin.so
 maps_with_spaces="$work/maps with spaces"
 printf '1000-2000 r-xp 00000000 00:00 1 %s\n2000-3000 r--p 00000000 00:00 2 %s\n' \
     "$mapped_binary" "$mapped_core" >"$maps_with_spaces"
-mapfile -t parsed_space_paths < <(latte_package_gate_read_mapped_paths "$maps_with_spaces")
+parsed_space_paths=()
+latte_package_gate_read_mapped_paths "$maps_with_spaces" parsed_space_paths
 [[ "${parsed_space_paths[0]}" == "$mapped_binary" && "${parsed_space_paths[1]}" == "$mapped_core" ]] \
     || { echo "FAIL: /proc maps parser split a pathname containing spaces" >&2; exit 1; }
 declare -A expected_space_mappings=(
@@ -469,6 +484,25 @@ required_space_mappings=(latte-dock liblattecoreplugin.so)
 latte_package_gate_audit_mapped_paths "$maps_with_spaces" "$mapped_prefix" "$repo" \
     expected_space_mappings required_space_mappings >/dev/null
 echo "PASS: /proc maps pathnames with spaces preserve exact installed-artifact identity"
+
+set +e
+partial_maps_output="$(
+    (
+        source "$repo/scripts/lib-installed-package-gate.sh"
+        awk() {
+            printf '1000-2000 r-xp 00000000 00:00 1 %s\n' "$mapped_binary"
+            printf '2000-3000 r--p 00000000 00:00 2 %s\n' "$mapped_core"
+            return 73
+        }
+        latte_package_gate_audit_mapped_paths "$maps_with_spaces" "$mapped_prefix" "$repo" \
+            expected_space_mappings required_space_mappings
+    ) 2>&1
+)"
+partial_maps_status=$?
+set -e
+[[ "$partial_maps_status" -eq 2 && "$partial_maps_output" == *"cannot parse process mappings"* ]] \
+    || { echo "FAIL: partial /proc maps parser output was not rejected" >&2; echo "$partial_maps_output" >&2; exit 1; }
+echo "PASS: partial /proc maps parser output cannot satisfy mapping requirements"
 
 foreign_mapped_root="$work/foreign mapped runtime"
 mkdir -p "$foreign_mapped_root"
@@ -675,4 +709,4 @@ expect_failure "incomplete package" "missing tasks QML plugin" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$incomplete" --prefix /usr --check-only
 
-echo "installed-package-gate-selftest: PASS (52 focused controls)"
+echo "installed-package-gate-selftest: PASS (54 focused controls)"

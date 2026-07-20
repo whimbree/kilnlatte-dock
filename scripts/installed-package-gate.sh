@@ -192,7 +192,8 @@ audit_elf_search_paths() {
         fail "$label is not a valid ELF artifact: $elf"
     fi
 
-    mapfile -t search_paths < <(latte_package_gate_read_elf_search_paths "$elf")
+    latte_package_gate_read_elf_search_paths "$elf" search_paths \
+        || fail "$label ELF search metadata could not be read completely"
     origin="$(dirname "$elf")"
     for search_path in "${search_paths[@]}"; do
         case "$search_path" in
@@ -566,8 +567,16 @@ for ((i = 0; i < 90; i++)); do
         tail -40 "$dock_log" >&2 || true
         fail "installed binary did not survive startup"
     fi
-    state="$(busctl --user call org.kde.lattedock /Latte org.kde.LatteDock lifecycleState 2>/dev/null || true)"
-    views="$(busctl --user call org.kde.lattedock /Latte org.kde.LatteDock viewsData 2>/dev/null || true)"
+    if state_candidate="$(busctl --user call org.kde.lattedock /Latte org.kde.LatteDock lifecycleState 2>/dev/null)"; then
+        state="$state_candidate"
+    else
+        state=""
+    fi
+    if views_candidate="$(busctl --user call org.kde.lattedock /Latte org.kde.LatteDock viewsData 2>/dev/null)"; then
+        views="$views_candidate"
+    else
+        views=""
+    fi
     if [[ "$state" == 's "running"' && -n "$views" && "$views" != 's "[]"' \
             && "$views" != *'inStartup\\":true'* ]]; then
         if [[ "$views" == "$previous_views" ]]; then
@@ -590,13 +599,18 @@ running_exe="$(realpath "/proc/$dock_pid/exe" 2>/dev/null)" \
     || fail "running executable is $running_exe, expected the installed artifact $binary"
 echo "installed-package-gate: running executable verified: $running_exe"
 
-process_env="$(tr '\0' '\n' <"/proc/$dock_pid/environ")"
-actual_qml="$(awk -F= '$1 == "QML2_IMPORT_PATH" {sub(/^[^=]*=/, ""); print; exit}' <<<"$process_env")"
-actual_plugins="$(awk -F= '$1 == "LATTE_EXTRA_PLUGIN_PATHS" {sub(/^[^=]*=/, ""); print; exit}' <<<"$process_env")"
+latte_package_gate_read_environment_value \
+    "/proc/$dock_pid/environ" QML2_IMPORT_PATH actual_qml \
+    || fail "cannot verify the running dock's QML2_IMPORT_PATH"
+latte_package_gate_read_environment_value \
+    "/proc/$dock_pid/environ" LATTE_EXTRA_PLUGIN_PATHS actual_plugins \
+    || fail "cannot verify the running dock's LATTE_EXTRA_PLUGIN_PATHS"
 [[ "$actual_qml" == "$qml_import_path" ]] \
     || fail "running QML2_IMPORT_PATH differs from the validated allow-list (actual '$actual_qml', expected '$qml_import_path')"
 [[ "$actual_plugins" == "$package_plugins" ]] \
     || fail "running LATTE_EXTRA_PLUGIN_PATHS differs from the installed plugin root (actual '$actual_plugins', expected '$package_plugins')"
+process_env="$(tr '\0' '\n' <"/proc/$dock_pid/environ")" \
+    || fail "cannot read /proc/$dock_pid/environ while checking forbidden variables"
 for forbidden in QML_IMPORT_PATH NIXPKGS_QT6_QML_IMPORT_PATH NIXPKGS_QML_SEARCH_PATHS QT_PLUGIN_PATH \
         "${latte_package_gate_loader_variables[@]}"; do
     [[ "$process_env" != *$'\n'"$forbidden="* && "$process_env" != "$forbidden="* ]] \
