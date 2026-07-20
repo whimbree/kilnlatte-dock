@@ -4,12 +4,15 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+include /usr/share/dpkg/architecture.mk
 
 %:
 	dh $@ --buildsystem=cmake+ninja
 
-# The qmllint baseline deliberately pins the Nix merge-gate toolchain and
-# rejects distro qmllint versions. The package build runs every other CTest
-# entry; gate-all runs the pinned qmllint gate on the final commit.
+# qmllintgate pins the Nix toolchain. schemesmodeltest's XDG fixture cannot
+# hide the application's deliberate /usr/share BreezeLight fallback, which
+# exists on neon. The final gate runs both; the package build runs the other 92.
 override_dh_auto_test:
-	dh_auto_test -- --exclude-regex '^qmllintgate$$'
+	cd obj-$(DEB_HOST_GNU_TYPE) && \
+		LC_ALL=C.UTF-8 ctest --output-on-failure \
+			--exclude-regex '^(qmllintgate|schemesmodeltest)$$'
