@@ -57,6 +57,7 @@ Depends:
  libqt6wlshellintegration6 (>= 6.6.0),
  plasma-desktoptheme (>= 6.5.0),
  plasma-pa (>= 6.5.0),
+ qt6-wayland (>= 6.6.0),
  qml6-module-org-kde-activities,
  qml6-module-org-kde-desktop | kf6-qqc2-desktop-style,
  qml6-module-org-kde-draganddrop,
