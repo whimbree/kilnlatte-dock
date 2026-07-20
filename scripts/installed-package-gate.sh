@@ -75,6 +75,55 @@ require_package_file() {
         || fail "installed $label resolves outside the package prefix: $resolved"
 }
 
+audit_package_tree() {
+    local label="$1" tree="$2" tree_resolved link target target_candidate target_normalized link_resolved provider_dir
+    local -a tree_links=()
+    [[ -d "$tree" ]] || fail "package is incomplete: missing $label at $tree"
+    tree_resolved="$(resolve_native_path "installed $label" "$tree")"
+    path_is_within "$tree_resolved" "$artifact_prefix" \
+        || fail "installed $label resolves outside the package prefix: $tree_resolved"
+
+    mapfile -d '' -t tree_links < <(find "$tree" -type l -print0)
+    for link in "${tree_links[@]}"; do
+        target="$(readlink "$link")" \
+            || fail "$label contains an unreadable symlink: $link"
+        if [[ "$target" == /* ]]; then
+            target_candidate="$target"
+        else
+            target_candidate="$(dirname "$link")/$target"
+        fi
+        target_normalized="$(realpath -m "$target_candidate" 2>/dev/null)" \
+            || fail "$label symlink target cannot be normalized: $link -> $target"
+        case "$target_normalized" in
+            /nix/store/*)
+                fail "$label contains a symlink into /nix/store: $link -> $target_normalized"
+                ;;
+            "$repo"|"$repo/"*)
+                fail "$label contains a symlink into the source/build tree: $link -> $target_normalized"
+                ;;
+            *'/_qmlstage'|*'/_qmlstage/'*)
+                fail "$label contains a symlink into a development _qmlstage: $link -> $target_normalized"
+                ;;
+        esac
+        [[ -e "$link" ]] \
+            || fail "$label contains a broken symlink: $link -> $target"
+        provider_dir="$target_normalized"
+        [[ -d "$provider_dir" ]] || provider_dir="$(dirname "$provider_dir")"
+        while [[ "$provider_dir" != / ]]; do
+            if [[ -e "$provider_dir/.git" || -f "$provider_dir/CMakeLists.txt" ]]; then
+                fail "$label contains a symlink into a source tree: $link -> $target_normalized"
+            fi
+            if [[ -f "$provider_dir/CMakeCache.txt" || -d "$provider_dir/CMakeFiles" ]]; then
+                fail "$label contains a symlink into a CMake build tree: $link -> $target_normalized"
+            fi
+            provider_dir="$(dirname "$provider_dir")"
+        done
+        link_resolved="$(resolve_native_path "$label symlink" "$link")"
+        path_is_within "$link_resolved" "$artifact_prefix" \
+            || fail "$label contains a symlink escaping the package prefix: $link -> $link_resolved"
+    done
+}
+
 require_one_match() {
     local label="$1"
     shift
@@ -174,6 +223,7 @@ require_package_file "containment QML plugin" "$containment_plugin"
 require_package_file "tasks QML plugin" "$tasks_plugin"
 require_package_file "containment QML module metadata" "$package_qml/org/kde/latte/private/containment/qmldir"
 require_package_file "tasks QML module metadata" "$package_qml/org/kde/latte/private/tasks/qmldir"
+audit_package_tree "Latte QML tree" "$package_qml/org/kde/latte"
 
 mapfile -d '' -t action_plugins < <(
     find "${library_roots[@]}" -type f \
@@ -193,6 +243,10 @@ require_package_file "shell package metadata" "$package_data/plasma/shells/org.k
 require_package_file "containment package metadata" "$package_data/plasma/plasmoids/org.kde.latte.containment/metadata.json"
 require_package_file "tasks applet package metadata" "$package_data/plasma/plasmoids/org.kde.latte.plasmoid/metadata.json"
 require_package_file "desktop entry" "$package_data/applications/org.kde.latte-dock.desktop"
+audit_package_tree "Latte shell package" "$package_data/plasma/shells/org.kde.latte.shell"
+audit_package_tree "Latte containment package" "$package_data/plasma/plasmoids/org.kde.latte.containment"
+audit_package_tree "Latte tasks applet package" "$package_data/plasma/plasmoids/org.kde.latte.plasmoid"
+audit_package_tree "Latte data tree" "$package_data/latte"
 [[ -d "$package_data/latte/indicators/default" ]] \
     || fail "package is incomplete: missing default indicator under $package_data/latte/indicators"
 

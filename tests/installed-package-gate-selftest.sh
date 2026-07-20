@@ -21,6 +21,7 @@ make_package() {
     mkdir -p \
         "$root/usr/bin" \
         "$qml/org/kde/latte/core" \
+        "$qml/org/kde/latte/components/deep" \
         "$qml/org/kde/latte/private/containment" \
         "$qml/org/kde/latte/private/tasks" \
         "$plugins/plasma/containmentactions" \
@@ -33,15 +34,20 @@ make_package() {
     chmod +x "$root/usr/bin/latte-dock"
     : >"$qml/org/kde/latte/core/qmldir"
     : >"$qml/org/kde/latte/core/liblattecoreplugin.so"
+    : >"$qml/org/kde/latte/components/deep/Installed.qml"
     : >"$qml/org/kde/latte/private/containment/qmldir"
     : >"$qml/org/kde/latte/private/containment/liblattecontainmentplugin.so"
     : >"$qml/org/kde/latte/private/tasks/qmldir"
     : >"$qml/org/kde/latte/private/tasks/liblattetasksplugin.so"
     : >"$plugins/plasma/containmentactions/org.kde.latte.contextmenu.so"
     : >"$data/plasma/shells/org.kde.latte.shell/metadata.json"
+    : >"$data/plasma/shells/org.kde.latte.shell/Installed.qml"
     : >"$data/plasma/plasmoids/org.kde.latte.containment/metadata.json"
+    : >"$data/plasma/plasmoids/org.kde.latte.containment/Installed.qml"
     : >"$data/plasma/plasmoids/org.kde.latte.plasmoid/metadata.json"
+    : >"$data/plasma/plasmoids/org.kde.latte.plasmoid/Installed.qml"
     : >"$data/applications/org.kde.latte-dock.desktop"
+    : >"$data/latte/indicators/default/Installed.qml"
 }
 
 run_check() {
@@ -182,6 +188,65 @@ expect_failure "QML plugin symlink escape" "resolves outside the package prefix"
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$escaped_plugin" --prefix /usr --check-only
 
+escaped_qml_content="$work/escaped-qml-content"
+cp -a "$good" "$escaped_qml_content"
+outside_qml="$work/preinstalled-system-content.qml"
+: >"$outside_qml"
+rm "$escaped_qml_content/usr/lib/qt6/qml/org/kde/latte/components/deep/Installed.qml"
+ln -s "$outside_qml" "$escaped_qml_content/usr/lib/qt6/qml/org/kde/latte/components/deep/Installed.qml"
+expect_failure "nested QML content symlink escape" "Latte QML tree contains a symlink escaping the package prefix" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root "$escaped_qml_content" --prefix /usr --check-only
+
+source_qml="$work/source-qml-content"
+cp -a "$good" "$source_qml"
+rm "$source_qml/usr/lib/qt6/qml/org/kde/latte/components/deep/Installed.qml"
+ln -s "$repo/CMakeLists.txt" "$source_qml/usr/lib/qt6/qml/org/kde/latte/components/deep/Installed.qml"
+expect_failure "nested QML source-tree provider" "Latte QML tree contains a symlink into the source/build tree" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root "$source_qml" --prefix /usr --check-only
+
+build_provider="$work/external-build-provider"
+mkdir -p "$build_provider"
+: >"$build_provider/CMakeCache.txt"
+: >"$build_provider/generated.qml"
+build_qml="$work/build-qml-content"
+cp -a "$good" "$build_qml"
+rm "$build_qml/usr/lib/qt6/qml/org/kde/latte/components/deep/Installed.qml"
+ln -s "$build_provider/generated.qml" "$build_qml/usr/lib/qt6/qml/org/kde/latte/components/deep/Installed.qml"
+expect_failure "nested QML build-tree provider" "Latte QML tree contains a symlink into a CMake build tree" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root "$build_qml" --prefix /usr --check-only
+
+stage_provider="$work/provider/_qmlstage"
+mkdir -p "$stage_provider"
+: >"$stage_provider/Staged.qml"
+stage_qml="$work/stage-qml-content"
+cp -a "$good" "$stage_qml"
+rm "$stage_qml/usr/lib/qt6/qml/org/kde/latte/components/deep/Installed.qml"
+ln -s "$stage_provider/Staged.qml" "$stage_qml/usr/lib/qt6/qml/org/kde/latte/components/deep/Installed.qml"
+expect_failure "nested QML development-stage provider" "Latte QML tree contains a symlink into a development _qmlstage" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root "$stage_qml" --prefix /usr --check-only
+
+nix_qml="$work/nix-qml-content"
+cp -a "$good" "$nix_qml"
+rm "$nix_qml/usr/lib/qt6/qml/org/kde/latte/components/deep/Installed.qml"
+ln -s /nix/store/fake-latte-qml/Injected.qml "$nix_qml/usr/lib/qt6/qml/org/kde/latte/components/deep/Installed.qml"
+expect_failure "nested QML Nix provider" "Latte QML tree contains a symlink into /nix/store" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root "$nix_qml" --prefix /usr --check-only
+
+escaped_data_content="$work/escaped-data-content"
+cp -a "$good" "$escaped_data_content"
+outside_data="$work/preinstalled-system-indicator.qml"
+: >"$outside_data"
+rm "$escaped_data_content/usr/share/latte/indicators/default/Installed.qml"
+ln -s "$outside_data" "$escaped_data_content/usr/share/latte/indicators/default/Installed.qml"
+expect_failure "nested Latte data symlink escape" "Latte data tree contains a symlink escaping the package prefix" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root "$escaped_data_content" --prefix /usr --check-only
+
 incomplete="$work/incomplete"
 cp -a "$good" "$incomplete"
 rm "$incomplete/usr/lib/qt6/qml/org/kde/latte/private/tasks/liblattetasksplugin.so"
@@ -189,4 +254,4 @@ expect_failure "incomplete package" "missing tasks QML plugin" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$incomplete" --prefix /usr --check-only
 
-echo "installed-package-gate-selftest: PASS (1 valid contract, 12 rejection controls)"
+echo "installed-package-gate-selftest: PASS (1 valid contract, 18 rejection controls)"
