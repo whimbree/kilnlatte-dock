@@ -95,7 +95,7 @@ wait_settled() {
         # Views exist, are out of inStartup, and geometry stopped changing
         # (the startup animation keeps moving rects for seconds after inStartup
         # clears; the e2e suite uses the same stable-back-to-back check).
-        if [[ -n "$payload" && "$payload" != 's "[]"' ]] && ! grep -q 'inStartup\":true' <<<"$payload"; then
+        if [[ -n "$payload" && "$payload" != 's "[]"' && "$payload" != *'inStartup\\":true'* ]]; then
             if [[ "$payload" == "$previous" ]]; then
                 return 0
             fi
@@ -134,6 +134,10 @@ fi
 if [[ "$rc" != 0 ]]; then
     echo "smoke-installed: dock log tail:" >&2
     tail -60 "$dock_log" >&2 || true
+fi
+
+if [[ "$rc" == 0 ]]; then
+    echo "smoke-installed: PASS (installed binary started, settled, and shut down cleanly)"
 fi
 
 exit "$rc"
