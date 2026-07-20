@@ -707,15 +707,17 @@ void LayoutManager::saveOptions()
         Q_EMIT m_configuration->valueChanged(m_option[ISCOLORINGBLOCKEDOPTION], colorsserialized);
     }
 
-    if ((*m_configuration)[QStringLiteral("splitterPosition")] != m_splitterPosition) {
-        m_configuration->insert(QStringLiteral("splitterPosition"), m_splitterPosition);
-        Q_EMIT m_configuration->valueChanged(m_option[QStringLiteral("splitterPosition")], m_splitterPosition);
-    }
+    const auto saveSplitterPosition = [this](const QString &key, int position) {
+        if ((*m_configuration)[key] == position) {
+            return;
+        }
 
-    if ((*m_configuration)[QStringLiteral("splitterPosition2")] != m_splitterPosition2) {
-        m_configuration->insert(QStringLiteral("splitterPosition2"), m_splitterPosition2);
-        Q_EMIT m_configuration->valueChanged(m_option[QStringLiteral("splitterPosition2")], m_splitterPosition2);
-    }
+        m_configuration->insert(key, position);
+        Q_EMIT m_configuration->valueChanged(key, position);
+    };
+
+    saveSplitterPosition(QStringLiteral("splitterPosition"), m_splitterPosition);
+    saveSplitterPosition(QStringLiteral("splitterPosition2"), m_splitterPosition2);
 }
 
 void LayoutManager::setOption(const int &appletId, const QString &property, const QVariant &value)

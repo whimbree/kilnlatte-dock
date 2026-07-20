@@ -29,6 +29,7 @@
 
 // Qt
 #include <QBuffer>
+#include <QFile>
 #include <QJsonObject>
 #include <QQmlComponent>
 #include <QQmlEngine>
@@ -50,6 +51,7 @@
 #include <PlasmaQuick/AppletQuickItem>
 
 // the class under test, compiled from the real plugin sources
+#include <plugin/lattetypes.h>
 #include <plugin/layoutmanager.h>
 
 namespace {
@@ -70,23 +72,31 @@ public:
 
 //! the containment plasmoid stand-in: LayoutManager reads exactly the
 //! configuration property (must resolve to a real KConfigPropertyMap - the
-//! single-loader chain from c3d15966) and, on drop paths, formFactor
+//! single-loader chain from c3d15966), the host's real applet list during
+//! restore, and, on drop paths, formFactor
 class MockPlasmoid : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QObject *configuration READ configuration CONSTANT)
+    Q_PROPERTY(QList<Plasma::Applet *> applets READ applets)
     Q_PROPERTY(int formFactor READ formFactor CONSTANT)
 
 public:
-    explicit MockPlasmoid(KConfigPropertyMap *map, QObject *parent = nullptr)
+    explicit MockPlasmoid(KConfigPropertyMap *map, Plasma::Containment *host, QObject *parent = nullptr)
         : QObject(parent)
         , m_map(map)
+        , m_host(host)
     {
     }
 
     QObject *configuration() const
     {
         return m_map;
+    }
+
+    QList<Plasma::Applet *> applets() const
+    {
+        return m_host->applets();
     }
 
     int formFactor() const
@@ -96,6 +106,7 @@ public:
 
 private:
     KConfigPropertyMap *m_map;
+    Plasma::Containment *m_host;
 };
 
 //! plain concatenated literals, not a raw string: moc's lexer silently
@@ -126,23 +137,30 @@ private Q_SLOTS:
     void initTestCase();
     void parkingLifecycle();
     void parkingWithoutContainerRefusesLoudly();
+    void persistIndependentJustifySplitterMovesAcrossRestart();
+    void leaveHealthyJustifySplitterConfigByteStable();
 
 private:
     struct Fixture {
         QQmlEngine *engine{nullptr};
         QQuickItem *rootItem{nullptr};
+        QQuickItem *startLayout{nullptr};
         QQuickItem *mainLayout{nullptr};
+        QQuickItem *endLayout{nullptr};
         TestCorona *corona{nullptr};
         Plasma::Containment *host{nullptr};
         QTemporaryDir *configDir{nullptr};
+        KConfigLoader *configLoader{nullptr};
         KConfigPropertyMap *configMap{nullptr};
         MockPlasmoid *plasmoid{nullptr};
         Latte::Containment::LayoutManager *manager{nullptr};
     };
 
-    void buildFixture(Fixture &f, QObject *parent);
+    void buildFixture(Fixture &f, QObject *parent, const QString &configFilePath = QString());
+    void seedJustifyConfiguration(Fixture &f, int firstSplitter, int secondSplitter);
     Plasma::Applet *createRealApplet(Fixture &f, int id);
     static QQuickItem *containerFor(QQuickItem *layout, QQuickItem *appletGraphic);
+    static QList<int> appletIdsIn(QQuickItem *layout);
 };
 
 void LayoutManagerParkingTest::initTestCase()
@@ -159,7 +177,7 @@ void LayoutManagerParkingTest::initTestCase()
     qputenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/dev/null");
 }
 
-void LayoutManagerParkingTest::buildFixture(Fixture &f, QObject *parent)
+void LayoutManagerParkingTest::buildFixture(Fixture &f, QObject *parent, const QString &configFilePath)
 {
     f.engine = new QQmlEngine(parent);
     QQmlComponent harness(f.engine, QUrl(QStringLiteral("qrc:/parkingtest/Harness.qml")));
@@ -167,11 +185,11 @@ void LayoutManagerParkingTest::buildFixture(Fixture &f, QObject *parent)
     QVERIFY2(f.rootItem, qPrintable(harness.errorString()));
     f.rootItem->setParent(parent);
 
+    f.startLayout = f.rootItem->findChild<QQuickItem *>(QStringLiteral("startLayout"));
     f.mainLayout = f.rootItem->findChild<QQuickItem *>(QStringLiteral("mainLayout"));
-    auto *startLayout = f.rootItem->findChild<QQuickItem *>(QStringLiteral("startLayout"));
-    auto *endLayout = f.rootItem->findChild<QQuickItem *>(QStringLiteral("endLayout"));
+    f.endLayout = f.rootItem->findChild<QQuickItem *>(QStringLiteral("endLayout"));
     auto *dndSpacer = f.rootItem->findChild<QQuickItem *>(QStringLiteral("dndSpacer"));
-    QVERIFY(f.mainLayout && startLayout && endLayout && dndSpacer);
+    QVERIFY(f.startLayout && f.mainLayout && f.endLayout && dndSpacer);
 
     f.corona = new TestCorona(parent);
 
@@ -182,22 +200,41 @@ void LayoutManagerParkingTest::buildFixture(Fixture &f, QObject *parent)
     f.host = new Plasma::Containment(f.corona, KPluginMetaData(hostJson, QString()), {QVariant(), QVariant(1)});
     QVERIFY(f.host->isContainment());
 
-    f.configDir = new QTemporaryDir();
-    QVERIFY(f.configDir->isValid());
+    QString resolvedConfigFilePath = configFilePath;
+    if (resolvedConfigFilePath.isEmpty()) {
+        f.configDir = new QTemporaryDir();
+        QVERIFY(f.configDir->isValid());
+        resolvedConfigFilePath = f.configDir->filePath(QStringLiteral("layoutrc"));
+    }
+
     QBuffer schema;
     schema.setData(QByteArray(s_layoutSchema));
     QVERIFY(schema.open(QIODevice::ReadOnly));
-    auto *loader = new KConfigLoader(f.configDir->filePath(QStringLiteral("layoutrc")), &schema, parent);
-    f.configMap = new KConfigPropertyMap(loader, parent);
-    f.plasmoid = new MockPlasmoid(f.configMap, parent);
+    f.configLoader = new KConfigLoader(resolvedConfigFilePath, &schema, parent);
+    f.configMap = new KConfigPropertyMap(f.configLoader, parent);
+    f.plasmoid = new MockPlasmoid(f.configMap, f.host, parent);
 
     f.manager = new Latte::Containment::LayoutManager(parent);
     f.manager->setPlasmoid(f.plasmoid);
     f.manager->setRootItem(f.rootItem);
     f.manager->setMainLayout(f.mainLayout);
-    f.manager->setStartLayout(startLayout);
-    f.manager->setEndLayout(endLayout);
+    f.manager->setStartLayout(f.startLayout);
+    f.manager->setEndLayout(f.endLayout);
     f.manager->setDndSpacer(dndSpacer);
+}
+
+void LayoutManagerParkingTest::seedJustifyConfiguration(Fixture &f, int firstSplitter, int secondSplitter)
+{
+    const auto publishValue = [&f](const QString &key, const QVariant &value) {
+        f.configMap->insert(key, value);
+        Q_EMIT f.configMap->valueChanged(key, value);
+    };
+
+    publishValue(QStringLiteral("appletOrder"), QStringLiteral("7;8;9;10"));
+    publishValue(QStringLiteral("alignment"), static_cast<int>(Latte::Types::Justify));
+    publishValue(QStringLiteral("splitterPosition"), firstSplitter);
+    publishValue(QStringLiteral("splitterPosition2"), secondSplitter);
+    QVERIFY(f.configLoader->save());
 }
 
 Plasma::Applet *LayoutManagerParkingTest::createRealApplet(Fixture &f, int id)
@@ -232,6 +269,18 @@ QQuickItem *LayoutManagerParkingTest::containerFor(QQuickItem *layout, QQuickIte
         }
     }
     return nullptr;
+}
+
+QList<int> LayoutManagerParkingTest::appletIdsIn(QQuickItem *layout)
+{
+    QList<int> ids;
+    for (QQuickItem *child : layout->childItems()) {
+        auto *graphic = child->property("applet").value<PlasmaQuick::AppletQuickItem *>();
+        if (graphic && graphic->applet()) {
+            ids << graphic->applet()->id();
+        }
+    }
+    return ids;
 }
 
 void LayoutManagerParkingTest::parkingLifecycle()
@@ -355,6 +404,124 @@ void LayoutManagerParkingTest::parkingWithoutContainerRefusesLoudly()
     QCOMPARE(parkedSpy.count(), 0);
 
     delete f.host;
+}
+
+void LayoutManagerParkingTest::persistIndependentJustifySplitterMovesAcrossRestart()
+{
+    QTemporaryDir configDir;
+    QVERIFY(configDir.isValid());
+    const QString configFilePath = configDir.filePath(QStringLiteral("layoutrc"));
+    const QList<int> stableAppletOrder{7, 8, 9, 10};
+
+    {
+        QObject arena;
+        Fixture f;
+        buildFixture(f, &arena, configFilePath);
+        seedJustifyConfiguration(f, 1, 5);
+    }
+
+    {
+        QObject arena;
+        Fixture f;
+        buildFixture(f, &arena, configFilePath);
+        for (int id : stableAppletOrder) {
+            QVERIFY(createRealApplet(f, id));
+        }
+
+        f.manager->restore();
+        QCOMPARE(f.manager->appletOrder(), stableAppletOrder);
+        QCOMPARE(appletIdsIn(f.startLayout), QList<int>{});
+        QCOMPARE(appletIdsIn(f.mainLayout), (QList<int>{7, 8, 9}));
+        QCOMPARE(appletIdsIn(f.endLayout), QList<int>{10});
+
+        QSignalSpy configurationSpy(f.configMap, &KConfigPropertyMap::valueChanged);
+        QVERIFY(configurationSpy.isValid());
+
+        f.manager->requestAppletsOrder({7, Latte::Containment::LayoutManager::JUSTIFYSPLITTERID,
+                                        8, 9, Latte::Containment::LayoutManager::JUSTIFYSPLITTERID, 10});
+        QCOMPARE(f.manager->splitterPosition(), 2);
+        QCOMPARE(f.manager->splitterPosition2(), 5);
+        QCOMPARE(f.manager->appletOrder(), stableAppletOrder);
+        QCOMPARE(f.configMap->value(QStringLiteral("appletOrder")).toString(), QStringLiteral("7;8;9;10"));
+        QCOMPARE(configurationSpy.count(), 1);
+        const QList<QVariant> firstNotification = configurationSpy.takeFirst();
+        QCOMPARE(firstNotification.at(0).toString(), QStringLiteral("splitterPosition"));
+        QCOMPARE(firstNotification.at(1).toInt(), 2);
+
+        f.manager->requestAppletsOrder({7, Latte::Containment::LayoutManager::JUSTIFYSPLITTERID,
+                                        8, Latte::Containment::LayoutManager::JUSTIFYSPLITTERID, 9, 10});
+        QCOMPARE(f.manager->splitterPosition(), 2);
+        QCOMPARE(f.manager->splitterPosition2(), 4);
+        QCOMPARE(f.manager->appletOrder(), stableAppletOrder);
+        QCOMPARE(f.configMap->value(QStringLiteral("appletOrder")).toString(), QStringLiteral("7;8;9;10"));
+        QCOMPARE(configurationSpy.count(), 1);
+        const QList<QVariant> secondNotification = configurationSpy.takeFirst();
+        QCOMPARE(secondNotification.at(0).toString(), QStringLiteral("splitterPosition2"));
+        QCOMPARE(secondNotification.at(1).toInt(), 4);
+
+        QVERIFY(f.configLoader->save());
+    }
+
+    {
+        QObject arena;
+        Fixture f;
+        buildFixture(f, &arena, configFilePath);
+        for (int id : stableAppletOrder) {
+            QVERIFY(createRealApplet(f, id));
+        }
+
+        f.manager->restore();
+        QCOMPARE(f.manager->splitterPosition(), 2);
+        QCOMPARE(f.manager->splitterPosition2(), 4);
+        QCOMPARE(f.manager->appletOrder(), stableAppletOrder);
+        QCOMPARE(appletIdsIn(f.startLayout), QList<int>{7});
+        QCOMPARE(appletIdsIn(f.mainLayout), QList<int>{8});
+        QCOMPARE(appletIdsIn(f.endLayout), (QList<int>{9, 10}));
+    }
+}
+
+void LayoutManagerParkingTest::leaveHealthyJustifySplitterConfigByteStable()
+{
+    QTemporaryDir configDir;
+    QVERIFY(configDir.isValid());
+    const QString configFilePath = configDir.filePath(QStringLiteral("layoutrc"));
+    const QList<int> stableAppletOrder{7, 8, 9, 10};
+
+    {
+        QObject arena;
+        Fixture f;
+        buildFixture(f, &arena, configFilePath);
+        seedJustifyConfiguration(f, 2, 4);
+    }
+
+    QFile beforeFile(configFilePath);
+    QVERIFY(beforeFile.open(QIODevice::ReadOnly));
+    const QByteArray before = beforeFile.readAll();
+    beforeFile.close();
+
+    {
+        QObject arena;
+        Fixture f;
+        buildFixture(f, &arena, configFilePath);
+        for (int id : stableAppletOrder) {
+            QVERIFY(createRealApplet(f, id));
+        }
+
+        QSignalSpy configurationSpy(f.configMap, &KConfigPropertyMap::valueChanged);
+        QVERIFY(configurationSpy.isValid());
+
+        f.manager->restore();
+        f.manager->save();
+        QCOMPARE(f.manager->appletOrder(), stableAppletOrder);
+        QCOMPARE(f.manager->splitterPosition(), 2);
+        QCOMPARE(f.manager->splitterPosition2(), 4);
+        QCOMPARE(configurationSpy.count(), 0);
+        QVERIFY(f.configLoader->save());
+    }
+
+    QFile afterFile(configFilePath);
+    QVERIFY(afterFile.open(QIODevice::ReadOnly));
+    QCOMPARE(afterFile.readAll(), before);
 }
 
 QTEST_MAIN(LayoutManagerParkingTest)
