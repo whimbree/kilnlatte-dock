@@ -6,15 +6,21 @@
 # 9522d4b094e81dfca0bfe28902ad2aae3d359801 and
 # 821beb8e9abd1f5d6fee6d089c2a15a9cab22016. This version uses the
 # installed-package gate introduced after those prototypes.
+#
+# This is an untagged snapshot recipe. make-snapshot-source.sh creates Source0
+# from an unchanged tracked HEAD; pass the commit and its YYYYMMDD date to
+# rpmbuild so the source filename and release identify that exact tree.
+%{!?snapshot_commit:%{error:Define snapshot_commit as the exact 40-hex source commit}}
+%{!?snapshot_date:%{error:Define snapshot_date as the source commit date in YYYYMMDD form}}
 
 Name:           latte-dock
 Version:        0.10.77
-Release:        1%{?dist}
+Release:        0.1.%{snapshot_date}git%{snapshot_commit}%{?dist}
 Summary:        Dock and task launcher for Plasma 6
 
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND (LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL) AND CC0-1.0
 URL:            https://github.com/whimbree/lattecotta-dock
-Source0:        %{name}-%{version}.tar.gz
+Source0:        %{name}-%{version}-%{snapshot_commit}.tar.gz
 Patch0:         latte-dock-appstream-id.patch
 
 # Fedora and openSUSE package the same Qt 6 and Plasma 6 interfaces under
@@ -216,5 +222,5 @@ appstreamcli validate --no-net \
 %{_datadir}/icons/breeze/applets/256/org.kde.latte.plasmoid.svg
 
 %changelog
-* Mon Jul 20 2026 Latte Dock contributors <20343235+whimbree@users.noreply.github.com> - 0.10.77-1
+* Mon Jul 20 2026 Latte Dock contributors <20343235+whimbree@users.noreply.github.com> - 0.10.77-0.1
 - Add a shared native RPM recipe for Fedora 43 and openSUSE Tumbleweed.
