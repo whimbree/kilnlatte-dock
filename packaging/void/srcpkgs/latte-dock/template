@@ -1,0 +1,43 @@
+# Template file for 'latte-dock'
+# SPDX-FileCopyrightText: 2026 Latte Dock contributors
+# SPDX-FileCopyrightText: 2026 Bree Spektor
+# SPDX-License-Identifier: GPL-2.0-or-later
+pkgname=latte-dock
+version=0.10.77
+revision=1
+_commit=f1184c3d33929a93c6902c074230d7a487401e51
+build_style=cmake
+configure_args="-DBUILD_TESTING=OFF -DKF6_HOST_TOOLING=/usr/lib/cmake
+ -DKDE_INSTALL_QMLDIR=lib/qt6/qml
+ -DKDE_INSTALL_QTPLUGINDIR=lib/qt6/plugins"
+hostmakedepends="extra-cmake-modules gettext pkg-config qt6-base qt6-tools
+ qt6-declarative-host-tools wayland-devel kf6-kconfig kf6-kcoreaddons
+ kf6-kpackage kf6-kwindowsystem"
+makedepends="qt6-base-devel qt6-declarative-devel qt6-wayland-devel
+ qt6-qt5compat-devel kf6-karchive-devel kf6-kconfig-devel
+ kf6-kcoreaddons-devel kf6-kcrash-devel kf6-kdbusaddons-devel
+ kf6-kdeclarative-devel kf6-kglobalaccel-devel kf6-kguiaddons-devel
+ kf6-ki18n-devel kf6-kiconthemes-devel kf6-kio-devel kf6-kirigami-devel
+ kf6-kitemmodels-devel kf6-knewstuff-devel kf6-knotifications-devel
+ kf6-kpackage-devel kf6-kservice-devel kf6-ksvg-devel
+ kf6-kwindowsystem-devel kf6-kxmlgui-devel kf6-kwayland-devel
+ libplasma-devel plasma-activities-devel plasma-activities-stats-devel
+ plasma-workspace-devel libksysguard-devel layer-shell-qt-devel
+ plasma-wayland-protocols wayland-devel"
+depends="hicolor-icon-theme kwin>=6.5 qt6-declarative>=6.6
+ qt6-qt5compat>=6.6 qt6-wayland>=6.6 kf6-kdeclarative>=6.5
+ kf6-kirigami>=6.5 kf6-ksvg>=6.5 kf6-kwindowsystem>=6.5
+ kf6-qqc2-desktop-style>=6.5 libplasma>=6.5 plasma-activities>=6.5
+ plasma-workspace>=6.5 kpipewire>=6.5 plasma-pa>=6.5"
+short_desc="Dock-style launcher and task manager for Plasma 6"
+maintainer="Orphaned <orphan@voidlinux.org>"
+# The final custom term is the source tree's LicenseRef-KDE-Accepted-LGPL.
+license="CC0-1.0 AND GPL-2.0-or-later AND LGPL-2.0-or-later AND (LGPL-2.1-only OR LGPL-3.0-only OR custom:KDE-Accepted-Lesser-General-Public-License)"
+homepage="https://github.com/whimbree/lattecotta-dock"
+distfiles="${homepage}/archive/${_commit}.tar.gz"
+checksum=f4165095b81d9f2a1b699f1a774f45ed46983e3c645eb37ede931096c45ddf72
+
+post_install() {
+	vlicense LICENSES/LicenseRef-KDE-Accepted-LGPL.txt
+	vlicense packaging/ATTRIBUTION.md ATTRIBUTION.md
+}
