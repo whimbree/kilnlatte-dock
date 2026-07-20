@@ -244,6 +244,65 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   normal-mode always-shown feed carries the full set, closing the verification
   gap that let the collapse be invisible.
 
+### D29 - Task-icon middle click appears to execute left-click behavior
+- STATUS: OPEN (observed live on a task icon 2026-07-19; the exact row kind,
+  stored action, event recipient, request, and independent effect remain
+  unproven).
+- SYMPTOM: middle click appeared to produce the same activation as left click.
+- CODE GROUNDING: non-launcher rows dispatch `middleClickAction`, while a pure
+  launcher calls `activateTask()`. Modifier-click has the same launcher
+  fallback. Both branches are inherited from Qt5, so code shape alone does not
+  identify the observed row or prove a defect.
+- TEST GAP: `taskshandleraudittest` proves config round-trip,
+  `tst_taskactions.qml` proves enum-to-command mapping, and
+  `034-tasks-config-apply.sh` seeds config directly. No permanent test captures
+  one real middle click from row classification through event receipt and model
+  request to an independent effect.
+- NEXT: SC-T1 (the D29 middle-click evidence capture) in
+  `settings-surface-completion-plan.md` records the exact row kind, stored
+  action, event recipient, command or model request, and independent effect
+  before any solution is selected. It remains inactive until the dependent
+  execution-ledger PR lands. Any real Qt5 divergence requires explicit
+  maintainer sign-off. No action expansion, enum, schema, or target/action
+  matrix is approved.
+
+### D30 - Behavior mouse actions expose fixed booleans instead of full choices
+- STATUS: OPEN (confirmed by code and the live settings surface 2026-07-19;
+  investigation planned but inactive until the dependent execution-ledger PR
+  lands; action expansion not approved).
+- SYMPTOM: the Actions section presents `Left Button: Drag Active Window` and
+  `Middle Button: Close Active Window` as action-valued rows, but the controls
+  are checkable buttons with no popup or explicit choice list.
+- ROOT: `BehaviorConfig.qml` binds the buttons to
+  `dragActiveWindowEnabled` and `closeActiveWindowEnabled`.
+  `EnvironmentActions.qml` uses the first boolean for left drag and
+  double-click maximize/restore, and the second for middle-click close. This is
+  inherited Qt5 behavior, not a Qt6 popup regression. Task-icon actions are a
+  separate Tasks-page surface.
+- NEXT: SC-B1 (the D30 current-contract investigation) inventories gesture
+  ownership, defaults, requests, target lifecycle, capabilities, effects, Qt5,
+  and both forks. SC-B2 (the D30 product decision and sign-off gate) then selects
+  retain-and-clarify or a bounded maintained-continuation divergence. Typed
+  core/API work, each protocol operation family, migration, UI, observability,
+  and each nested gesture matrix remain separate PR units after sign-off.
+
+### D56 - Pure-launcher task wheel uses inherited asymmetric activation
+- STATUS: ACCEPTED (Qt5-faithful behavior, not a Qt6 routing regression;
+  disposable nested capture at `origin/main` commit `6765b2320`).
+- EVIDENCE: pure launchers receive wheel input directly in
+  `TaskMouseArea`. A positive step calls `TaskItem.activateLauncher()`, then
+  `TasksModel.requestActivate`; a negative step does nothing for `ScrollTasks`
+  and `ScrollToggleMinimized`. `ScrollNone` refuses unless manual scrolling is
+  enabled. With manual scrolling enabled and no overflow, the same positive
+  launch occurs. Production does not call `TaskActions.scrollCommandFor` on
+  this path.
+- HISTORY: `git blame` traces the handler and positive launcher call to Qt5
+  commits `2d6b482d5f` and `e642087e31`. Both reference forks retain it.
+- DISPOSITION: preserve the behavior. SC-W1 (the D56 launcher-wheel regression
+  guard) adds permanent coverage for positive, negative, `ScrollNone`, manual
+  scrolling, and no-overflow branches. This finding is separate from D29
+  (task-icon middle click appears to execute left-click behavior).
+
 ## Recorded elsewhere - indexed here so the flat scan is complete
 
 These predate the registry and are detailed in their source docs; indexed here
