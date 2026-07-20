@@ -358,6 +358,44 @@ carries its own detail or points into the plan and the reference docs.
   suite passes 232 cases, the QML compile gate compiles 129 files, and
   AutoSize's 24 curated qmllint warnings drop to zero.
 
+### D52 - Selected package artifacts bypassed package-namespace resolution
+- STATUS: FIXED (PR #72 branch, bc7981939).
+- FOUND: 2026-07-20, cross-check against the complete extraction-root contract.
+- ROOT CAUSE: nested content used package-namespace link resolution, but selected
+  executables, plugins, and metadata first dereferenced links against host `/`.
+  Fixed runtime mapping keys also described link names rather than resolved
+  target identities.
+- FIX: resolve every selected file in the package namespace, require raw and
+  resolved manifest ownership, constrain targets to their artifact trees, and
+  use the resolved host paths for inspection, loading, launch, and mappings.
+  Isolated roots reject literal absolute ELF search paths because the host loader
+  cannot reinterpret them beneath `--root`; `$ORIGIN` remains supported.
+- EVIDENCE: absolute selected executable, plugin, and metadata links pass inside
+  their package trees; cross-tree and unowned targets fail. Renamed mapping
+  targets remain exact, isolated absolute RUNPATH fails, and live-root absolute
+  RUNPATH passes.
+
+### D51 - Recursive package links could escape to foreign providers
+- STATUS: FIXED (PR #72 branch, ea95945e0).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: selected artifacts were canonicalized, but nested QML, shell,
+  plasmoid, and indicator content links were not inspected.
+- FIX: enumerate every nested link, reject broken and development-provider
+  targets, and require resolution inside the installed package boundary.
+- EVIDENCE: external, source, CMake build, `_qmlstage`, Nix, QML, and Latte data
+  link controls all fail.
+
+### D50 - Emergency dock cleanup could hang after failure
+- STATUS: FIXED (PR #72 branch, 2fdb90d42).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: after the 25-second shutdown contract failed, EXIT cleanup sent
+  SIGTERM again and immediately waited, so a TERM-ignoring dock blocked forever.
+- FIX: give emergency cleanup its own fixed TERM grace period and escalate a
+  survivor to SIGKILL before reaping. D38 (signal cleanup could lose status or
+  wait forever) later made every phase terminal and bounded.
+- EVIDENCE: a TERM-ignoring process reaches SIGKILL and cleanup returns within
+  the fixed bounds.
+
 ### D49 - Validation preflight omitted the environment launcher
 - STATUS: FIXED (PR #72 branch, 5da9a49a0).
 - FOUND: 2026-07-20, second independent review of the installed-package gate.
@@ -378,7 +416,7 @@ carries its own detail or points into the plan and the reference docs.
 - EVIDENCE: a Qt 6-specific fixture wins without invoking a competing
   unsuffixed Qt 5 tool, and a Qt 5-only candidate is rejected.
 
-### D47 - Absolute extraction-root links resolved against the host filesystem
+### D47 - Absolute nested-content links resolved against the host filesystem
 - STATUS: FIXED (PR #72 branch, 43c736644).
 - FOUND: 2026-07-20, second independent review of the installed-package gate.
 - ROOT CAUSE: recursive audits passed package-absolute symlink targets directly
@@ -387,7 +425,7 @@ carries its own detail or points into the plan and the reference docs.
   the extraction root, bound chained links, and retain package/tree containment.
 - EVIDENCE: isolated and live-root absolute in-tree links pass with their
   respective namespace semantics; absolute cross-tree and relative host escapes
-  fail.
+  fail. D52 covers selected executable, plugin, and metadata paths.
 
 ### D46 - Executable wrappers contradicted runtime provenance
 - STATUS: FIXED (PR #72 branch, 5d3ce250d).
@@ -492,27 +530,6 @@ carries its own detail or points into the plan and the reference docs.
   all Latte mappings, and strip only the fixed `/proc/<pid>/maps` fields.
 - EVIDENCE: LD_AUDIT injection, binary and plugin RUNPATH escapes, Nix/build
   mappings, and foreign mapped paths containing spaces are rejected.
-
-### D30 - Recursive package links could escape to foreign providers
-- STATUS: FIXED (PR #72 branch, ea95945e0).
-- FOUND: 2026-07-20, implementation review of the installed-package gate.
-- ROOT CAUSE: selected artifacts were canonicalized, but nested QML, shell,
-  plasmoid, and indicator content links were not inspected.
-- FIX: enumerate every nested link, reject broken and development-provider
-  targets, and require resolution inside the installed package boundary.
-- EVIDENCE: external, source, CMake build, `_qmlstage`, Nix, QML, and Latte data
-  link controls all fail.
-
-### D29 - Emergency dock cleanup could hang after failure
-- STATUS: FIXED (PR #72 branch, 2fdb90d42).
-- FOUND: 2026-07-20, implementation review of the installed-package gate.
-- ROOT CAUSE: after the 25-second shutdown contract failed, EXIT cleanup sent
-  SIGTERM again and immediately waited, so a TERM-ignoring dock blocked forever.
-- FIX: give emergency cleanup its own fixed TERM grace period and escalate a
-  survivor to SIGKILL before reaping. D38 later made every phase terminal and
-  bounded.
-- EVIDENCE: a TERM-ignoring process reaches SIGKILL and cleanup returns within
-  the fixed bounds.
 
 ### D36 - Installed dock cleanup left surviving descendants
 - STATUS: FIXED (PR #72 branch, 660c85525).
