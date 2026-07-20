@@ -1,4 +1,4 @@
-93
+94
 abstractlayouttest
 activitiesinfotest
 activitysetalgebratest
@@ -78,6 +78,7 @@ storagetest
 syncedlaunchersclienttest
 tasksbackendtest
 taskshandleraudittest
+themeawareicontest
 tooltiptexttest
 universalsettingstest
 userconfiguringcontracttest
