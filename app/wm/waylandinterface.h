@@ -95,6 +95,7 @@ public:
 
 private Q_SLOTS:
     void updateWindow();
+    void updateWindowMaximized();
     void windowUnmapped();
 
 private:
@@ -131,4 +132,3 @@ private:
 }
 
 #endif // WAYLANDINTERFACE_H
-

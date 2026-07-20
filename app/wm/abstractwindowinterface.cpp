@@ -377,9 +377,26 @@ void AbstractWindowInterface::switchToPreviousActivity()
 }
 
 //! Coalesce window changes without moving the first event's deadline
-void AbstractWindowInterface::considerWindowChanged(WindowId wid)
+void AbstractWindowInterface::considerWindowChanged(WindowId wid, WindowChangeDelivery delivery)
 {
+    if (delivery == WindowChangeDelivery::Immediate) {
+        if (m_windowWaitingTimer.isActive()) {
+            const WindowId pending = m_windowChangedWaiting;
+            m_windowWaitingTimer.stop();
+            m_windowChangedWaiting = WindowId();
+
+            Q_ASSERT(!pending.isEmpty());
+            if (pending != wid) {
+                Q_EMIT windowChanged(pending);
+            }
+        }
+
+        Q_EMIT windowChanged(wid);
+        return;
+    }
+
     if (!m_windowWaitingTimer.isActive()) {
+        Q_ASSERT(m_windowChangedWaiting.isEmpty());
         m_windowChangedWaiting = wid;
         m_windowWaitingTimer.start();
         return;

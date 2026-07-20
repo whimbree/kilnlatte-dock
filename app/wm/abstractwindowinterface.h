@@ -148,6 +148,12 @@ Q_SIGNALS:
     void latteWindowAdded();
 
 protected:
+    enum class WindowChangeDelivery
+    {
+        Coalesced,
+        Immediate,
+    };
+
     QString m_currentDesktop;
     QString m_currentActivity;
 
@@ -170,7 +176,7 @@ protected:
     //! Plasma taskmanager rules ile
     KSharedConfig::Ptr rulesConfig;
 
-    void considerWindowChanged(WindowId wid);
+    void considerWindowChanged(WindowId wid, WindowChangeDelivery delivery);
 
     bool isIgnored(const WindowId &wid) const;
     bool isRegisteredPlasmaIgnoredWindow(const WindowId &wid) const;
