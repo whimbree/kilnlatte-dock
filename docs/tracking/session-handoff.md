@@ -24,14 +24,17 @@ Two normal-state and splitter defects landed on `origin/main`.
 ## 2026-07-20 SESSION: shared installed-package gate hardened (PR #72)
 
 PR #72's F0 (the shared installed-package provenance and nested-runtime gate)
-branch was rebased onto `7a5314130`; blockers from two independent reviews are
-fixed. Live `--root /` checks require an explicit newline-delimited package
-manifest, while isolated package extraction roots remain valid without one.
+branch was rebased onto `7a5314130`; blockers from independent reviews and
+follow-up cross-checks are fixed. Live `--root /` checks require an explicit
+newline-delimited package manifest, while isolated package extraction roots
+remain valid without one.
 Every selected Latte artifact and file below the audited QML/data trees must be
-owned by that manifest. Absolute links in an isolated extraction resolve from
-its package namespace rather than host `/`; live-root links retain host
-semantics. `find`, `readelf`, `awk`, `/proc/<pid>/maps`, and process-environment
-producers publish results only after successful completion.
+owned by that manifest. All links in an isolated extraction resolve from its
+package namespace rather than host `/`; selected targets remain inside their
+artifact trees and their resolved host paths drive inspection, loading, launch,
+and mapping identity. Live-root links retain host semantics. `find`, `readelf`,
+`awk`, `/proc/<pid>/maps`, and process-environment producers publish results
+only after successful completion.
 
 The installed `latte-dock` target must be ELF, so check-only and runtime
 `/proc/<pid>/exe` provenance use one contract. All five plugin slots require
@@ -42,7 +45,10 @@ immediate-binding `dlopen` run under fixed timeouts. Normal dock startup must
 map all three QML plugins and the containment-actions plugin from the installed
 root. The indicator package structure is intentionally not a startup mapping:
 it is used while opening or installing indicator packages, so its applicable
-runtime proof is bounded metadata validation plus `dlopen`.
+runtime proof is bounded metadata validation plus `dlopen`. Literal absolute
+RUNPATH/RPATH entries are rejected for isolated roots because the host loader
+cannot apply package-root namespace semantics; `$ORIGIN`-relative entries and
+contained live-root absolute entries remain valid.
 
 Dock shutdown and cleanup target the complete `setsid` process group with
 bounded TERM/KILL escalation, including the leader-exits/descendant-survives
@@ -61,16 +67,17 @@ Release payload installed under a fresh `/tmp` root, the dock settled under
 nested KWin, `/proc` reported the exact installed executable and four startup
 plugin mappings, forbidden ambient variables were absent, SIGTERM produced
 status 0, the process group disappeared, and nested cleanup completed. The
-focused self-test passed 67 controls, including stale same-prefix ownership,
+focused self-test passed 72 controls, including stale same-prefix ownership,
 partial producers, non-ELF launchers, absolute-link namespaces, deterministic
 Qt 6 tool selection, wrong-but-valid plugin metadata, polling failures, a real
-unreaped zombie, and a TERM-ignoring surviving descendant.
+unreaped zombie, selected-artifact tree and manifest containment, coherent ELF
+search-path semantics, and a TERM-ignoring surviving descendant.
 
 The install-assertion idea is credited to latte-dock-ng's
 `docker/verify-install.sh` at exact commit
 `9c12a79aaf9350e73059da5b293c931218419c05`; the nested-runtime implementation
-is original. Second-review commits: `6257b5ce2`, `5d3ce250d`, `43c736644`,
-`41eec828c`, `5da9a49a0`, `2fdce6968`.
+is original. Review follow-up commits: `6257b5ce2`, `5d3ce250d`, `43c736644`,
+`41eec828c`, `5da9a49a0`, `2fdce6968`, `bc7981939`.
 
 ## 2026-07-20 SESSION: D27 (stale maximize work area) latency follow-up
 
