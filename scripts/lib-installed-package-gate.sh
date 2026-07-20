@@ -219,27 +219,6 @@ latte_package_gate_require_exit_status() {
     }
 }
 
-latte_package_gate_stop_process() {
-    local pid="$1" label="$2"
-    local term_attempts="${3:-25}" term_delay="${4:-0.2}"
-    local kill_attempts="${5:-25}" kill_delay="${6:-0.2}"
-
-    kill -0 "$pid" 2>/dev/null || return 0
-    kill -TERM "$pid" 2>/dev/null || true
-    if latte_package_gate_wait_until_process_exits "$pid" "$term_attempts" "$term_delay"; then
-        wait "$pid" 2>/dev/null || true
-        return 0
-    fi
-
-    echo "installed-package-gate: cleanup: $label survived SIGTERM; sending SIGKILL" >&2
-    kill -KILL "$pid" 2>/dev/null || true
-    if ! latte_package_gate_wait_until_process_exits "$pid" "$kill_attempts" "$kill_delay"; then
-        echo "installed-package-gate: cleanup: $label still exists after bounded SIGKILL wait" >&2
-        return 2
-    fi
-    wait "$pid" 2>/dev/null || true
-}
-
 latte_package_gate_process_group_exists() {
     local process_group="$1"
     pgrep -g "$process_group" >/dev/null 2>&1

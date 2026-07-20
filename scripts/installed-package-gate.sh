@@ -600,8 +600,9 @@ cleanup_nested_vehicle() {
 
 cleanup() {
     local cleanup_status=0
-    if [[ -n "$dock_pid" ]] && kill -0 "$dock_pid" 2>/dev/null; then
-        latte_package_gate_stop_process "$dock_pid" "dock (pid $dock_pid)" || cleanup_status=2
+    if [[ -n "$dock_pid" ]]; then
+        latte_package_gate_stop_process_group "$dock_pid" \
+            "dock process group $dock_pid" || cleanup_status=2
     fi
     cleanup_nested_vehicle || cleanup_status=2
     rm -rf "$validation_tmp" || cleanup_status=2
@@ -739,9 +740,9 @@ required_mapped_artifacts=(
 latte_package_gate_audit_mapped_paths "/proc/$dock_pid/maps" "$artifact_prefix" "$repo" \
     expected_mapped_artifacts required_mapped_artifacts
 
-kill -TERM "$dock_pid"
-latte_package_gate_wait_until_process_exits "$dock_pid" 125 0.2 \
-    || fail "installed dock (pid $dock_pid) survived SIGTERM for 25 seconds"
+kill -TERM -- "-$dock_pid"
+latte_package_gate_wait_until_process_group_exits "$dock_pid" 125 0.2 \
+    || fail "installed dock process group $dock_pid survived SIGTERM for 25 seconds"
 # KSignalHandler turns SIGTERM into qGuiApp->quit(), so a clean installed
 # shutdown returns from the event loop with status zero rather than 143.
 latte_package_gate_require_exit_status "$dock_pid" 0 "installed dock after SIGTERM"
