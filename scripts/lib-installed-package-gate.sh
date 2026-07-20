@@ -33,29 +33,53 @@ done
 unset latte_package_gate_loader_variable
 
 latte_package_gate_read_elf_search_paths() {
-    local file="$1"
-    LC_ALL=C readelf -d -- "$file" 2>/dev/null | awk '
+    local file="$1" output_name="$2" readelf_output parsed_output path
+    local -n output_paths="$output_name"
+    output_paths=()
+
+    if ! readelf_output="$(LC_ALL=C readelf -d -- "$file" 2>/dev/null)"; then
+        echo "installed-package-gate: FAIL: readelf could not inspect dynamic metadata for $file" >&2
+        return 2
+    fi
+    if ! parsed_output="$(awk '
         /\((RPATH|RUNPATH)\)/ {
             value = $0
             sub(/^[^[]*\[/, "", value)
             sub(/\].*$/, "", value)
             print value
         }
-    '
+    ' <<<"$readelf_output")"; then
+        echo "installed-package-gate: FAIL: awk could not parse dynamic metadata for $file" >&2
+        return 2
+    fi
+    [[ -n "$parsed_output" ]] || return 0
+    while IFS= read -r path; do
+        output_paths+=("$path")
+    done <<<"$parsed_output"
 }
 
 # /proc/<pid>/maps has five whitespace-delimited fields before the optional
 # pathname. Strip only those fields so spaces inside the pathname survive.
 latte_package_gate_read_mapped_paths() {
-    local maps_file="$1"
-    awk '
+    local maps_file="$1" output_name="$2" parsed_output path
+    local -n output_paths="$output_name"
+    output_paths=()
+
+    if ! parsed_output="$(awk '
         {
             path = $0
             if (sub(/^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+/, "", path) && substr(path, 1, 1) == "/") {
                 print path
             }
         }
-    ' "$maps_file"
+    ' "$maps_file")"; then
+        echo "installed-package-gate: FAIL: cannot parse process mappings from $maps_file" >&2
+        return 2
+    fi
+    [[ -n "$parsed_output" ]] || return 0
+    while IFS= read -r path; do
+        output_paths+=("$path")
+    done <<<"$parsed_output"
 }
 
 _latte_package_gate_path_is_within() {
@@ -94,11 +118,13 @@ latte_package_gate_audit_mapped_paths() {
     local expected_name="$4" required_name="$5" mapped resolved name required provider
     local -n expected_paths="$expected_name"
     local -n required_paths="$required_name"
-    local -A seen=()
+    local -A examined=() seen=()
     local -a mapped_paths=()
 
-    mapfile -t mapped_paths < <(latte_package_gate_read_mapped_paths "$maps_file" | sort -u)
+    latte_package_gate_read_mapped_paths "$maps_file" mapped_paths || return 2
     for mapped in "${mapped_paths[@]}"; do
+        [[ -z "${examined[$mapped]+present}" ]] || continue
+        examined["$mapped"]=1
         case "$mapped" in
             /nix/store/*)
                 echo "installed-package-gate: FAIL: running dock mapped a Nix artifact: $mapped" >&2
@@ -147,6 +173,28 @@ latte_package_gate_audit_mapped_paths() {
         }
         echo "installed-package-gate: mapped artifact verified: ${expected_paths[$required]}"
     done
+}
+
+latte_package_gate_read_environment_value() {
+    local environment_file="$1" variable="$2" output_name="$3" parsed_value
+    local -n output_value="$output_name"
+
+    if ! parsed_value="$(tr '\0' '\n' <"$environment_file")"; then
+        echo "installed-package-gate: FAIL: cannot read process environment from $environment_file" >&2
+        return 2
+    fi
+    if ! output_value="$(awk -F= -v variable="$variable" '
+        $1 == variable {
+            sub(/^[^=]*=/, "")
+            print
+            found = 1
+            exit
+        }
+        END { if (!found) exit 3 }
+    ' <<<"$parsed_value")"; then
+        echo "installed-package-gate: FAIL: process environment has no $variable entry" >&2
+        return 2
+    fi
 }
 
 latte_package_gate_wait_until_process_exits() {
