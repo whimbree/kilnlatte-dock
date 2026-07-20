@@ -17,6 +17,8 @@
  *        fakepointer glide <x1> <y1> <x2> <y2> [x3 y3 ...]  (same smooth
  *          motion stream, no buttons - replicates a real fast hover sweep)
  *        fakepointer scroll <x> <y> <detents> <ms-gap>
+ *        fakepointer wheel <x> <y> <angle-delta>  (one vertical event in Qt
+ *          angleDelta units; 120 is one wheel click)
  *        fakepointer key <keysym> [down|up|press]   (press = down then up, the
  *          default; down/up hold or release, e.g. a modifier. <keysym> is an
  *          XKB keysym NAME like Escape, Up, Return, space, or a numeric
@@ -73,6 +75,7 @@
  * then run kbuildsycoca6. Same gate family as the dock's own
  * window-management/screencast access (org.kde.latte-dock.desktop).
  */
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -138,6 +141,7 @@ int main(int argc, char **argv)
     int isdrag = (argc > 1) && (strcmp(argv[1], "drag") == 0);
     int isglide = (argc > 1) && (strcmp(argv[1], "glide") == 0);
     int isscroll = (argc > 1) && (strcmp(argv[1], "scroll") == 0);
+    int iswheel = (argc > 1) && (strcmp(argv[1], "wheel") == 0);
     int iskey = (argc > 1) && (strcmp(argv[1], "key") == 0);
     int isdragkey = (argc > 1) && (strcmp(argv[1], "dragkey") == 0);
 
@@ -158,13 +162,15 @@ int main(int argc, char **argv)
         }
     } else if (((isdrag || isglide) && (argc < 6 || (argc % 2) != 0))
         || (isscroll && argc != 6)
-        || (!isdrag && !isglide && !isscroll
+        || (iswheel && argc != 5)
+        || (!isdrag && !isglide && !isscroll && !iswheel
             && (argc != 4 || (strcmp(argv[1], "move") && strcmp(argv[1], "click") && strcmp(argv[1], "rightclick"))))) {
-        fprintf(stderr, "usage: %s move|click|rightclick <x> <y>  |  %s drag|glide <x1> <y1> <x2> <y2> [x3 y3 ...]  |  %s scroll <x> <y> <detents> <ms-gap>  |  %s key <keysym> [down|up|press]  |  %s dragkey <keysym> <x1> <y1> <x2> <y2> [x3 y3 ...]\n"
+        fprintf(stderr, "usage: %s move|click|rightclick <x> <y>  |  %s drag|glide <x1> <y1> <x2> <y2> [x3 y3 ...]  |  %s scroll <x> <y> <detents> <ms-gap>  |  %s wheel <x> <y> <angle-delta>  |  %s key <keysym> [down|up|press]  |  %s dragkey <keysym> <x1> <y1> <x2> <y2> [x3 y3 ...]\n"
                         "  scroll: positive detents scroll up, negative down; one detent = one wheel click\n"
+                        "  wheel:  signed vertical Qt angleDelta for one event; useful for threshold checks\n"
                         "  key:    <keysym> is an XKB name (Escape, Up, Return, space) or a numeric literal; state defaults to press (down then up)\n"
                         "  dragkey: press, glide (button held), tap <keysym> at the last point, release - one held-drag session\n",
-                argv[0], argv[0], argv[0], argv[0], argv[0]);
+                argv[0], argv[0], argv[0], argv[0], argv[0], argv[0]);
         return 2;
     }
 
@@ -371,6 +377,18 @@ int main(int argc, char **argv)
             wl_display_roundtrip(display);
             usleep((useconds_t)gapms * 1000);
         }
+    } else if (iswheel) {
+        //! KWin/Qt multiply Wayland axis units by -8 into angleDelta.
+        char *end = NULL;
+        const double angle_delta = strtod(argv[4], &end);
+        if (end == argv[4] || *end != '\0' || !isfinite(angle_delta)) {
+            fprintf(stderr, "invalid angle-delta '%s' (want a finite number)\n", argv[4]);
+            wl_display_disconnect(display);
+            return 2;
+        }
+        org_kde_kwin_fake_input_axis(fake_input, 0 /* vertical */,
+            wl_fixed_from_double(-angle_delta / 8.0));
+        wl_display_roundtrip(display);
     }
 
     wl_display_disconnect(display);
