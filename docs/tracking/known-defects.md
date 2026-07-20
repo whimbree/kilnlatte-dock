@@ -358,6 +358,162 @@ carries its own detail or points into the plan and the reference docs.
   suite passes 232 cases, the QML compile gate compiles 129 files, and
   AutoSize's 24 curated qmllint warnings drop to zero.
 
+### D49 - Validation preflight omitted the environment launcher
+- STATUS: FIXED (PR #72 branch, 5da9a49a0).
+- FOUND: 2026-07-20, second independent review of the installed-package gate.
+- ROOT CAUSE: plugin loading invoked `env`, but the validation preflight did
+  not require it. Missing `env` was discovered only after package traversal.
+- FIX: add `env` to validation preflight, remove unused `sort` and `grep`
+  requirements, and align the self-test preflight with its real commands.
+- EVIDENCE: a PATH containing every other validation dependency fails
+  immediately with the missing-`env` diagnostic; all 67 focused controls pass.
+
+### D48 - Plugin inspection could silently select a Qt 5 tool
+- STATUS: FIXED (PR #72 branch, 41eec828c).
+- FOUND: 2026-07-20, second independent review of the installed-package gate.
+- ROOT CAUSE: unsuffixed `qtplugininfo` was selected before Qt 6-specific names,
+  and no version check established which Qt major supplied the command.
+- FIX: prefer Qt 6-specific names and locations, deduplicate candidates, and
+  accept an inspector only when `--version` reports major version 6.
+- EVIDENCE: a Qt 6-specific fixture wins without invoking a competing
+  unsuffixed Qt 5 tool, and a Qt 5-only candidate is rejected.
+
+### D47 - Absolute extraction-root links resolved against the host filesystem
+- STATUS: FIXED (PR #72 branch, 43c736644).
+- FOUND: 2026-07-20, second independent review of the installed-package gate.
+- ROOT CAUSE: recursive audits passed package-absolute symlink targets directly
+  to host `realpath`, so `/usr/...` inside an isolated root meant host `/usr`.
+- FIX: walk links in the package namespace, restart absolute targets beneath
+  the extraction root, bound chained links, and retain package/tree containment.
+- EVIDENCE: isolated and live-root absolute in-tree links pass with their
+  respective namespace semantics; absolute cross-tree and relative host escapes
+  fail.
+
+### D46 - Executable wrappers contradicted runtime provenance
+- STATUS: FIXED (PR #72 branch, 5d3ce250d).
+- FOUND: 2026-07-20, second independent review of the installed-package gate.
+- ROOT CAUSE: check-only skipped ELF validation for executable wrappers, while
+  runtime required `/proc/<pid>/exe` to equal that resolved wrapper pathname.
+  A wrapper could pass static validation but could not satisfy runtime identity.
+- FIX: require the installed `latte-dock` CMake target to be ELF. This replaces
+  the earlier wrapper-compatible claim in `70faf758e`; wrapper support would
+  require a separate owned-target contract.
+- EVIDENCE: the positive fixture carries ELF and an executable shell wrapper is
+  rejected during check-only before runtime provenance can diverge.
+
+### D45 - Process-group polling confused errors and zombies with live members
+- STATUS: FIXED (PR #72 branch, 6257b5ce2).
+- FOUND: 2026-07-20, second independent review of the installed-package gate.
+- ROOT CAUSE: every nonzero `pgrep` result meant no members, while every listed
+  member, including an unreaped zombie, meant the group remained live.
+- FIX: treat `pgrep` status 1 as absence, propagate operational errors, inspect
+  procfs states, ignore zombie/dead members, and wait only after proven absence.
+- EVIDENCE: simulated `pgrep` statuses 2 and 3 return failure without `wait`; a
+  real zombie held unreaped outside the group counts as successfully stopped.
+
+### D44 - Missing validation tools could yield partial package checks
+- STATUS: FIXED (PR #72 branch, 560937549; completed by D49 in 5da9a49a0).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: artifact parsing began before every external command was checked.
+  A missing producer such as `awk` could leave an empty consumer result.
+- FIX: preflight validation commands before argument handling and runtime
+  commands before compositor startup; require one supported FUSE unmount tool.
+- EVIDENCE: removing `awk` rejects the gate before package discovery. D49 covers
+  the later audit's missed `env` dependency.
+
+### D43 - A crashed dock could satisfy the shutdown gate
+- STATUS: FIXED (PR #72 branch, 770cbad33).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: shutdown checked only process disappearance and discarded the
+  leader's wait status, so prompt aborts and other nonzero exits passed.
+- FIX: capture and require status zero after the bounded disappearance proof,
+  matching the dock's signal-handler path through normal application shutdown.
+- EVIDENCE: a zero-status SIGTERM handler passes; prompt SIGABRT status 134 and
+  a SIGTERM handler returning status 7 both fail.
+
+### D42 - Nested compositor cleanup could block indefinitely
+- STATUS: FIXED (PR #72 branch, 21acc0445).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: dock cleanup was bounded, but nested KWin cleanup still sent
+  SIGTERM and waited on the session leader without a deadline.
+- FIX: stop the complete nested session group through independent bounded TERM
+  and KILL phases before invoking only the shared filesystem cleanup.
+- EVIDENCE: a real TERM-ignoring session group requires SIGKILL; a simulated
+  live group returns after fixed polling without entering `wait`.
+
+### D41 - Corrupt or unloadable plugins passed installed checks
+- STATUS: FIXED (PR #72 branch, 70faf758e).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: plugin existence was accepted even when ELF inspection failed,
+  and the startup-lazy containment-actions plugin was never loaded.
+- FIX: require valid ELF headers for all five plugin artifacts and open each
+  exact installed pathname with immediate symbol binding. D35 adds identity
+  metadata and bounds both inspection and loading.
+- EVIDENCE: corrupt files in every plugin slot and a containment-actions plugin
+  with an unresolved symbol are rejected.
+
+### D40 - Symlinked runtime roots escaped recursive inspection
+- STATUS: FIXED (PR #72 branch, 52d18f4de).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: each Latte runtime tree was canonicalized before traversal, making
+  a root symlink's destination the accepted boundary while skipping the link.
+- FIX: reject symlinked runtime-tree roots before canonicalization; continue to
+  audit nested links against the physical tree boundary.
+- EVIDENCE: a symlinked Latte data root and a nested QML directory link to an
+  external provider are rejected.
+
+### D39 - In-prefix cross-tree links escaped recursive audit
+- STATUS: FIXED (PR #72 branch, d7e4f7723).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: nested links could target any path under the broad package prefix,
+  including an unaudited sibling tree whose content could escape again.
+- FIX: require each nested target to remain inside the specific Latte runtime
+  tree being audited rather than merely inside the install prefix.
+- EVIDENCE: an absolute QML link into an in-prefix data provider is rejected
+  even though both endpoints share the package prefix.
+
+### D38 - Signal cleanup could lose status or wait forever
+- STATUS: FIXED (PR #72 branch, f2d85dbc1).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: one callback handled EXIT, INT, and TERM directly, allowing caught
+  signals to resume, cleanup to replace an existing failure, and post-KILL
+  reaping to wait without a disappearance bound.
+- FIX: translate signals to 130/143, run cleanup once from EXIT, preserve the
+  original status, and call `wait` only after bounded absence polling.
+- EVIDENCE: status 37 survives a failing cleanup, INT and TERM terminate once,
+  and a simulated unkillable group never reaches `wait`.
+
+### D37 - Loader state and mapped paths could bypass installed provenance
+- STATUS: FIXED (PR #72 branch, aa947b8eb).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: only two loader variables were cleared, foreign ELF search paths
+  were accepted, and `/proc` parsing split mapped pathnames on whitespace.
+- FIX: clear the loader-control set, reject escaping RPATH/RUNPATH entries, audit
+  all Latte mappings, and strip only the fixed `/proc/<pid>/maps` fields.
+- EVIDENCE: LD_AUDIT injection, binary and plugin RUNPATH escapes, Nix/build
+  mappings, and foreign mapped paths containing spaces are rejected.
+
+### D30 - Recursive package links could escape to foreign providers
+- STATUS: FIXED (PR #72 branch, ea95945e0).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: selected artifacts were canonicalized, but nested QML, shell,
+  plasmoid, and indicator content links were not inspected.
+- FIX: enumerate every nested link, reject broken and development-provider
+  targets, and require resolution inside the installed package boundary.
+- EVIDENCE: external, source, CMake build, `_qmlstage`, Nix, QML, and Latte data
+  link controls all fail.
+
+### D29 - Emergency dock cleanup could hang after failure
+- STATUS: FIXED (PR #72 branch, 2fdb90d42).
+- FOUND: 2026-07-20, implementation review of the installed-package gate.
+- ROOT CAUSE: after the 25-second shutdown contract failed, EXIT cleanup sent
+  SIGTERM again and immediately waited, so a TERM-ignoring dock blocked forever.
+- FIX: give emergency cleanup its own fixed TERM grace period and escalate a
+  survivor to SIGKILL before reaping. D38 later made every phase terminal and
+  bounded.
+- EVIDENCE: a TERM-ignoring process reaches SIGKILL and cleanup returns within
+  the fixed bounds.
+
 ### D36 - Installed dock cleanup left surviving descendants
 - STATUS: FIXED (PR #72 branch, 660c85525).
 - FOUND: 2026-07-20, independent review of the installed-package gate.
@@ -365,7 +521,8 @@ carries its own detail or points into the plan and the reference docs.
   cleanup signalled only the leader PID. A descendant could survive after the
   leader exited while cleanup removed its private runtime.
 - FIX: signal and poll the complete dock process group through bounded TERM and
-  KILL phases, then reap the leader only after the group disappears.
+  KILL phases, then reap the leader after no live group members remain. D45
+  distinguishes polling failure and ignores zombie-only membership.
 - EVIDENCE: a leader exited with status 0 on SIGTERM while its child ignored
   SIGTERM. Cleanup detected and killed the survivor; an unkillable-group control
   returned within its fixed bound without calling `wait` on a live group.
@@ -382,15 +539,16 @@ carries its own detail or points into the plan and the reference docs.
   dock must map the three QML plugins and containment-actions plugin; the
   startup-inactive indicator package structure is validated by metadata and
   bounded loading.
-- EVIDENCE: a generic library in the containment-actions slot and a valid QML
-  plugin with a TERM-ignoring constructor are both rejected. A real Arch
-  package run mapped all four startup plugin categories from the installed root.
+- EVIDENCE: a generic library, valid plugins with wrong IID, class, or category,
+  and a valid QML plugin with a TERM-ignoring constructor are rejected. A real
+  Arch package run mapped all four startup plugin categories from the installed
+  root.
 
 ### D34 - Partial artifact scanners could produce vacuous gate success
 - STATUS: FIXED (PR #72 branch, 11472197a).
 - FOUND: 2026-07-20, independent review of the installed-package gate.
 - ROOT CAUSE: process substitutions and pipelines reported consumer status, so
-  failed `find`, `readelf`, `awk`, sorting, or `/proc` parsing could publish an
+  failed `find`, `readelf`, `awk`, or `/proc` parsing could publish an
   empty or plausible partial result.
 - FIX: capture and check each producer before publishing arrays or values;
   failed D-Bus polling samples are explicitly cleared.

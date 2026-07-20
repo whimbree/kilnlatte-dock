@@ -24,24 +24,32 @@ Two normal-state and splitter defects landed on `origin/main`.
 ## 2026-07-20 SESSION: shared installed-package gate hardened (PR #72)
 
 PR #72's F0 (the shared installed-package provenance and nested-runtime gate)
-branch was rebased onto `7a5314130` and every independent-review blocker was
-fixed without changing the package gate's claims. Live `--root /` checks now
-require an explicit newline-delimited package manifest, while isolated package
-extraction roots remain valid without one. Every selected Latte artifact and
-file below the audited QML/data trees must be owned by that manifest. `find`,
-`readelf`, `awk`, `/proc/<pid>/maps`, and process-environment producers publish
-results only after successful completion.
+branch was rebased onto `7a5314130`; blockers from two independent reviews are
+fixed. Live `--root /` checks require an explicit newline-delimited package
+manifest, while isolated package extraction roots remain valid without one.
+Every selected Latte artifact and file below the audited QML/data trees must be
+owned by that manifest. Absolute links in an isolated extraction resolve from
+its package namespace rather than host `/`; live-root links retain host
+semantics. `find`, `readelf`, `awk`, `/proc/<pid>/maps`, and process-environment
+producers publish results only after successful completion.
 
-All five plugin slots require their exact Qt IID and class; containment actions
-and indicator package structure also require their category metadata. Metadata
-inspection and immediate-binding `dlopen` run under fixed timeouts. Normal dock
-startup must map all three QML plugins and the containment-actions plugin from
-the installed root. The indicator package structure is intentionally not a
-startup mapping: it is used while opening or installing indicator packages, so
-its applicable runtime proof is bounded metadata validation plus `dlopen`.
-Dock shutdown and cleanup now target the complete `setsid` process group with
+The installed `latte-dock` target must be ELF, so check-only and runtime
+`/proc/<pid>/exe` provenance use one contract. All five plugin slots require
+their exact Qt IID and class; containment actions and indicator package
+structure also require their category metadata. A version-verified Qt 6
+inspector is selected ahead of any unsuffixed tool. Metadata inspection and
+immediate-binding `dlopen` run under fixed timeouts. Normal dock startup must
+map all three QML plugins and the containment-actions plugin from the installed
+root. The indicator package structure is intentionally not a startup mapping:
+it is used while opening or installing indicator packages, so its applicable
+runtime proof is bounded metadata validation plus `dlopen`.
+
+Dock shutdown and cleanup target the complete `setsid` process group with
 bounded TERM/KILL escalation, including the leader-exits/descendant-survives
-case.
+case. Polling distinguishes absent groups from `pgrep` operational failures and
+counts zombie-only groups as stopped, so no failure path enters an unbounded
+wait. Validation now preflights `env`; unused `sort` and self-test `grep`
+requirements are removed.
 
 Positive acceptance was driven in the cached Arch package environment with:
 `podman run --rm --security-opt label=disable -v "$PWD:/src:ro"
@@ -53,15 +61,16 @@ Release payload installed under a fresh `/tmp` root, the dock settled under
 nested KWin, `/proc` reported the exact installed executable and four startup
 plugin mappings, forbidden ambient variables were absent, SIGTERM produced
 status 0, the process group disappeared, and nested cleanup completed. The
-focused self-test passed 55 controls, including stale same-prefix ownership,
-partial producers, a generic shared library, a hanging constructor, and a
-TERM-ignoring surviving descendant.
+focused self-test passed 67 controls, including stale same-prefix ownership,
+partial producers, non-ELF launchers, absolute-link namespaces, deterministic
+Qt 6 tool selection, wrong-but-valid plugin metadata, polling failures, a real
+unreaped zombie, and a TERM-ignoring surviving descendant.
 
 The install-assertion idea is credited to latte-dock-ng's
 `docker/verify-install.sh` at exact commit
 `9c12a79aaf9350e73059da5b293c931218419c05`; the nested-runtime implementation
-is original. New commits: `5fd6d0741`, `11472197a`, `771b96fe0`, `660c85525`,
-`660a6f211`.
+is original. Second-review commits: `6257b5ce2`, `5d3ce250d`, `43c736644`,
+`41eec828c`, `5da9a49a0`, `2fdce6968`.
 
 ## 2026-07-20 SESSION: D27 (stale maximize work area) latency follow-up
 
