@@ -124,8 +124,8 @@ audit_package_tree() {
             provider_dir="$(dirname "$provider_dir")"
         done
         link_resolved="$(resolve_native_path "$label symlink" "$link")"
-        path_is_within "$link_resolved" "$artifact_prefix" \
-            || fail "$label contains a symlink escaping the package prefix: $link -> $link_resolved"
+        path_is_within "$link_resolved" "$tree_resolved" \
+            || fail "$label contains a symlink escaping its installed runtime tree: $link -> $link_resolved"
     done
 }
 
