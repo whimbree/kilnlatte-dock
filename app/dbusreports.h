@@ -100,8 +100,8 @@ struct ScreenRecord {
 //! mustBeShown/applyingWindowColors off the colorizer Manager item, and
 //! the measured bucket is backgroundIsBusy plus
 //! currentBackgroundBrightness (-1000 is the Manager's own "unmeasured"
-//! sentinel). Per-applet colorfulness exemption is viewAppletsData's
-//! colorizingBlocked, not a per-view fact.
+//! sentinel). Per-applet application state is reported by viewAppletsData,
+//! not as a per-view fact.
 struct ColorizerRecord {
     uint containmentId{0};
     bool enabled{false};
@@ -172,7 +172,7 @@ struct AppletRecord {
     //! single reason it is not when it is not ("applied" when it is). Unlike
     //! colorizingBlocked - which reflects only the user opt-out list - this is
     //! the whole decision: applied / notEngaged / splitter / selfColored /
-    //! userBlocked / inlineFull / colorful.
+    //! userBlocked / inlineFull.
     bool colorizerActive{false};
     QString colorizerReason;
     //! the G2 stacking readback (docs/tracking/e2e-interaction-test-plan.md): the z of

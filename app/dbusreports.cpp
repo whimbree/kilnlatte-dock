@@ -172,8 +172,8 @@ QString collectAppletsData(const Latte::View *view)
         if (QQuickItem *delegate = appletStackingDelegate(data.plasmoid)) {
             record.z = delegate->z();
             //! D21: the effective colorize decision lives on the AppletItem
-            //! delegate (it folds the manager decision, the user opt-out, the
-            //! colorfulness probe and the inline-full state); read it here so a
+            //! delegate (it folds the manager decision, the user opt-out, and
+            //! the inline-full state); read it here so a
             //! contrast test can assert per applet why it is or is not recoloured
             record.colorizerActive = readLiveProperty(delegate, "colorizerPaletteActive").toBool();
             record.colorizerReason = readLiveProperty(delegate, "colorizerExemptionReason").toString();

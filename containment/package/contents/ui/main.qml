@@ -720,16 +720,19 @@ ContainmentItem {
         id: appletItemComponent
         Applet.AppletItem{
             animations: _animations
+            colorizerHost: colorizerManager
             debug: _debug
             environment: _environment
             indexer: _indexer
             indicators: _indicators
             launchers: _launchers
             layouter: _layouter
+            layoutManagerHost: fastLayoutManager
             layouts: layoutsContainer
             metrics: _metrics
             myView: _myView
             parabolic: _parabolic
+            rootItem: root
             shortcuts: _shortcuts
             thinTooltip: _thinTooltip
             userRequests: _userRequests

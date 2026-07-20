@@ -10,17 +10,6 @@ import QtQuick.tooling 1.2
 
 Module {
     Component {
-        name: "Latte::Containment::IconColorfulness"
-        prototype: "QObject"
-        exports: ["org.kde.latte.private.containment/IconColorfulness 0.1"]
-        exportMetaObjectRevisions: [0]
-        Property { name: "target"; type: "QQuickItem"; isPointer: true }
-        Property { name: "known"; type: "bool"; isReadonly: true }
-        Property { name: "colorful"; type: "bool"; isReadonly: true }
-        Signal { name: "resultChanged" }
-        Method { name: "measure" }
-    }
-    Component {
         name: "Latte::Containment::LayoutManager"
         prototype: "QObject"
         exports: ["org.kde.latte.private.containment/LayoutManager 0.1"]

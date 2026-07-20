@@ -75,7 +75,6 @@
 6	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/abilities/privates/ThinTooltipPrivate.qml
 1	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/abilities/ThinTooltip.qml
 3	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/abilities/UserRequests.qml
-155	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/applet/AppletItem.qml
 8	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/applet/colorizer/Applet.qml
 13	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/applet/communicator/Actions.qml
 9	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/applet/communicator/Engine.qml
