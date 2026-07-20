@@ -199,6 +199,7 @@ Module {
         Property { name: "longDuration"; type: "uint"; isReadonly: true }
         Property { name: "frameworksVersion"; type: "uint"; isReadonly: true }
         Property { name: "plasmaDesktopVersion"; type: "uint"; isReadonly: true }
+        Signal { name: "iconThemeChanged" }
         Method {
             name: "makeVersion"
             type: "uint"

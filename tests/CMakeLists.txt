@@ -174,13 +174,34 @@ target_include_directories(commontoolstest PRIVATE
 ecm_add_test(coretoolstest.cpp
     ${CMAKE_SOURCE_DIR}/declarativeimports/core/environment.cpp
     TEST_NAME coretoolstest
-    LINK_LIBRARIES Qt6::Test Qt6::Gui Qt6::Qml KF6::CoreAddons Plasma::Plasma
+    LINK_LIBRARIES Qt6::Test Qt6::Gui Qt6::Qml KF6::CoreAddons
+        KF6::IconThemes Plasma::Plasma
 )
 set_tests_properties(coretoolstest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 target_include_directories(coretoolstest PRIVATE
     ${CMAKE_SOURCE_DIR}/declarativeimports/core
     ${CMAKE_BINARY_DIR}/declarativeimports/core)
+
+# D25 (task icons stay stale after icon-theme changes): the real ThemeAwareIcon
+# is rendered against two fixture themes that share one icon name but supply
+# different solid pixels.
+# The test compiles Environment directly because it lives in the core QML
+# plugin, then registers that real signal owner with the component's engine.
+ecm_add_test(themeawareicontest.cpp
+    ${CMAKE_SOURCE_DIR}/declarativeimports/core/environment.cpp
+    TEST_NAME themeawareicontest
+    LINK_LIBRARIES Qt6::Test Qt6::Gui Qt6::Qml Qt6::Quick
+        KF6::CoreAddons KF6::IconThemes
+)
+set_tests_properties(themeawareicontest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QSG_RHI_BACKEND=software")
+target_include_directories(themeawareicontest PRIVATE
+    ${CMAKE_SOURCE_DIR}/declarativeimports/core
+    ${CMAKE_BINARY_DIR}/declarativeimports/core)
+target_compile_definitions(themeawareicontest PRIVATE
+    THEMEAWAREICON_QML_PATH="${CMAKE_SOURCE_DIR}/plasmoid/package/contents/ui/components/ThemeAwareIcon.qml"
+    ICON_THEME_FIXTURE_ROOT="${CMAKE_SOURCE_DIR}/tests/fixtures/icon-themes")
 
 # The settings-dialog delegate toolkit (Settings::Generic free helpers):
 # state predicates, color-group priority, icon/indicator slot geometry incl.
