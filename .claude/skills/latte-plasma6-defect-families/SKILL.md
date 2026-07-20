@@ -246,7 +246,9 @@ is still a defect. Related pipeline fact learned the hard way:
 ItemGrabResult's itemgrabber: url is only valid while the result
 object lives, and QML Canvas.loadImage cannot resolve that provider
 at all - pixel analysis of grabbed items must be done in C++ from
-QQuickItemGrabResult::image() (see plugin/iconcolorfulness.cpp).
+QQuickItemGrabResult::image(). Historical implementations of that
+analysis are preserved in commits 387343288 and 5c06b4970; the live
+colorizer no longer classifies rendered applet pixels.
 
 FIX PATTERN: hold the source's layer STABLE for the whole lifetime
 the effect can sample it (never flip layer.enabled while the effect
