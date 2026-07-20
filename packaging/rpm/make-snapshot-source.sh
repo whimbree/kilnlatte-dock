@@ -36,15 +36,30 @@ version="$(git -C "$repo" show "$commit:packaging/rpm/latte-dock.spec" \
 }
 
 archive="$output_dir/latte-dock-$version-$commit.tar.gz"
+build_spec="$output_dir/latte-dock.spec"
 [[ ! -e "$archive" ]] || {
     echo "Refusing to replace existing snapshot archive: $archive" >&2
+    exit 2
+}
+[[ ! -e "$build_spec" ]] || {
+    echo "Refusing to replace existing snapshot spec: $build_spec" >&2
     exit 2
 }
 
 git -C "$repo" archive --format=tar --prefix="latte-dock-$version/" "$commit" \
     | gzip -n -9 >"$archive"
+git -C "$repo" show "$commit:packaging/rpm/latte-dock.spec" \
+    | awk -v commit="$commit" -v snapshot_date="$snapshot_date" '
+        NR == 4 {
+            print "%global snapshot_commit " commit
+            print "%global snapshot_date " snapshot_date
+            print ""
+        }
+        { print }
+    ' >"$build_spec"
 
 echo "snapshot_commit=$commit"
 echo "snapshot_date=$snapshot_date"
 echo "source_archive=$archive"
+echo "build_spec=$build_spec"
 sha256sum "$archive"

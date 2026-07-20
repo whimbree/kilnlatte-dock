@@ -8,8 +8,9 @@
 # installed-package gate introduced after those prototypes.
 #
 # This is an untagged snapshot recipe. make-snapshot-source.sh creates Source0
-# from an unchanged tracked HEAD; pass the commit and its YYYYMMDD date to
-# rpmbuild so the source filename and release identify that exact tree.
+# from an unchanged tracked HEAD and a build spec with the commit and its
+# YYYYMMDD date defined. Use that generated spec so both the binary and source
+# packages remain bound to the exact tree without external rebuild arguments.
 %{!?snapshot_commit:%{error:Define snapshot_commit as the exact 40-hex source commit}}
 %{!?snapshot_date:%{error:Define snapshot_date as the source commit date in YYYYMMDD form}}
 
