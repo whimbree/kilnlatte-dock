@@ -7,6 +7,9 @@
 # package recipes own package-manager installation; this script consumes the
 # resulting filesystem root and prefix without consulting PATH, restaging the
 # build, or falling back to another Latte installation.
+# Install-artifact assertions were informed by latte-dock-ng's
+# docker/verify-install.sh at 9c12a79aaf9350e73059da5b293c931218419c05
+# (github.com/ruizhi-lab/latte-dock-ng); this implementation is original.
 set -euo pipefail
 
 script_dir="${BASH_SOURCE[0]%/*}"
@@ -20,11 +23,15 @@ unset loader_variable
 
 usage() {
     cat <<'EOF'
-Usage: scripts/installed-package-gate.sh --root ROOT [--prefix PREFIX] [--check-only]
+Usage: scripts/installed-package-gate.sh --root ROOT [--prefix PREFIX]
+       [--manifest MANIFEST] [--check-only]
 
   --root ROOT      Package filesystem root. Use / after installing the native
                    package in a clean container, or a package staging root.
   --prefix PREFIX  Absolute install prefix inside ROOT (default: /usr).
+  --manifest FILE  Newline-delimited package manifest. Entries are absolute
+                   paths in ROOT's namespace (for example /usr/bin/latte-dock).
+                   Required for --root /; optional for isolated extraction roots.
   --check-only     Validate artifact provenance without starting nested KWin.
 
 LATTE_QML_MODULE_PATH must be an explicit colon-separated allow-list of the
@@ -47,7 +54,7 @@ require_commands() {
     done
 }
 
-require_commands validation awk cat dirname find perl readelf readlink realpath
+require_commands validation awk cat dirname find mktemp perl readelf readlink realpath rm tr
 
 path_is_within() {
     local path="$1" base="$2"
@@ -85,24 +92,58 @@ require_file() {
     [[ -f "$path" ]] || fail "package is incomplete: missing $label at $path"
 }
 
+declare -A package_manifest_paths=()
+manifest_enforced=0
+
+require_manifest_ownership() {
+    local label="$1" path="$2" logical_path
+    [[ "$manifest_enforced" == 1 ]] || return 0
+    logical_path="$(realpath -ms -- "$path" 2>/dev/null)" \
+        || fail "cannot normalize $label for package-manifest ownership: $path"
+    [[ -n "${package_manifest_paths[$logical_path]+present}" ]] \
+        || fail "$label is present under the package prefix but omitted by the package manifest: $logical_path"
+}
+
 require_package_file() {
     local label="$1" path="$2" resolved
     require_file "$label" "$path"
+    require_manifest_ownership "installed $label" "$path"
     resolved="$(resolve_native_path "installed $label" "$path")"
     path_is_within "$resolved" "$artifact_prefix" \
         || fail "installed $label resolves outside the package prefix: $resolved"
+    require_manifest_ownership "resolved installed $label" "$resolved"
+}
+
+find_scan_index=0
+collect_find_results() {
+    local label="$1" output_name="$2" output_file
+    shift 2
+    local -n output_paths="$output_name"
+    output_paths=()
+    ((find_scan_index += 1))
+    output_file="$validation_tmp/find-$find_scan_index"
+    if ! find "$@" -print0 >"$output_file"; then
+        fail "$label scan failed before a complete result was available"
+    fi
+    if ! mapfile -d '' -t output_paths <"$output_file"; then
+        fail "$label scan output could not be read completely"
+    fi
 }
 
 audit_package_tree() {
-    local label="$1" tree="$2" tree_resolved link target target_candidate target_normalized link_resolved provider_dir
-    local -a tree_links=()
+    local label="$1" tree="$2" tree_resolved entry link target target_candidate target_normalized link_resolved provider_dir
+    local -a tree_entries=() tree_links=()
     [[ ! -L "$tree" ]] || fail "$label root must not be a symlink: $tree"
     [[ -d "$tree" ]] || fail "package is incomplete: missing $label at $tree"
     tree_resolved="$(resolve_native_path "installed $label" "$tree")"
     path_is_within "$tree_resolved" "$artifact_prefix" \
         || fail "installed $label resolves outside the package prefix: $tree_resolved"
 
-    mapfile -d '' -t tree_links < <(find "$tree" -type l -print0)
+    collect_find_results "$label contents" tree_entries "$tree" \( -type f -o -type l \)
+    for entry in "${tree_entries[@]}"; do
+        require_manifest_ownership "$label content" "$entry"
+        [[ -L "$entry" ]] && tree_links+=("$entry")
+    done
     for link in "${tree_links[@]}"; do
         target="$(readlink "$link")" \
             || fail "$label contains an unreadable symlink: $link"
@@ -197,6 +238,7 @@ require_one_match() {
 
 root_raw=""
 prefix="/usr"
+manifest_raw=""
 check_only=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -208,6 +250,11 @@ while [[ $# -gt 0 ]]; do
         --prefix)
             [[ $# -ge 2 ]] || fail "--prefix needs a value"
             prefix="$2"
+            shift 2
+            ;;
+        --manifest)
+            [[ $# -ge 2 ]] || fail "--manifest needs a value"
+            manifest_raw="$2"
             shift 2
             ;;
         --check-only)
@@ -227,8 +274,17 @@ done
 [[ -n "$root_raw" ]] || fail "--root is required; implicit system-package lookup is forbidden"
 [[ "$root_raw" == /* ]] || fail "--root must be absolute: $root_raw"
 [[ "$prefix" == /* ]] || fail "--prefix must be absolute: $prefix"
+[[ -z "$manifest_raw" || "$manifest_raw" == /* ]] \
+    || fail "--manifest must be absolute: $manifest_raw"
 [[ "$prefix" != *'/../'* && "$prefix" != */.. && "$prefix" != *'/./'* ]] \
     || fail "--prefix must not contain . or .. components: $prefix"
+
+validation_tmp="$(mktemp -d /tmp/latte-installed-validation.XXXXXX)" \
+    || fail "cannot create validation scratch directory"
+cleanup_validation() {
+    rm -rf "$validation_tmp"
+}
+latte_package_gate_install_exit_cleanup cleanup_validation
 
 package_root="$(resolve_native_path "package root" "$root_raw")"
 if [[ -e "$package_root/.git" || -f "$package_root/CMakeLists.txt" ]]; then
@@ -246,12 +302,45 @@ artifact_prefix="$(resolve_native_path "package prefix" "$prefix_path")"
 path_is_within "$artifact_prefix" "$package_root" \
     || fail "package prefix escapes package root: $artifact_prefix is outside $package_root"
 
+if [[ "$package_root" == / && -z "$manifest_raw" ]]; then
+    fail "--manifest is required with --root / so preinstalled same-prefix artifacts cannot satisfy the package gate"
+fi
+if [[ -n "$manifest_raw" ]]; then
+    [[ -f "$manifest_raw" ]] || fail "package manifest is missing or not a regular file: $manifest_raw"
+    manifest_entries=()
+    mapfile -t manifest_entries <"$manifest_raw" \
+        || fail "package manifest could not be read completely: $manifest_raw"
+    [[ "${#manifest_entries[@]}" -gt 0 ]] || fail "package manifest is empty: $manifest_raw"
+    for manifest_entry in "${manifest_entries[@]}"; do
+        [[ -n "$manifest_entry" ]] || fail "package manifest contains an empty entry: $manifest_raw"
+        [[ "$manifest_entry" != *$'\r'* ]] \
+            || fail "package manifest contains a carriage return: $manifest_entry"
+        [[ "$manifest_entry" == /* ]] \
+            || fail "package manifest entries must be absolute in the package namespace: $manifest_entry"
+        if [[ "$package_root" == / ]]; then
+            manifest_host_path="$manifest_entry"
+        else
+            manifest_host_path="$package_root/${manifest_entry#/}"
+        fi
+        manifest_host_path="$(realpath -ms -- "$manifest_host_path" 2>/dev/null)" \
+            || fail "package manifest entry cannot be normalized: $manifest_entry"
+        path_is_within "$manifest_host_path" "$artifact_prefix" \
+            || fail "package manifest entry is outside the package prefix: $manifest_entry"
+        [[ -z "${package_manifest_paths[$manifest_host_path]+present}" ]] \
+            || fail "package manifest contains a duplicate entry: $manifest_entry"
+        package_manifest_paths["$manifest_host_path"]=1
+    done
+    manifest_enforced=1
+fi
+
 binary_path="$artifact_prefix/bin/latte-dock"
 [[ -x "$binary_path" ]] \
     || fail "installed binary is missing or not executable at $binary_path; PATH fallback is forbidden"
+require_manifest_ownership "installed binary" "$binary_path"
 binary="$(resolve_native_path "installed binary" "$binary_path")"
 path_is_within "$binary" "$artifact_prefix" \
     || fail "installed binary resolves outside the package prefix: $binary"
+require_manifest_ownership "resolved installed binary" "$binary"
 
 library_roots=()
 for candidate in "$artifact_prefix/lib" "$artifact_prefix/lib64"; do
@@ -268,10 +357,11 @@ done
 [[ "${#library_roots[@]}" -gt 0 ]] \
     || fail "package prefix has no lib or lib64 directory: $artifact_prefix"
 
-mapfile -d '' -t qml_manifests < <(
-    find "${library_roots[@]}" -type f -path '*/org/kde/latte/core/qmldir' -print0
-)
+collect_find_results "Latte QML manifest discovery" qml_manifests \
+    "${library_roots[@]}" \( -type f -o -type l \) \
+    -path '*/org/kde/latte/core/qmldir'
 qml_manifest="$(require_one_match "org.kde.latte.core/qmldir" "${qml_manifests[@]}")"
+require_manifest_ownership "installed org.kde.latte.core/qmldir" "$qml_manifest"
 package_qml="${qml_manifest%/org/kde/latte/core/qmldir}"
 package_qml="$(resolve_native_path "installed Latte QML root" "$package_qml")"
 path_is_within "$package_qml" "$artifact_prefix" \
@@ -287,10 +377,9 @@ require_package_file "containment QML module metadata" "$package_qml/org/kde/lat
 require_package_file "tasks QML module metadata" "$package_qml/org/kde/latte/private/tasks/qmldir"
 audit_package_tree "Latte QML tree" "$package_qml/org/kde/latte"
 
-mapfile -d '' -t action_plugins < <(
-    find "${library_roots[@]}" \
-        -path '*/plasma/containmentactions/org.kde.latte.contextmenu.so' -print0
-)
+collect_find_results "Latte containment-actions plugin discovery" action_plugins \
+    "${library_roots[@]}" \( -type f -o -type l \) \
+    -path '*/plasma/containmentactions/org.kde.latte.contextmenu.so'
 action_plugin="$(require_one_match "Latte containment-actions plugin" "${action_plugins[@]}")"
 require_package_file "Latte containment-actions plugin" "$action_plugin"
 package_plugins="${action_plugin%/plasma/containmentactions/org.kde.latte.contextmenu.so}"
@@ -424,6 +513,7 @@ cleanup() {
         latte_package_gate_stop_process "$dock_pid" "dock (pid $dock_pid)" || cleanup_status=2
     fi
     cleanup_nested_vehicle || cleanup_status=2
+    rm -rf "$validation_tmp" || cleanup_status=2
     return "$cleanup_status"
 }
 latte_package_gate_install_exit_cleanup cleanup
@@ -513,13 +603,23 @@ for forbidden in QML_IMPORT_PATH NIXPKGS_QT6_QML_IMPORT_PATH NIXPKGS_QML_SEARCH_
         || fail "forbidden ambient variable $forbidden leaked into the installed dock"
 done
 
+core_plugin_resolved="$(realpath "$core_plugin" 2>/dev/null)" \
+    || fail "cannot resolve installed core QML plugin for mapping validation"
+containment_plugin_resolved="$(realpath "$containment_plugin" 2>/dev/null)" \
+    || fail "cannot resolve installed containment QML plugin for mapping validation"
+tasks_plugin_resolved="$(realpath "$tasks_plugin" 2>/dev/null)" \
+    || fail "cannot resolve installed tasks QML plugin for mapping validation"
+action_plugin_resolved="$(realpath "$action_plugin" 2>/dev/null)" \
+    || fail "cannot resolve installed containment-actions plugin for mapping validation"
+indicator_package_plugin_resolved="$(realpath "$indicator_package_plugin" 2>/dev/null)" \
+    || fail "cannot resolve installed indicator package-structure plugin for mapping validation"
 declare -A expected_mapped_artifacts=(
     [latte-dock]="$binary"
-    [liblattecoreplugin.so]="$(realpath "$core_plugin")"
-    [liblattecontainmentplugin.so]="$(realpath "$containment_plugin")"
-    [liblattetasksplugin.so]="$(realpath "$tasks_plugin")"
-    [org.kde.latte.contextmenu.so]="$(realpath "$action_plugin")"
-    [latte_indicator.so]="$(realpath "$indicator_package_plugin")"
+    [liblattecoreplugin.so]="$core_plugin_resolved"
+    [liblattecontainmentplugin.so]="$containment_plugin_resolved"
+    [liblattetasksplugin.so]="$tasks_plugin_resolved"
+    [org.kde.latte.contextmenu.so]="$action_plugin_resolved"
+    [latte_indicator.so]="$indicator_package_plugin_resolved"
 )
 required_mapped_artifacts=(
     latte-dock

@@ -129,7 +129,11 @@ latte_package_gate_audit_mapped_paths() {
             return 2
         }
         name="${resolved##*/}"
-        if [[ -n "${expected_paths[$name]+present}" && "$resolved" != "${expected_paths[$name]}" ]]; then
+        if [[ -z "${expected_paths[$name]+present}" ]]; then
+            echo "installed-package-gate: FAIL: unexpected Latte runtime is mapped: $resolved" >&2
+            return 2
+        fi
+        if [[ "$resolved" != "${expected_paths[$name]}" ]]; then
             echo "installed-package-gate: FAIL: $name mapped from $resolved, expected ${expected_paths[$name]}" >&2
             return 2
         fi

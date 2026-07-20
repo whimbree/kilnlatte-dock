@@ -9,7 +9,8 @@
 set -euo pipefail
 
 for required_command in \
-        awk bash cc chmod cp env grep ld ln mkdir mktemp mv pgrep readelf realpath rm setsid sleep sort; do
+        awk bash cc chmod cp env find grep ld ln mkdir mktemp mv pgrep readelf \
+        realpath rm setsid sleep sort; do
     command -v "$required_command" >/dev/null 2>&1 || {
         printf "installed-package-gate-selftest: FAIL: required command '%s' is missing\n" \
             "$required_command" >&2
@@ -64,6 +65,24 @@ make_package() {
     : >"$data/latte/indicators/default/Installed.qml"
 }
 
+write_package_manifest() {
+    local root="$1" output="$2" omit="${3:-}" namespace_root="${4:-$1}" manifest_scan
+    manifest_scan="$work/manifest-scan"
+    if ! find "$root" \( -type f -o -type l \) -print >"$manifest_scan"; then
+        echo "FAIL: fixture manifest scan failed" >&2
+        exit 1
+    fi
+    : >"$output"
+    while IFS= read -r installed_path; do
+        [[ "$installed_path" == "$omit" ]] && continue
+        if [[ "$namespace_root" == / ]]; then
+            printf '%s\n' "$installed_path" >>"$output"
+        else
+            printf '%s\n' "${installed_path#"$namespace_root"}" >>"$output"
+        fi
+    done <"$manifest_scan"
+}
+
 run_check() {
     local root="$1"
     shift
@@ -108,16 +127,41 @@ elf_source="$work/elf-fixture.c"
 fixture_binary="$work/fixture-binary"
 fixture_plugin="$work/fixture-plugin.so"
 fixture_object="$work/elf-fixture.o"
-printf 'int fixture(void) { return 0; }\nint main(void) { return fixture(); }\n' >"$elf_source"
+printf '%s\n' \
+    'int fixture(void) { return 0; }' \
+    'int main(void) { return fixture(); }' >"$elf_source"
 printf '#!/usr/bin/env bash\nexit 0\n' >"$fixture_binary"
 chmod +x "$fixture_binary"
 cc -fPIC -c "$elf_source" -o "$fixture_object"
-NIX_LDFLAGS= NIX_LDFLAGS_BEFORE= ld -shared "$fixture_object" -o "$fixture_plugin"
+NIX_LDFLAGS= NIX_LDFLAGS_BEFORE= ld --build-id -shared "$fixture_object" -o "$fixture_plugin"
 readelf -h "$fixture_plugin" >/dev/null 2>&1 \
     || { echo "FAIL: positive package plugin ELF fixture is invalid" >&2; exit 1; }
 
 good="$work/good"
 make_package "$good"
+
+expect_failure "live root without ownership manifest" \
+    "--manifest is required with --root /" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root / --prefix "$good/usr" --check-only
+
+live_manifest="$work/live-root.manifest"
+stale_tasks_plugin="$good/usr/lib/qt6/qml/org/kde/latte/private/tasks/liblattetasksplugin.so"
+write_package_manifest "$good" "$live_manifest" "$stale_tasks_plugin" /
+expect_failure "same-prefix stale tasks plugin omitted by the package under test" \
+    "omitted by the package manifest" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root / --prefix "$good/usr" --manifest "$live_manifest" --check-only
+echo "PASS: --root / rejects a same-prefix stale artifact without package ownership"
+write_package_manifest "$good" "$live_manifest" "" /
+live_positive="$(
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+        bash "$gate" --root / --prefix "$good/usr" --manifest "$live_manifest" --check-only
+)"
+[[ "$live_positive" == *"installed-package-gate: CHECK OK"* ]] \
+    || { echo "FAIL: complete live-root package manifest was rejected" >&2; echo "$live_positive" >&2; exit 1; }
+echo "PASS: --root / accepts artifacts owned by the explicit package manifest"
+
 hostile_qml="$work/hostile-qml"
 hostile_data="$work/hostile-data"
 hostile_plugins="$work/hostile-plugins"
@@ -140,6 +184,18 @@ positive="$(
         && "$positive" != *"hostile-plugins"* ]] \
     || { echo "FAIL: ambient QML paths leaked into the validated allow-list" >&2; echo "$positive" >&2; exit 1; }
 echo "PASS: explicit package root accepted and hostile ambient paths ignored"
+
+partial_find_bin="$work/partial-find-bin"
+mkdir -p "$partial_find_bin"
+printf '#!/usr/bin/env bash\nprintf "%%s\\0" %q\nexit 73\n' \
+    "$good/usr/lib/qt6/qml/org/kde/latte/core/qmldir" >"$partial_find_bin/find"
+chmod +x "$partial_find_bin/find"
+expect_failure "partial find producer" "scan failed before a complete result was available" \
+    env PATH="$partial_find_bin:$PATH" LATTE_QML_MODULE_PATH="$framework" \
+    LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root "$good" --prefix /usr --check-only
+
+echo "PASS: a partial find producer cannot yield validation success"
 
 loader_probe="$({
     LD_AUDIT=/dev/null LD_PRELOAD=/dev/null \
@@ -619,4 +675,4 @@ expect_failure "incomplete package" "missing tasks QML plugin" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$incomplete" --prefix /usr --check-only
 
-echo "installed-package-gate-selftest: PASS (48 focused controls)"
+echo "installed-package-gate-selftest: PASS (52 focused controls)"
