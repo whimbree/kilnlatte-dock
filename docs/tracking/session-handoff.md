@@ -21,6 +21,48 @@ Two normal-state and splitter defects landed on `origin/main`.
   gate passed at pre-merge `4f505ac5b`; GitHub rewrote that tree-identical head
   to post-rebase commits `91eff7c46` and `3170dd4f9`.
 
+## 2026-07-20 SESSION: shared installed-package gate hardened (PR #72)
+
+PR #72's F0 (the shared installed-package provenance and nested-runtime gate)
+branch was rebased onto `7a5314130` and every independent-review blocker was
+fixed without changing the package gate's claims. Live `--root /` checks now
+require an explicit newline-delimited package manifest, while isolated package
+extraction roots remain valid without one. Every selected Latte artifact and
+file below the audited QML/data trees must be owned by that manifest. `find`,
+`readelf`, `awk`, `/proc/<pid>/maps`, and process-environment producers publish
+results only after successful completion.
+
+All five plugin slots require their exact Qt IID and class; containment actions
+and indicator package structure also require their category metadata. Metadata
+inspection and immediate-binding `dlopen` run under fixed timeouts. Normal dock
+startup must map all three QML plugins and the containment-actions plugin from
+the installed root. The indicator package structure is intentionally not a
+startup mapping: it is used while opening or installing indicator packages, so
+its applicable runtime proof is bounded metadata validation plus `dlopen`.
+Dock shutdown and cleanup now target the complete `setsid` process group with
+bounded TERM/KILL escalation, including the leader-exits/descendant-survives
+case.
+
+Positive acceptance was driven in the cached Arch package environment with:
+`podman run --rm --security-opt label=disable -v "$PWD:/src:ro"
+localhost/latte-ci-arch:latest bash -lc 'cmake -S /src -B /build -G Ninja
+-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF && cmake --build /build
+--parallel "$(nproc)" && BUILD=/build
+/src/tests/installed-package-gate-runtime-test.sh'`. Exit status was 0. The
+Release payload installed under a fresh `/tmp` root, the dock settled under
+nested KWin, `/proc` reported the exact installed executable and four startup
+plugin mappings, forbidden ambient variables were absent, SIGTERM produced
+status 0, the process group disappeared, and nested cleanup completed. The
+focused self-test passed 55 controls, including stale same-prefix ownership,
+partial producers, a generic shared library, a hanging constructor, and a
+TERM-ignoring surviving descendant.
+
+The install-assertion idea is credited to latte-dock-ng's
+`docker/verify-install.sh` at exact commit
+`9c12a79aaf9350e73059da5b293c931218419c05`; the nested-runtime implementation
+is original. New commits: `5fd6d0741`, `11472197a`, `771b96fe0`, `660c85525`,
+`660a6f211`.
+
 ## 2026-07-20 SESSION: D27 (stale maximize work area) latency follow-up
 
 The D27 (maximize transitions leave a stale floating-gap work area) follow-up

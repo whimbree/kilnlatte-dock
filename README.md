@@ -174,7 +174,12 @@ in the running dock abort with a stack instead of misbehaving silently;
 the merge gate drives that sanitized dock through the nested e2e recipes
 and asserts, from the running process's own memory map, that the binary
 under test really is the instrumented one, so integration-path UB fails
-the gate rather than shipping.
+the gate rather than shipping. Native package recipes also share an
+installed-artifact gate: live-root checks require package-manager ownership,
+plugin identities are checked before bounded loading, and a package-style
+install must settle and shut down cleanly under nested KWin while mapping the
+installed executable and startup plugins rather than checkout or preinstalled
+copies.
 [The testing doc](docs/reference/TESTING.md) carries the
 standard; [the session handoff](docs/tracking/session-handoff.md) carries the
 current working state.

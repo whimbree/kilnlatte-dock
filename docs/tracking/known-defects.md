@@ -358,6 +358,59 @@ carries its own detail or points into the plan and the reference docs.
   suite passes 232 cases, the QML compile gate compiles 129 files, and
   AutoSize's 24 curated qmllint warnings drop to zero.
 
+### D36 - Installed dock cleanup left surviving descendants
+- STATUS: FIXED (PR #72 branch, 660c85525).
+- FOUND: 2026-07-20, independent review of the installed-package gate.
+- ROOT CAUSE: the dock was started with `setsid`, but normal shutdown and EXIT
+  cleanup signalled only the leader PID. A descendant could survive after the
+  leader exited while cleanup removed its private runtime.
+- FIX: signal and poll the complete dock process group through bounded TERM and
+  KILL phases, then reap the leader only after the group disappears.
+- EVIDENCE: a leader exited with status 0 on SIGTERM while its child ignored
+  SIGTERM. Cleanup detected and killed the survivor; an unkillable-group control
+  returned within its fixed bound without calling `wait` on a live group.
+
+### D35 - Arbitrary shared libraries passed installed plugin validation
+- STATUS: FIXED (PR #72 branch, 771b96fe0).
+- FOUND: 2026-07-20, independent review of the installed-package gate.
+- ROOT CAUSE: valid ELF plus successful `dlopen` did not establish that a file
+  was the expected QML, containment-actions, or KPackage plugin. The unbounded
+  loader could also hang inside an ELF constructor.
+- FIX: require exact Qt IID/class metadata for all five plugin slots, require
+  category metadata for containment actions and indicator package structure,
+  and bound metadata inspection and immediate-binding `dlopen`. The settled
+  dock must map the three QML plugins and containment-actions plugin; the
+  startup-inactive indicator package structure is validated by metadata and
+  bounded loading.
+- EVIDENCE: a generic library in the containment-actions slot and a valid QML
+  plugin with a TERM-ignoring constructor are both rejected. A real Arch
+  package run mapped all four startup plugin categories from the installed root.
+
+### D34 - Partial artifact scanners could produce vacuous gate success
+- STATUS: FIXED (PR #72 branch, 11472197a).
+- FOUND: 2026-07-20, independent review of the installed-package gate.
+- ROOT CAUSE: process substitutions and pipelines reported consumer status, so
+  failed `find`, `readelf`, `awk`, sorting, or `/proc` parsing could publish an
+  empty or plausible partial result.
+- FIX: capture and check each producer before publishing arrays or values;
+  failed D-Bus polling samples are explicitly cleared.
+- EVIDENCE: adversarial `find`, `readelf`, and maps parsers emitted plausible
+  partial output before status 73. Each path failed before consuming that output.
+
+### D33 - Live-root package checks accepted stale same-prefix artifacts
+- STATUS: FIXED (PR #72 branch, 5fd6d0741).
+- FOUND: 2026-07-20, independent review of the installed-package gate.
+- ROOT CAUSE: package-prefix containment becomes tautological when both the
+  package root and artifact prefix cover the live filesystem. A file omitted by
+  the package under test could be supplied by an older installation at the same
+  path.
+- FIX: `--root /` requires an explicit package manifest, and every selected or
+  recursively audited Latte file must have exact ownership. Isolated extraction
+  roots retain their root-as-package-boundary contract.
+- EVIDENCE: a complete live-root manifest passes; the same filesystem with the
+  tasks plugin omitted from its manifest is rejected even though the stale file
+  remains present under the accepted prefix.
+
 ### D32 - Always Visible floating docks fail to track maximized windows when hiding the floating gap
 - STATUS: FIXED (PR #71, 54572f495 + 33c72b34e).
 - FOUND: 2026-07-20, the strengthened D27 (maximize transitions leave a stale

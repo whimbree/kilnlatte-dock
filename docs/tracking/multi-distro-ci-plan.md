@@ -681,6 +681,15 @@ format. CLAUDE.md caps subagents at 4, so batch: wave A = deb, rpm, arch
 (highest reach); wave B = gentoo, void.
 
 ### Phase F - Tier 1 packaging recipes (after A/B; swarm)
+- [x] F0 (the shared installed-package provenance and nested-runtime gate):
+      require package ownership for live roots; reject source, build, Nix,
+      loader and ambient-path fallback; validate all five plugin identities
+      under bounded loading; prove the installed executable, startup mappings,
+      isolated environment and clean process-group shutdown under nested KWin.
+      Commits: 7646cb241, 2fdb90d42, ea95945e0, aa947b8eb, f2d85dbc1,
+      d7e4f7723, 52d18f4de, 70faf758e, 21acc0445, 770cbad33,
+      560937549, 5fd6d0741, 11472197a, 771b96fe0, 660c85525,
+      660a6f211.
 - [ ] F1 packaging/debian/ (control, rules via dh cmake, changelog,
       DEP-5 copyright from the SPDX audit); build .deb in the Ubuntu-family
       container, install, gate. Commits:
