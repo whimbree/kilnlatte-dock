@@ -31,14 +31,19 @@ Build-Depends:
  libplasma-dev (>= 6.5.0),
  libplasmaactivities-dev (>= 6.5.0) | plasma-activities-dev (>= 6.5.0),
  libplasmaactivitiesstats-dev (>= 6.5.0) | plasma-activities-stats-dev (>= 6.5.0),
+ libvulkan-dev,
  libwayland-dev,
  ninja-build,
  pkgconf,
+ plasma-pa (>= 6.5.0),
  plasma-wayland-protocols (>= 1.6),
  plasma-workspace-dev (>= 6.5.0),
+ qml6-module-org-kde-desktop | kf6-qqc2-desktop-style, qml6-module-org-kde-graphicaleffects,
+ qml6-module-org-kde-pipewire, qt6-5compat-dev,
  qt6-base-dev (>= 6.6.0),
  qt6-declarative-dev (>= 6.6.0),
  qt6-wayland-dev (>= 6.6.0),
+ rsync,
  wayland-protocols
 Standards-Version: 4.6.2
 Homepage: https://github.com/whimbree/lattecotta-dock

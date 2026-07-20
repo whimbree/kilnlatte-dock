@@ -6,13 +6,23 @@
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 include /usr/share/dpkg/architecture.mk
 
+package_test_env = env -u QML2_IMPORT_PATH -u QML_IMPORT_PATH \
+	-u NIXPKGS_QT6_QML_IMPORT_PATH -u NIXPKGS_QML_SEARCH_PATHS \
+	PATH=/usr/lib/qt6/bin:/usr/bin:/bin \
+	LATTE_QML_MODULE_PATH=/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml
+
 %:
 	dh $@ --buildsystem=cmake+ninja
 
 # qmllintgate pins the Nix toolchain. schemesmodeltest's XDG fixture cannot
 # hide the application's deliberate /usr/share BreezeLight fallback, which
 # exists on neon. The final gate runs both; the package build runs the other 92.
+ifneq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
-	cd obj-$(DEB_HOST_GNU_TYPE) && \
+	@echo "dh_auto_test: skipped because DEB_BUILD_OPTIONS contains nocheck"
+else
+override_dh_auto_test:
+	cd obj-$(DEB_HOST_GNU_TYPE) && $(package_test_env) \
 		LC_ALL=C.UTF-8 ctest --output-on-failure \
 			--exclude-regex '^(qmllintgate|schemesmodeltest)$$'
+endif
