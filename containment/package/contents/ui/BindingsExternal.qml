@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2021 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -375,7 +376,7 @@ Item {
                     || Plasmoid.configuration.solidBackgroundForMaximized
                     || root.disablePanelShadowMaximized
                     || root.windowColors !== LatteContainment.Types.NoneWindowColors))
-               || (root.screenEdgeMarginsEnabled                             /*Dynamic Screen Edge Margin*/
+               || (root.screenEdgeMarginEnabled                             /*Dynamic Screen Edge Margin*/
                    && Plasmoid.configuration.hideFloatingGapForMaximized)
         restoreMode: Binding.RestoreNone
     }

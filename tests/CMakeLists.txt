@@ -484,9 +484,9 @@ target_include_directories(visualhostwindowtest PRIVATE
     ${CMAKE_SOURCE_DIR}/app
     ${CMAKE_BINARY_DIR}/app)
 
-# Source guards for the two one-token fixes with no headless behavioral
-# repro (sidebar state assignment, layouts-controller delegation); pure
-# source scan against REPO_ROOT.
+# Source guards for one-token fixes with no headless behavioral repro
+# (sidebar assignment, layouts delegation, tracker enablement); pure source
+# scan against REPO_ROOT.
 ecm_add_test(sourceguardtest.cpp
     TEST_NAME sourceguardtest
     LINK_LIBRARIES Qt6::Test
