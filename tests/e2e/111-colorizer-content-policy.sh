@@ -14,12 +14,13 @@
 # - fixed-only draws the literal #d62976;
 # - mixed draws both controls side by side.
 #
-# Every fixture must report the palette as applied. Per-control screenshot
-# crops then prove responsive pixels equal colorizerData.applyColor, fixed
-# pixels retain their literal RGBA bytes, and the mixed applet satisfies both
-# contracts in one rendered item. Sustained state sampling spans the retired
-# probe's retry interval, so restoring the old asynchronous veto cannot pass
-# during its initial unknown state.
+# The same applets are captured first with PlasmaThemeColors disengaged, then
+# with LightThemeColors applied. Per-control raw RGBA crops must show responsive
+# pixels changing to the treatment palette while every fixed crop stays
+# byte-identical across states. Literal-color checks remain as independent
+# non-vacuity evidence. Sustained treatment sampling spans the retired probe's
+# retry interval, so restoring the old asynchronous veto cannot pass during its
+# initial unknown state.
 set -uo pipefail
 source "${E2E_REPO:?run through scripts/run-e2e.sh}/tests/e2e/lib.sh"
 
@@ -45,10 +46,8 @@ export XDG_DATA_HOME="$E2E_RT/d28-data"
 rm -rf "$XDG_DATA_HOME"
 mkdir -p "$XDG_DATA_HOME/plasma/plasmoids"
 cp -r "$fixture/plasmoids/." "$XDG_DATA_HOME/plasma/plasmoids/"
-
-rm -f "$E2E_CONFIG_HOME"/latte/*.layout.latte
-cp "$fixture/D28.layout.latte" "$E2E_CONFIG_HOME/latte/D28.layout.latte"
 cp "$theme" "$E2E_CONFIG_HOME/kdeglobals"
+
 python3 - "$E2E_CONFIG_HOME/lattedockrc" <<'PY'
 import configparser
 import sys
@@ -65,72 +64,101 @@ with open(path, "w") as output:
     config.write(output, space_around_delimiters=False)
 PY
 
-e2e_dock_start 90 || e2e_fail "dock never settled with the D28 fixture"
+stage_fixture_layout() {
+    local palette="$1" destination="$E2E_CONFIG_HOME/latte/D28.layout.latte"
+    rm -f "$E2E_CONFIG_HOME"/latte/*.layout.latte
+    cp "$fixture/D28.layout.latte" "$destination"
+    python3 - "$destination" "$palette" <<'PY'
+import pathlib
+import sys
 
-cid="$(e2e_json viewsData | python3 -c 'import json,sys
+path = pathlib.Path(sys.argv[1])
+palette = sys.argv[2]
+text = path.read_text()
+source = "themeColors=LightThemeColors"
+if text.count(source) != 1:
+    sys.exit("D28 fixture must contain exactly one LightThemeColors source line")
+path.write_text(text.replace(source, "themeColors=" + palette))
+PY
+}
+
+horizontal_view_id() {
+    e2e_json viewsData | python3 -c 'import json,sys
 views=[view for view in json.load(sys.stdin) if view["edge"] in ("top", "bottom")]
-print(views[0]["containmentId"] if views else "")')"
-[[ -n "$cid" ]] || e2e_fail "no horizontal view came up from the D28 fixture"
-echo "D28: horizontal view is containment $cid"
+print(views[0]["containmentId"] if views else "")'
+}
 
-colorizer="$(e2e_json colorizerData u "$cid")"
-apply_color="$(python3 - "$colorizer" <<'PY'
+resolved_palette() {
+    local cid="$1" shown="$2" mode="$3" field="$4" colorizer
+    colorizer="$(e2e_json colorizerData u "$cid")"
+    python3 - "$colorizer" "$shown" "$mode" "$field" <<'PY'
 import json
 import sys
 
 colorizer = json.loads(sys.argv[1])
-if colorizer.get("mustBeShown") is not True:
-    sys.exit("D28 colorizer is not engaged")
-color = colorizer.get("applyColor", "")
+expected_shown = sys.argv[2] == "true"
+expected_mode = sys.argv[3]
+field = sys.argv[4]
+if colorizer.get("mustBeShown") is not expected_shown:
+    sys.exit("D28 mustBeShown=%r, expected %r" % (colorizer.get("mustBeShown"), expected_shown))
+if colorizer.get("themeColorsMode") != expected_mode:
+    sys.exit("D28 themeColorsMode=%r, expected %r" % (colorizer.get("themeColorsMode"), expected_mode))
+color = colorizer.get(field, "")
 if len(color) != 7 or not color.startswith("#"):
-    sys.exit("D28 colorizer has no resolved applyColor")
+    sys.exit("D28 colorizer has no resolved %s" % field)
 print(color)
 PY
-)" || e2e_fail "could not resolve the D28 panel palette"
-echo "D28 palette foreground: $apply_color"
+}
 
-# The removed probe retried every two seconds. Requiring six consecutive
-# one-second samples prevents its initial unknown state from producing a false
-# pass if the veto is restored.
-for sample in 1 2 3 4 5 6; do
-    applets="$(e2e_json viewAppletsData u "$cid")"
-    python3 - "$applets" "${plugins[@]}" <<'PY' \
-        || e2e_fail "fixture applets did not remain colorizerActive=true reason=applied (sample $sample)"
+assert_fixture_state() {
+    local cid="$1" active="$2" reason="$3" samples="$4" sample applets
+    for ((sample = 1; sample <= samples; sample++)); do
+        applets="$(e2e_json viewAppletsData u "$cid")"
+        python3 - "$applets" "$active" "$reason" "${plugins[@]}" <<'PY' \
+            || e2e_fail "fixture applet state diverged from active=$active reason=$reason (sample $sample)"
 import json
 import sys
 
 applets = {applet["plugin"]: applet for applet in json.loads(sys.argv[1])}
-expected = sys.argv[2:]
-missing = [plugin for plugin in expected if plugin not in applets]
+expected_active = sys.argv[2] == "true"
+expected_reason = sys.argv[3]
+expected_plugins = sys.argv[4:]
+missing = [plugin for plugin in expected_plugins if plugin not in applets]
 bad = [
     (plugin, applets[plugin].get("colorizerActive"), applets[plugin].get("colorizerReason"))
-    for plugin in expected
+    for plugin in expected_plugins
     if plugin in applets
     and not (
-        applets[plugin].get("colorizerActive") is True
-        and applets[plugin].get("colorizerReason") == "applied"
+        applets[plugin].get("colorizerActive") is expected_active
+        and applets[plugin].get("colorizerReason") == expected_reason
     )
 ]
 if missing or bad:
     print("D28 state failure: missing=%s bad=%s" % (missing, bad), file=sys.stderr)
     sys.exit(1)
 PY
-    (( sample < 6 )) && sleep 1
-done
-echo "D28 STATE ok: responsive-only, fixed-only, and mixed fixtures stayed applied"
+        (( sample < samples )) && sleep 1
+    done
+}
 
-e2e_assert_geometry_agrees 2 \
-    || e2e_fail "D28 control crops cannot trust view geometry"
+crop_path() {
+    printf '%s/d28-%s-%s.png' "$E2E_ARTIFACTS" "$1" "$2"
+}
 
-shot="$E2E_ARTIFACTS/d28-content-policy.png"
-e2e_screenshot "$shot" include-cursor b false \
-    || e2e_fail "D28 screenshot failed"
+raw_crop_path() {
+    printf '%s/d28-%s-%s.rgba' "$E2E_ARTIFACTS" "$1" "$2"
+}
 
-# Convert each applet's view-local geometry into a screen crop. The controls
-# are 28px squares; 12px center crops avoid antialiasing at their edges. The
-# mixed controls are centered 18px to either side of the applet center.
-views="$(e2e_json viewsData)"
-crop_specs="$(python3 - "$cid" "$views" "$applets" <<'PY'
+capture_controls() {
+    local state="$1" cid="$2" shot applets views crop_specs label rect image raw
+    e2e_assert_geometry_agrees 2 \
+        || e2e_fail "D28 $state control crops cannot trust view geometry"
+    shot="$E2E_ARTIFACTS/d28-$state-content-policy.png"
+    e2e_screenshot "$shot" include-cursor b false \
+        || e2e_fail "D28 $state screenshot failed"
+    applets="$(e2e_json viewAppletsData u "$cid")"
+    views="$(e2e_json viewsData)"
+    crop_specs="$(python3 - "$cid" "$views" "$applets" <<'PY'
 import json
 import sys
 
@@ -154,21 +182,25 @@ emit("fixed", "org.kde.latte.d28-fixed")
 emit("mixed-responsive", "org.kde.latte.d28-mixed", -18)
 emit("mixed-fixed", "org.kde.latte.d28-mixed", 18)
 PY
-)" || e2e_fail "could not resolve D28 per-control crop geometry"
+)" || e2e_fail "could not resolve D28 $state per-control crop geometry"
 
-declare -A crops
-while read -r label rect; do
-    crops["$label"]="$E2E_ARTIFACTS/d28-$label.png"
-    magick "$shot" -crop "$rect" +repage "${crops[$label]}" \
-        || e2e_fail "could not crop D28 $label control at $rect"
-    echo "D28 crop $label: $rect"
-done <<< "$crop_specs"
+    while read -r label rect; do
+        image="$(crop_path "$state" "$label")"
+        raw="$(raw_crop_path "$state" "$label")"
+        magick "$shot" -crop "$rect" +repage "$image" \
+            || e2e_fail "could not crop D28 $state $label control at $rect"
+        magick "$image" -depth 8 "rgba:$raw" \
+            || e2e_fail "could not serialize D28 $state $label RGBA bytes"
+        echo "D28 $state crop $label: $rect"
+    done <<< "$crop_specs"
+}
 
 assert_solid_rgba() {
-    local label="$1" expected="$2" image="${crops[$1]}" pixels
+    local state="$1" label="$2" expected="$3" image pixels
+    image="$(crop_path "$state" "$label")"
     pixels="$(magick "$image" -depth 8 txt:-)" \
-        || e2e_fail "could not read D28 $label crop pixels"
-    python3 - "$label" "$expected" "$pixels" <<'PY'
+        || e2e_fail "could not read D28 $state $label crop pixels"
+    python3 - "$state-$label" "$expected" "$pixels" <<'PY'
 import re
 import sys
 
@@ -176,9 +208,11 @@ label, expected_hex = sys.argv[1:3]
 expected = tuple(bytes.fromhex(expected_hex.removeprefix("#"))) + (255,)
 pixels = []
 for line in sys.argv[3].splitlines():
-    match = re.search(r"\((\d+),(\d+),(\d+)(?:,(\d+))?\)", line)
+    match = re.search(r"\s#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?\s", line)
     if match:
-        rgba = tuple(int(value) for value in match.groups(default="255"))
+        rgba = tuple(bytes.fromhex(match.group(1))) + (
+            int(match.group(2), 16) if match.group(2) else 255,
+        )
         pixels.append(rgba)
 if len(pixels) != 144:
     sys.exit("D28 %s crop yielded %d pixels, expected 144" % (label, len(pixels)))
@@ -193,20 +227,69 @@ print("D28 RENDER ok: %s is byte-exact %s" % (label, expected_hex))
 PY
 }
 
-assert_solid_rgba responsive "$apply_color" \
-    || e2e_fail "responsive-only content did not follow the panel palette"
-assert_solid_rgba mixed-responsive "$apply_color" \
-    || e2e_fail "responsive content in the mixed applet did not follow the panel palette"
-assert_solid_rgba fixed "#d62976" \
-    || e2e_fail "fixed-only content was recolored"
-assert_solid_rgba mixed-fixed "#d62976" \
-    || e2e_fail "fixed content in the mixed applet was recolored"
+assert_crops_equal() {
+    local first_state="$1" second_state="$2" label="$3"
+    cmp "$(raw_crop_path "$first_state" "$label")" "$(raw_crop_path "$second_state" "$label")" >/dev/null \
+        || e2e_fail "D28 $label bytes changed between $first_state and $second_state"
+    echo "D28 CROSS-STATE ok: $label bytes are identical"
+}
 
-cmp <(magick "${crops[responsive]}" -depth 8 rgba:-) \
-    <(magick "${crops[mixed-responsive]}" -depth 8 rgba:-) \
-    || e2e_fail "mixed responsive pixels differ from the responsive-only control"
-cmp <(magick "${crops[fixed]}" -depth 8 rgba:-) \
-    <(magick "${crops[mixed-fixed]}" -depth 8 rgba:-) \
-    || e2e_fail "mixed fixed pixels differ from the fixed-only control"
+assert_crops_differ() {
+    local first_state="$1" second_state="$2" label="$3"
+    if cmp "$(raw_crop_path "$first_state" "$label")" "$(raw_crop_path "$second_state" "$label")" >/dev/null; then
+        e2e_fail "D28 $label bytes did not change between $first_state and $second_state"
+    fi
+    echo "D28 CROSS-STATE ok: $label bytes changed"
+}
 
-echo "PASS: D28 palette response and fixed-pixel stability (state + per-control render crops)"
+# CONTROL: the Plasma palette is inherited normally and the Latte colorizer is
+# genuinely disengaged. These pixels are the before-image for the treatment.
+stage_fixture_layout PlasmaThemeColors
+e2e_dock_start 90 || e2e_fail "dock never settled with the D28 control fixture"
+control_cid="$(horizontal_view_id)"
+[[ -n "$control_cid" ]] || e2e_fail "no horizontal D28 control view came up"
+control_color="$(resolved_palette "$control_cid" false plasma textColor)" \
+    || e2e_fail "could not resolve the disengaged D28 control palette"
+assert_fixture_state "$control_cid" false notEngaged 1
+echo "D28 CONTROL state: fixtures are inactive with reason=notEngaged"
+capture_controls control "$control_cid"
+assert_solid_rgba control responsive "$control_color" \
+    || e2e_fail "control responsive-only content does not match its inherited palette"
+assert_solid_rgba control mixed-responsive "$control_color" \
+    || e2e_fail "control mixed responsive content does not match its inherited palette"
+assert_solid_rgba control fixed "#d62976" \
+    || e2e_fail "control fixed-only content differs from its literal color"
+assert_solid_rgba control mixed-fixed "#d62976" \
+    || e2e_fail "control mixed fixed content differs from its literal color"
+e2e_dock_stop || e2e_fail "could not stop the D28 control dock"
+
+# TREATMENT: LightThemeColors engages Latte's palette push. The removed probe
+# retried every two seconds, so six one-second applied samples ensure restoring
+# the old veto fails after its initial unknown state.
+stage_fixture_layout LightThemeColors
+e2e_dock_start 90 || e2e_fail "dock never settled with the D28 treatment fixture"
+treatment_cid="$(horizontal_view_id)"
+[[ -n "$treatment_cid" ]] || e2e_fail "no horizontal D28 treatment view came up"
+treatment_color="$(resolved_palette "$treatment_cid" true light applyColor)" \
+    || e2e_fail "could not resolve the applied D28 treatment palette"
+[[ "$control_color" != "$treatment_color" ]] \
+    || e2e_fail "D28 control and treatment palettes are identical ($control_color)"
+assert_fixture_state "$treatment_cid" true applied 6
+echo "D28 TREATMENT state: fixtures stayed active with reason=applied"
+capture_controls treatment "$treatment_cid"
+assert_solid_rgba treatment responsive "$treatment_color" \
+    || e2e_fail "treatment responsive-only content did not follow the panel palette"
+assert_solid_rgba treatment mixed-responsive "$treatment_color" \
+    || e2e_fail "treatment mixed responsive content did not follow the panel palette"
+assert_solid_rgba treatment fixed "#d62976" \
+    || e2e_fail "treatment fixed-only content differs from its literal color"
+assert_solid_rgba treatment mixed-fixed "#d62976" \
+    || e2e_fail "treatment mixed fixed content differs from its literal color"
+
+assert_crops_differ control treatment responsive
+assert_crops_equal control treatment fixed
+assert_crops_differ control treatment mixed-responsive
+assert_crops_equal control treatment mixed-fixed
+echo "D28 MIXED ok: responsive bytes changed while fixed bytes stayed identical"
+
+echo "PASS: D28 control/treatment palette response and fixed-pixel stability"
