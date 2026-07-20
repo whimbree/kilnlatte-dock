@@ -160,7 +160,7 @@ _latte_package_gate_development_provider() {
 
 latte_package_gate_audit_mapped_paths() {
     local maps_file="$1" artifact_prefix="$2" source_root="$3"
-    local expected_name="$4" required_name="$5" mapped resolved name required provider
+    local expected_name="$4" required_name="$5" mapped mapped_name resolved name required provider
     local -n expected_paths="$expected_name"
     local -n required_paths="$required_name"
     local -A examined=() seen=()
@@ -190,7 +190,10 @@ latte_package_gate_audit_mapped_paths() {
             return 2
         fi
 
-        _latte_package_gate_is_latte_runtime_path "$mapped" || continue
+        mapped_name="${mapped##*/}"
+        if [[ -z "${expected_paths[$mapped_name]+present}" ]]; then
+            _latte_package_gate_is_latte_runtime_path "$mapped" || continue
+        fi
         resolved="$(realpath "$mapped" 2>/dev/null)" || {
             echo "installed-package-gate: FAIL: mapped Latte runtime cannot be resolved: $mapped" >&2
             return 2

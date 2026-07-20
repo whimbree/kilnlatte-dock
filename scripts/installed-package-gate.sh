@@ -147,11 +147,6 @@ resolve_native_path() {
     printf '%s\n' "$resolved"
 }
 
-require_file() {
-    local label="$1" path="$2"
-    [[ -f "$path" ]] || fail "package is incomplete: missing $label at $path"
-}
-
 declare -A package_manifest_paths=()
 manifest_enforced=0
 
@@ -165,13 +160,19 @@ require_manifest_ownership() {
 }
 
 require_package_file() {
-    local label="$1" path="$2" resolved
-    require_file "$label" "$path"
+    local label="$1" path="$2" allowed_tree="$3" output_name="$4" resolved
+    local -n output_path="$output_name"
+    [[ -e "$path" || -L "$path" ]] \
+        || fail "package is incomplete: missing $label at $path"
     require_manifest_ownership "installed $label" "$path"
-    resolved="$(resolve_native_path "installed $label" "$path")"
-    path_is_within "$resolved" "$artifact_prefix" \
-        || fail "installed $label resolves outside the package prefix: $resolved"
+    resolved="$(resolve_package_namespace_path "installed $label" "$path")" \
+        || fail "installed $label cannot be resolved in the package namespace: $path"
+    [[ -f "$resolved" ]] \
+        || fail "installed $label does not resolve to a regular file: $resolved"
+    path_is_within "$resolved" "$allowed_tree" \
+        || fail "installed $label resolves outside its allowed package tree $allowed_tree: $resolved"
     require_manifest_ownership "resolved installed $label" "$resolved"
+    output_path="$resolved"
 }
 
 find_scan_index=0
@@ -273,15 +274,26 @@ audit_elf_search_paths() {
         esac
         IFS=':' read -r -a entries <<<"$search_path"
         for entry in "${entries[@]}"; do
-            expanded="${entry//\$\{ORIGIN\}/$origin}"
-            expanded="${expanded//\$ORIGIN/$origin}"
+            case "$entry" in
+                /*)
+                    [[ "$package_root" == / ]] \
+                        || fail "$label ELF RUNPATH/RPATH uses an absolute entry that the loader cannot interpret inside isolated package root $package_root: $entry; use \$ORIGIN-relative paths"
+                    expanded="$entry"
+                    ;;
+                *'${ORIGIN}'*|*'$ORIGIN'*)
+                    expanded="${entry//\$\{ORIGIN\}/$origin}"
+                    expanded="${expanded//\$ORIGIN/$origin}"
+                    ;;
+                *)
+                    fail "$label ELF RUNPATH/RPATH entry is relative to ambient working state: $entry"
+                    ;;
+            esac
             [[ "$expanded" != *'$'* ]] \
                 || fail "$label ELF RUNPATH/RPATH uses an unsupported dynamic loader token: $entry"
-            [[ "$expanded" == /* ]] \
-                || fail "$label ELF RUNPATH/RPATH entry is relative to ambient working state: $entry"
-            normalized="$(realpath -m "$expanded" 2>/dev/null)" \
+            normalized="$(realpath -ms -- "$expanded" 2>/dev/null)" \
                 || fail "$label ELF RUNPATH/RPATH entry cannot be normalized: $entry"
-            resolved="$(resolve_native_path "$label ELF RUNPATH/RPATH entry" "$normalized")"
+            resolved="$(resolve_package_namespace_path "$label ELF RUNPATH/RPATH entry" "$normalized")" \
+                || fail "$label ELF RUNPATH/RPATH entry cannot be resolved in the package namespace: $entry"
             [[ -d "$resolved" ]] \
                 || fail "$label ELF RUNPATH/RPATH entry is not an installed directory: $entry -> $resolved"
             path_is_within "$resolved" "$artifact_prefix" \
@@ -442,13 +454,12 @@ if [[ -n "$manifest_raw" ]]; then
 fi
 
 binary_path="$artifact_prefix/bin/latte-dock"
-[[ -x "$binary_path" ]] \
+[[ -e "$binary_path" || -L "$binary_path" ]] \
     || fail "installed binary is missing or not executable at $binary_path; PATH fallback is forbidden"
-require_manifest_ownership "installed binary" "$binary_path"
-binary="$(resolve_native_path "installed binary" "$binary_path")"
-path_is_within "$binary" "$artifact_prefix" \
-    || fail "installed binary resolves outside the package prefix: $binary"
-require_manifest_ownership "resolved installed binary" "$binary"
+binary="$binary_path"
+require_package_file "binary" "$binary_path" "$artifact_prefix" binary
+[[ -x "$binary" ]] \
+    || fail "installed binary target is not executable at $binary; PATH fallback is forbidden"
 
 library_roots=()
 for candidate in "$artifact_prefix/lib" "$artifact_prefix/lib64"; do
@@ -469,44 +480,61 @@ collect_find_results "Latte QML manifest discovery" qml_manifests \
     "${library_roots[@]}" \( -type f -o -type l \) \
     -path '*/org/kde/latte/core/qmldir'
 qml_manifest="$(require_one_match "org.kde.latte.core/qmldir" "${qml_manifests[@]}")"
-require_manifest_ownership "installed org.kde.latte.core/qmldir" "$qml_manifest"
 package_qml="${qml_manifest%/org/kde/latte/core/qmldir}"
 package_qml="$(resolve_native_path "installed Latte QML root" "$package_qml")"
 path_is_within "$package_qml" "$artifact_prefix" \
     || fail "installed Latte QML root escapes the package prefix: $package_qml"
+resolved_metadata=""
+require_package_file "core QML module metadata" "$qml_manifest" \
+    "$package_qml/org/kde/latte/core" resolved_metadata
 
+latte_qml_tree="$package_qml/org/kde/latte"
 core_plugin="$package_qml/org/kde/latte/core/liblattecoreplugin.so"
 containment_plugin="$package_qml/org/kde/latte/private/containment/liblattecontainmentplugin.so"
 tasks_plugin="$package_qml/org/kde/latte/private/tasks/liblattetasksplugin.so"
-require_package_file "core QML plugin" "$core_plugin"
-require_package_file "containment QML plugin" "$containment_plugin"
-require_package_file "tasks QML plugin" "$tasks_plugin"
-require_package_file "containment QML module metadata" "$package_qml/org/kde/latte/private/containment/qmldir"
-require_package_file "tasks QML module metadata" "$package_qml/org/kde/latte/private/tasks/qmldir"
-audit_package_tree "Latte QML tree" "$package_qml/org/kde/latte"
+require_package_file "core QML plugin" "$core_plugin" "$latte_qml_tree" core_plugin
+require_package_file "containment QML plugin" "$containment_plugin" "$latte_qml_tree" containment_plugin
+require_package_file "tasks QML plugin" "$tasks_plugin" "$latte_qml_tree" tasks_plugin
+containment_qmldir="$package_qml/org/kde/latte/private/containment/qmldir"
+tasks_qmldir="$package_qml/org/kde/latte/private/tasks/qmldir"
+require_package_file "containment QML module metadata" "$containment_qmldir" \
+    "$package_qml/org/kde/latte/private/containment" resolved_metadata
+require_package_file "tasks QML module metadata" "$tasks_qmldir" \
+    "$package_qml/org/kde/latte/private/tasks" resolved_metadata
+audit_package_tree "Latte QML tree" "$latte_qml_tree"
 
 collect_find_results "Latte containment-actions plugin discovery" action_plugins \
     "${library_roots[@]}" \( -type f -o -type l \) \
     -path '*/plasma/containmentactions/org.kde.latte.contextmenu.so'
-action_plugin="$(require_one_match "Latte containment-actions plugin" "${action_plugins[@]}")"
-require_package_file "Latte containment-actions plugin" "$action_plugin"
-package_plugins="${action_plugin%/plasma/containmentactions/org.kde.latte.contextmenu.so}"
+action_plugin_path="$(require_one_match "Latte containment-actions plugin" "${action_plugins[@]}")"
+package_plugins="${action_plugin_path%/plasma/containmentactions/org.kde.latte.contextmenu.so}"
 package_plugins="$(resolve_native_path "installed Latte plugin root" "$package_plugins")"
 path_is_within "$package_plugins" "$artifact_prefix" \
     || fail "installed Latte plugin root escapes the package prefix: $package_plugins"
+action_plugin="$action_plugin_path"
+require_package_file "Latte containment-actions plugin" "$action_plugin_path" \
+    "$package_plugins/plasma/containmentactions" action_plugin
 indicator_package_plugin="$package_plugins/kpackage/packagestructure/latte_indicator.so"
-require_package_file "Latte indicator package-structure plugin" "$indicator_package_plugin"
+require_package_file "Latte indicator package-structure plugin" "$indicator_package_plugin" \
+    "$package_plugins/kpackage/packagestructure" indicator_package_plugin
 
 package_data="$(resolve_native_path "installed Latte data root" "$artifact_prefix/share")"
 path_is_within "$package_data" "$artifact_prefix" \
     || fail "installed Latte data root escapes the package prefix: $package_data"
-require_package_file "shell package metadata" "$package_data/plasma/shells/org.kde.latte.shell/metadata.json"
-require_package_file "containment package metadata" "$package_data/plasma/plasmoids/org.kde.latte.containment/metadata.json"
-require_package_file "tasks applet package metadata" "$package_data/plasma/plasmoids/org.kde.latte.plasmoid/metadata.json"
-require_package_file "desktop entry" "$package_data/applications/org.kde.latte-dock.desktop"
-audit_package_tree "Latte shell package" "$package_data/plasma/shells/org.kde.latte.shell"
-audit_package_tree "Latte containment package" "$package_data/plasma/plasmoids/org.kde.latte.containment"
-audit_package_tree "Latte tasks applet package" "$package_data/plasma/plasmoids/org.kde.latte.plasmoid"
+shell_package="$package_data/plasma/shells/org.kde.latte.shell"
+containment_package="$package_data/plasma/plasmoids/org.kde.latte.containment"
+tasks_package="$package_data/plasma/plasmoids/org.kde.latte.plasmoid"
+require_package_file "shell package metadata" "$shell_package/metadata.json" \
+    "$shell_package" resolved_metadata
+require_package_file "containment package metadata" "$containment_package/metadata.json" \
+    "$containment_package" resolved_metadata
+require_package_file "tasks applet package metadata" "$tasks_package/metadata.json" \
+    "$tasks_package" resolved_metadata
+require_package_file "desktop entry" "$package_data/applications/org.kde.latte-dock.desktop" \
+    "$package_data/applications" resolved_metadata
+audit_package_tree "Latte shell package" "$shell_package"
+audit_package_tree "Latte containment package" "$containment_package"
+audit_package_tree "Latte tasks applet package" "$tasks_package"
 audit_package_tree "Latte data tree" "$package_data/latte"
 [[ -d "$package_data/latte/indicators/default" ]] \
     || fail "package is incomplete: missing default indicator under $package_data/latte/indicators"
@@ -770,21 +798,22 @@ action_plugin_resolved="$(realpath "$action_plugin" 2>/dev/null)" \
     || fail "cannot resolve installed containment-actions plugin for mapping validation"
 indicator_package_plugin_resolved="$(realpath "$indicator_package_plugin" 2>/dev/null)" \
     || fail "cannot resolve installed indicator package-structure plugin for mapping validation"
-declare -A expected_mapped_artifacts=(
-    [latte-dock]="$binary"
-    [liblattecoreplugin.so]="$core_plugin_resolved"
-    [liblattecontainmentplugin.so]="$containment_plugin_resolved"
-    [liblattetasksplugin.so]="$tasks_plugin_resolved"
-    [org.kde.latte.contextmenu.so]="$action_plugin_resolved"
-    [latte_indicator.so]="$indicator_package_plugin_resolved"
-)
-required_mapped_artifacts=(
-    latte-dock
-    liblattecoreplugin.so
-    liblattecontainmentplugin.so
-    liblattetasksplugin.so
-    org.kde.latte.contextmenu.so
-)
+declare -A expected_mapped_artifacts=()
+required_mapped_artifacts=()
+register_expected_mapped_artifact() {
+    local label="$1" path="$2" required="$3" name="${path##*/}"
+    [[ -z "${expected_mapped_artifacts[$name]+present}" ]] \
+        || fail "installed $label has mapped-artifact basename '$name', already used by ${expected_mapped_artifacts[$name]}"
+    expected_mapped_artifacts["$name"]="$path"
+    [[ "$required" == 1 ]] && required_mapped_artifacts+=("$name")
+}
+register_expected_mapped_artifact "binary" "$binary" 1
+register_expected_mapped_artifact "core QML plugin" "$core_plugin_resolved" 1
+register_expected_mapped_artifact "containment QML plugin" "$containment_plugin_resolved" 1
+register_expected_mapped_artifact "tasks QML plugin" "$tasks_plugin_resolved" 1
+register_expected_mapped_artifact "containment-actions plugin" "$action_plugin_resolved" 1
+register_expected_mapped_artifact "indicator package-structure plugin" \
+    "$indicator_package_plugin_resolved" 0
 # latte_indicator.so is a KPackage structure used while opening/installing
 # indicator packages, not by normal dock startup. Its applicable runtime
 # contract is the bounded metadata/type/dlopen validation above. Keeping it in

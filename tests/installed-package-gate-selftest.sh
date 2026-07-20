@@ -317,6 +317,56 @@ absolute_internal_output="$(run_check "$absolute_internal")"
     || { echo "FAIL: isolated package rejected an in-tree absolute namespace symlink" >&2; echo "$absolute_internal_output" >&2; exit 1; }
 echo "PASS: isolated roots resolve absolute symlinks inside the package namespace"
 
+selected_absolute="$work/selected-absolute-links"
+cp -a "$good" "$selected_absolute"
+selected_binary_target="$selected_absolute/usr/libexec/latte-dock.real"
+mkdir -p "${selected_binary_target%/*}"
+mv "$selected_absolute/usr/bin/latte-dock" "$selected_binary_target"
+ln -s /usr/libexec/latte-dock.real "$selected_absolute/usr/bin/latte-dock"
+selected_core_dir="$selected_absolute/usr/lib/qt6/qml/org/kde/latte/core"
+mv "$selected_core_dir/liblattecoreplugin.so" \
+    "$selected_core_dir/liblattecoreplugin.real.so"
+ln -s /usr/lib/qt6/qml/org/kde/latte/core/liblattecoreplugin.real.so \
+    "$selected_core_dir/liblattecoreplugin.so"
+selected_shell_dir="$selected_absolute/usr/share/plasma/shells/org.kde.latte.shell"
+mv "$selected_shell_dir/metadata.json" "$selected_shell_dir/metadata.real.json"
+ln -s /usr/share/plasma/shells/org.kde.latte.shell/metadata.real.json \
+    "$selected_shell_dir/metadata.json"
+selected_absolute_output="$(run_check "$selected_absolute")"
+[[ "$selected_absolute_output" == *"installed-package-gate: CHECK OK"* \
+        && "$selected_absolute_output" == *"installed-package-gate: binary: $selected_binary_target"* ]] \
+    || { echo "FAIL: package-internal absolute selected-artifact links were rejected or kept unresolved" >&2; echo "$selected_absolute_output" >&2; exit 1; }
+echo "PASS: selected executable, plugin, and metadata links resolve inside the package namespace"
+
+selected_cross_tree="$work/selected-cross-tree-plugin"
+cp -a "$good" "$selected_cross_tree"
+selected_cross_tree_target="$selected_cross_tree/usr/share/liblattecoreplugin.so"
+cp "$selected_cross_tree/usr/lib/qt6/qml/org/kde/latte/core/liblattecoreplugin.so" \
+    "$selected_cross_tree_target"
+rm "$selected_cross_tree/usr/lib/qt6/qml/org/kde/latte/core/liblattecoreplugin.so"
+ln -s /usr/share/liblattecoreplugin.so \
+    "$selected_cross_tree/usr/lib/qt6/qml/org/kde/latte/core/liblattecoreplugin.so"
+expect_failure "selected plugin absolute cross-tree link" \
+    "installed core QML plugin resolves outside its allowed package tree" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root "$selected_cross_tree" --prefix /usr --check-only
+
+live_selected="$work/live-selected-link"
+cp -a "$good" "$live_selected"
+live_selected_dir="$live_selected/usr/lib/qt6/qml/org/kde/latte/private/tasks"
+mv "$live_selected_dir/liblattetasksplugin.so" \
+    "$live_selected_dir/liblattetasksplugin.real.so"
+ln -s "$live_selected_dir/liblattetasksplugin.real.so" \
+    "$live_selected_dir/liblattetasksplugin.so"
+live_selected_manifest="$work/live-selected.manifest"
+write_package_manifest "$live_selected" "$live_selected_manifest" \
+    "$live_selected_dir/liblattetasksplugin.real.so" /
+expect_failure "selected plugin target omitted by the live package manifest" \
+    "resolved installed tasks QML plugin is present under the package prefix but omitted by the package manifest" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root / --prefix "$live_selected/usr" \
+    --manifest "$live_selected_manifest" --check-only
+
 live_absolute="$work/live-absolute-link"
 cp -a "$good" "$live_absolute"
 live_absolute_dir="$live_absolute/usr/lib/qt6/qml/org/kde/latte/components/deep"
@@ -429,8 +479,10 @@ outside_binary="$work/preinstalled-system-latte-dock"
 printf '#!/usr/bin/env bash\nexit 0\n' >"$outside_binary"
 chmod +x "$outside_binary"
 rm "$escaped/usr/bin/latte-dock"
-ln -s "$outside_binary" "$escaped/usr/bin/latte-dock"
-expect_failure "binary symlink escape" "resolves outside the package prefix" \
+escaped_binary_link="$escaped/usr/bin/latte-dock"
+ln -s "$(realpath --relative-to="$(dirname "$escaped_binary_link")" "$outside_binary")" \
+    "$escaped_binary_link"
+expect_failure "binary symlink escape" "installed binary escapes the package root through a symlink" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$escaped" --prefix /usr --check-only
 
@@ -452,8 +504,10 @@ cp -a "$good" "$escaped_plugin"
 outside_plugin="$work/preinstalled-system-liblattetasksplugin.so"
 : >"$outside_plugin"
 rm "$escaped_plugin/usr/lib/qt6/qml/org/kde/latte/private/tasks/liblattetasksplugin.so"
-ln -s "$outside_plugin" "$escaped_plugin/usr/lib/qt6/qml/org/kde/latte/private/tasks/liblattetasksplugin.so"
-expect_failure "QML plugin symlink escape" "resolves outside the package prefix" \
+escaped_plugin_link="$escaped_plugin/usr/lib/qt6/qml/org/kde/latte/private/tasks/liblattetasksplugin.so"
+ln -s "$(realpath --relative-to="$(dirname "$escaped_plugin_link")" "$outside_plugin")" \
+    "$escaped_plugin_link"
+expect_failure "QML plugin symlink escape" "installed tasks QML plugin escapes the package root through a symlink" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$escaped_plugin" --prefix /usr --check-only
 
@@ -462,8 +516,11 @@ cp -a "$good" "$escaped_action_plugin"
 outside_action_plugin="$work/preinstalled-system-contextmenu.so"
 : >"$outside_action_plugin"
 rm "$escaped_action_plugin/usr/lib/qt6/plugins/plasma/containmentactions/org.kde.latte.contextmenu.so"
-ln -s "$outside_action_plugin" "$escaped_action_plugin/usr/lib/qt6/plugins/plasma/containmentactions/org.kde.latte.contextmenu.so"
-expect_failure "containment-actions plugin symlink escape" "resolves outside the package prefix" \
+escaped_action_link="$escaped_action_plugin/usr/lib/qt6/plugins/plasma/containmentactions/org.kde.latte.contextmenu.so"
+ln -s "$(realpath --relative-to="$(dirname "$escaped_action_link")" "$outside_action_plugin")" \
+    "$escaped_action_link"
+expect_failure "containment-actions plugin symlink escape" \
+    "installed Latte containment-actions plugin escapes the package root through a symlink" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$escaped_action_plugin" --prefix /usr --check-only
 
@@ -660,16 +717,46 @@ expect_failure "Latte runtime-tree root symlink" "Latte data tree root must not 
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$root_symlink_data" --prefix /usr --check-only
 
-hostile_loader="$work/foreign loader"
-mkdir -p "$hostile_loader"
+absolute_rpath="$work/absolute-rpath"
+cp -a "$good" "$absolute_rpath"
+NIX_LDFLAGS= NIX_LDFLAGS_BEFORE= \
+    cc "$elf_source" -o "$absolute_rpath/usr/bin/latte-dock"
+patchelf --remove-rpath "$absolute_rpath/usr/bin/latte-dock"
+patchelf --set-rpath /usr/lib "$absolute_rpath/usr/bin/latte-dock"
+expect_failure "isolated-root absolute ELF RUNPATH" \
+    "uses an absolute entry that the loader cannot interpret inside isolated package root" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root "$absolute_rpath" --prefix /usr --check-only
+
+live_absolute_rpath="$work/live-absolute-rpath"
+cp -a "$good" "$live_absolute_rpath"
+NIX_LDFLAGS= NIX_LDFLAGS_BEFORE= \
+    cc "$elf_source" -o "$live_absolute_rpath/usr/bin/latte-dock"
+patchelf --remove-rpath "$live_absolute_rpath/usr/bin/latte-dock"
+patchelf --set-rpath "$live_absolute_rpath/usr/lib" \
+    "$live_absolute_rpath/usr/bin/latte-dock"
+live_absolute_rpath_manifest="$work/live-absolute-rpath.manifest"
+write_package_manifest "$live_absolute_rpath" "$live_absolute_rpath_manifest" "" /
+live_absolute_rpath_output="$(
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+        bash "$gate" --root / --prefix "$live_absolute_rpath/usr" \
+        --manifest "$live_absolute_rpath_manifest" --check-only
+)"
+[[ "$live_absolute_rpath_output" == *"installed-package-gate: CHECK OK"* ]] \
+    || { echo "FAIL: live-root absolute RUNPATH inside the package prefix was rejected" >&2; echo "$live_absolute_rpath_output" >&2; exit 1; }
+echo "PASS: absolute ELF search paths are accepted only with live-root semantics"
 
 rpath_binary="$work/rpath-binary"
 cp -a "$good" "$rpath_binary"
+mkdir -p "$rpath_binary/foreign-loader"
 NIX_LDFLAGS= NIX_LDFLAGS_BEFORE= \
-    cc "$elf_source" -Wl,-rpath,"$hostile_loader" -o "$rpath_binary/usr/bin/latte-dock"
+    cc "$elf_source" -o "$rpath_binary/usr/bin/latte-dock"
+patchelf --remove-rpath "$rpath_binary/usr/bin/latte-dock"
+patchelf --set-rpath '$ORIGIN/../../foreign-loader' \
+    "$rpath_binary/usr/bin/latte-dock"
 binary_dynamic_metadata="$(readelf -d "$rpath_binary/usr/bin/latte-dock")" \
     || { echo "FAIL: hostile binary RUNPATH metadata could not be read" >&2; exit 1; }
-[[ "$binary_dynamic_metadata" == *"$hostile_loader"* ]] \
+[[ "$binary_dynamic_metadata" == *'$ORIGIN/../../foreign-loader'* ]] \
     || { echo "FAIL: hostile binary RUNPATH fixture has no requested entry" >&2; exit 1; }
 expect_failure "binary ELF RUNPATH escape" "installed binary ELF RUNPATH/RPATH entry escapes the package prefix" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
@@ -677,12 +764,13 @@ expect_failure "binary ELF RUNPATH escape" "installed binary ELF RUNPATH/RPATH e
 
 rpath_action="$work/rpath-action-plugin"
 cp -a "$good" "$rpath_action"
-NIX_LDFLAGS= NIX_LDFLAGS_BEFORE= ld -shared "$fixture_object" -rpath "$hostile_loader" \
-    -o "$rpath_action/usr/lib/qt6/plugins/plasma/containmentactions/org.kde.latte.contextmenu.so"
+mkdir -p "$rpath_action/foreign-loader"
+patchelf --set-rpath '$ORIGIN/../../../../../../foreign-loader' \
+    "$rpath_action/usr/lib/qt6/plugins/plasma/containmentactions/org.kde.latte.contextmenu.so"
 action_dynamic_metadata="$(readelf -d \
     "$rpath_action/usr/lib/qt6/plugins/plasma/containmentactions/org.kde.latte.contextmenu.so")" \
     || { echo "FAIL: hostile containment-actions RUNPATH metadata could not be read" >&2; exit 1; }
-[[ "$action_dynamic_metadata" == *"$hostile_loader"* ]] \
+[[ "$action_dynamic_metadata" == *'$ORIGIN/../../../../../../foreign-loader'* ]] \
     || { echo "FAIL: hostile containment-actions RUNPATH fixture has no requested entry" >&2; exit 1; }
 expect_failure "lazy containment-actions ELF RUNPATH escape" "Latte containment-actions plugin ELF RUNPATH/RPATH entry escapes the package prefix" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
@@ -691,7 +779,7 @@ expect_failure "lazy containment-actions ELF RUNPATH escape" "Latte containment-
 mapped_artifact="$work/mapped artifact"
 mapped_prefix="$mapped_artifact/usr"
 mkdir -p "$mapped_prefix/bin" "$mapped_prefix/lib/qt6/qml/org/kde/latte/core"
-mapped_binary="$mapped_prefix/bin/latte-dock"
+mapped_binary="$mapped_prefix/bin/latte-dock.real"
 mapped_core="$mapped_prefix/lib/qt6/qml/org/kde/latte/core/liblattecoreplugin.so"
 : >"$mapped_binary"
 : >"$mapped_core"
@@ -703,10 +791,10 @@ latte_package_gate_read_mapped_paths "$maps_with_spaces" parsed_space_paths
 [[ "${parsed_space_paths[0]}" == "$mapped_binary" && "${parsed_space_paths[1]}" == "$mapped_core" ]] \
     || { echo "FAIL: /proc maps parser split a pathname containing spaces" >&2; exit 1; }
 declare -A expected_space_mappings=(
-    [latte-dock]="$mapped_binary"
+    [latte-dock.real]="$mapped_binary"
     [liblattecoreplugin.so]="$mapped_core"
 )
-required_space_mappings=(latte-dock liblattecoreplugin.so)
+required_space_mappings=(latte-dock.real liblattecoreplugin.so)
 latte_package_gate_audit_mapped_paths "$maps_with_spaces" "$mapped_prefix" "$repo" \
     expected_space_mappings required_space_mappings >/dev/null
 echo "PASS: /proc maps pathnames with spaces preserve exact installed-artifact identity"
@@ -1009,4 +1097,4 @@ expect_failure "incomplete package" "missing tasks QML plugin" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$incomplete" --prefix /usr --check-only
 
-echo "installed-package-gate-selftest: PASS (67 focused controls)"
+echo "installed-package-gate-selftest: PASS (72 focused controls)"
