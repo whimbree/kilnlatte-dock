@@ -167,7 +167,7 @@ surface.
 %cmake_kf6 \
     -DBUILD_TESTING=OFF \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-    -DCMAKE_EXE_LINKER_FLAGS:STRING="-Wl,--as-needed -Wl,--no-undefined -pie"
+    -DCMAKE_EXE_LINKER_FLAGS:STRING="%{?build_ldflags} -Wl,--as-needed -Wl,--no-undefined -pie"
 %ninja_build -C build
 %else
 %cmake -GNinja -DBUILD_TESTING=OFF
