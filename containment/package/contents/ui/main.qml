@@ -1032,10 +1032,15 @@ ContainmentItem {
 
     Ability.AutoSize {
         id: _autosize
+        alignment: Plasmoid.configuration.alignment
+        animations: _animations
+        autoSizeEnabled: Plasmoid.configuration.autoSizeEnabled
+        containment: root
         layouts: layoutsContainer
         layouter: _layouter
         metrics: _metrics
         parabolic: _parabolic
+        view: latteView
         visibility: visibilityManager
     }
 

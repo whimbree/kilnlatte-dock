@@ -6,38 +6,40 @@
 
 import QtQuick 2.8
 
-import org.kde.plasma.plasmoid 2.0
-import org.kde.plasma.core 2.0 as PlasmaCore
-
 import org.kde.latte.core 0.2 as LatteCore
 import org.kde.latte.private.containment 0.1 as LatteContainment
 
 Item {
     id: sizer
 
+    //! required elements
+    required property int alignment
+    required property Item animations
+    required property bool autoSizeEnabled
+    required property Item containment
+    required property Item layouts
+    required property Item layouter
+    required property Item metrics
+    required property Item parabolic
+    required property QtObject view
+    required property Item visibility
+
     // when there are only plasma style task managers OR any applets that fill width or height
     // the automatic icon size algorithm should better be disabled
-    readonly property bool isActive: root.behaveAsDockWithMask
-                                     && Plasmoid.configuration.autoSizeEnabled
-                                     && !root.containsOnlyPlasmaTasks
+    readonly property bool isActive: sizer.containment.behaveAsDockWithMask
+                                     && sizer.autoSizeEnabled
+                                     && !sizer.containment.containsOnlyPlasmaTasks
                                      && sizer.layouter.fillApplets<=0
-                                     && !(root.inConfigureAppletsMode && Plasmoid.configuration.alignment === LatteCore.Types.Justify) /*block shrinking for justify splitters*/
-                                     && latteView
-                                     && latteView.visibility
-                                     && latteView.visibility.mode !== LatteCore.Types.SidebarOnDemand
-                                     && latteView.visibility.mode !== LatteCore.Types.SidebarAutoHide
+                                     && !(sizer.containment.inConfigureAppletsMode && sizer.alignment === LatteCore.Types.Justify) /*block shrinking for justify splitters*/
+                                     && sizer.view
+                                     && sizer.view.visibility
+                                     && sizer.view.visibility.mode !== LatteCore.Types.SidebarOnDemand
+                                     && sizer.view.visibility.mode !== LatteCore.Types.SidebarAutoHide
 
     property int iconSize: -1 //it is not set, this is the default
 
     readonly property bool inCalculatedIconSize: ((sizer.metrics.iconSize === sizer.iconSize) || (sizer.metrics.iconSize === sizer.metrics.maxIconSize))
     readonly property bool inAutoSizeAnimation: !sizer.inCalculatedIconSize
-
-    //! required elements
-    property Item layouts
-    property Item layouter
-    property Item metrics
-    property Item parabolic
-    property Item visibility
 
     //! The search itself - shrink/grow branch selection, the stepping
     //! loops, the asymmetric limits and the endless-loop protector - lives
@@ -52,9 +54,9 @@ Item {
 
     onInAutoSizeAnimationChanged: {
         if (sizer.inAutoSizeAnimation) {
-            animations.needBothAxis.addEvent(sizer);
+            sizer.animations.needBothAxis.addEvent(sizer);
         } else {
-            animations.needBothAxis.removeEvent(sizer);
+            sizer.animations.needBothAxis.removeEvent(sizer);
         }
     }
 
@@ -64,12 +66,12 @@ Item {
     }
 
     Connections {
-        target: root
+        target: sizer.containment
         function onContainsOnlyPlasmaTasksChanged() {
             sizer.updateIconSize();
         }
         function onMaxLengthChanged() {
-            if (latteView && latteView.positioner && !latteView.positioner.isOffScreen) {
+            if (sizer.view && sizer.view.positioner && !sizer.view.positioner.isOffScreen) {
                 sizer.updateIconSize();
             }
         }
@@ -86,34 +88,34 @@ Item {
     }
 
     Connections {
-        target: latteView
+        target: sizer.view
         function onWidthChanged() {
-            if (root.isHorizontal && sizer.metrics.portionIconSize!==-1) {
+            if (sizer.containment.isHorizontal && sizer.metrics.portionIconSize!==-1) {
                 sizer.updateIconSize();
             }
         }
 
         function onHeightChanged() {
-            if (root.isVertical && sizer.metrics.portionIconSize!==-1) {
+            if (sizer.containment.isVertical && sizer.metrics.portionIconSize!==-1) {
                 sizer.updateIconSize();
             }
         }
     }
 
     Connections {
-        target: latteView && latteView.positioner ? latteView.positioner : null
+        target: sizer.view && sizer.view.positioner ? sizer.view.positioner : null
         function onIsOffScreenChanged() {
-            if (!latteView.positioner.isOffScreen) {
+            if (!sizer.view.positioner.isOffScreen) {
                 sizer.updateIconSize();
             }
         }
     }
 
     Connections {
-        target: visibilityManager
+        target: sizer.visibility
         function onInNormalStateChanged() {
-            if (visibilityManager.inNormalState) {
-                sizer.updateIconSize();
+            if (sizer.visibility.inNormalState) {
+                Qt.callLater(sizer.updateIconSize);
             }
         }
     }
@@ -124,7 +126,7 @@ Item {
             sizer.iconSize = -1;
         }
 
-        if (root.maxLength <= 0) {
+        if (sizer.containment.maxLength <= 0) {
             //! the view window has no geometry yet (early startup on wayland:
             //! the first call arrives from visibilityChanged before the window
             //! is sized), so every shrink limit would be negative and any
@@ -144,11 +146,11 @@ Item {
                 doubleCallAutomaticUpdateIconSize.secondTimeCallApplied = false;
             }
 
-            const layoutLength = (Plasmoid.configuration.alignment === LatteCore.Types.Justify) ?
+            const layoutLength = (sizer.alignment === LatteCore.Types.Justify) ?
                         sizer.layouts.startLayout.length + sizer.layouts.mainLayout.length + sizer.layouts.endLayout.length : sizer.layouts.mainLayout.length
 
             const result = stepper.step(layoutLength,
-                                        root.maxLength,
+                                        sizer.containment.maxLength,
                                         sizer.metrics.totals.length,
                                         sizer.metrics.iconSize,
                                         sizer.metrics.maxIconSize,

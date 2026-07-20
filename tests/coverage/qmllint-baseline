@@ -53,7 +53,6 @@
 10	share/latte/indicators/org.kde.latte.plasma/package/ui/TaskBackLayer.qml
 8	share/latte/indicators/org.kde.latte.plasmatabstyle/package/ui/BackLayer.qml
 6	share/latte/indicators/org.kde.latte.plasmatabstyle/package/ui/main.qml
-24	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/abilities/AutoSize.qml
 3	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/abilities/Indexer.qml
 4	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/abilities/Indicators.qml
 31	share/plasma/plasmoids/org.kde.latte.containment/contents/ui/abilities/Launchers.qml
