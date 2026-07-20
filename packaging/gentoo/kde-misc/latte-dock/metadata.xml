@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>20343235+whimbree@users.noreply.github.com</email>
+    <name>Bree Spektor</name>
+  </maintainer>
+  <longdescription lang="en">
+    Lattecotta Dock continues Latte Dock for Plasma 6 and Qt 6. It provides
+    task launchers, Plasma widgets, multiple layouts, indicator themes, and a
+    Wayland layer-shell dock surface.
+  </longdescription>
+  <upstream>
+    <maintainer status="active">
+      <email>20343235+whimbree@users.noreply.github.com</email>
+      <name>Bree Spektor</name>
+    </maintainer>
+    <bugs-to>https://github.com/whimbree/lattecotta-dock/issues</bugs-to>
+    <remote-id type="github">whimbree/lattecotta-dock</remote-id>
+  </upstream>
+</pkgmetadata>
