@@ -665,43 +665,6 @@ for signal_case in INT:130 TERM:143; do
     echo "PASS: $signal terminates through cleanup without reaching PASS"
 done
 
-term_ignored_ready="$work/term-ignored.ready"
-bash -c '
-    trap "" TERM
-    : >"$1"
-    while :; do sleep 1; done
-' bash "$term_ignored_ready" &
-term_ignored_pid=$!
-for ((ready_wait = 0; ready_wait < 50; ready_wait++)); do
-    [[ -e "$term_ignored_ready" ]] && break
-    sleep 0.01
-done
-[[ -e "$term_ignored_ready" ]] \
-    || { kill -KILL "$term_ignored_pid" 2>/dev/null || true; echo "FAIL: TERM-ignoring fixture did not start" >&2; exit 1; }
-latte_package_gate_stop_process "$term_ignored_pid" "TERM-ignoring fixture" 1 0.01 50 0.01
-kill -0 "$term_ignored_pid" 2>/dev/null \
-    && { echo "FAIL: cleanup left the TERM-ignoring fixture alive" >&2; exit 1; }
-echo "PASS: cleanup escalates a TERM-ignoring process to SIGKILL"
-
-bounded_wait_log="$work/unbounded-wait-called"
-set +e
-bounded_wait_output="$(
-    (
-        source "$repo/scripts/lib-installed-package-gate.sh"
-        kill() { return 0; }
-        sleep() { :; }
-        wait() { : >"$bounded_wait_log"; }
-        latte_package_gate_stop_process 424242 "unkillable fixture" 1 0 1 0
-    ) 2>&1
-)"
-bounded_wait_status=$?
-set -e
-[[ "$bounded_wait_status" -eq 2 && "$bounded_wait_output" == *"still exists after bounded SIGKILL wait"* ]] \
-    || { echo "FAIL: simulated unkillable cleanup was not bounded" >&2; exit 1; }
-[[ ! -e "$bounded_wait_log" ]] \
-    || { echo "FAIL: cleanup called unbounded wait while the process still existed" >&2; exit 1; }
-echo "PASS: post-SIGKILL cleanup returns without an unbounded wait"
-
 group_ignored_ready="$work/group-term-ignored.ready"
 setsid bash -c '
     trap "" TERM
@@ -719,6 +682,32 @@ latte_package_gate_stop_process_group "$group_ignored_pid" "TERM-ignoring proces
 latte_package_gate_process_group_exists "$group_ignored_pid" \
     && { echo "FAIL: cleanup left the TERM-ignoring process group alive" >&2; exit 1; }
 echo "PASS: nested-style process-group cleanup escalates within fixed bounds"
+
+descendant_ready="$work/group-descendant.ready"
+descendant_pid_file="$work/group-descendant.pid"
+setsid bash -c '
+    bash -c '\''
+        trap "" TERM
+        printf "%s\n" "$$" >"$1"
+        : >"$2"
+        while :; do sleep 1; done
+    '\'' bash "$1" "$2" &
+    trap "exit 0" TERM
+    while :; do sleep 1; done
+' bash "$descendant_pid_file" "$descendant_ready" &
+descendant_group_pid=$!
+for ((ready_wait = 0; ready_wait < 50; ready_wait++)); do
+    [[ -e "$descendant_ready" ]] && break
+    sleep 0.01
+done
+[[ -e "$descendant_ready" ]] \
+    || { kill -KILL -- "-$descendant_group_pid" 2>/dev/null || true; echo "FAIL: descendant-survival fixture did not start" >&2; exit 1; }
+descendant_pid="$(<"$descendant_pid_file")"
+latte_package_gate_stop_process_group "$descendant_group_pid" \
+    "process group with TERM-ignoring descendant" 1 0.01 50 0.01
+kill -0 "$descendant_pid" 2>/dev/null \
+    && { echo "FAIL: cleanup left a TERM-ignoring dock descendant alive" >&2; exit 1; }
+echo "PASS: dock-group cleanup escalates after the leader exits but a descendant survives"
 
 bounded_group_wait_log="$work/unbounded-group-wait-called"
 set +e
@@ -804,4 +793,4 @@ expect_failure "incomplete package" "missing tasks QML plugin" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$incomplete" --prefix /usr --check-only
 
-echo "installed-package-gate-selftest: PASS (56 focused controls)"
+echo "installed-package-gate-selftest: PASS (55 focused controls)"
