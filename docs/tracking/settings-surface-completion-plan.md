@@ -263,17 +263,14 @@ branches without changing behavior.
 
 ### D57 (ConfigOverlay wheel threshold accepts nonnegative decrease deltas)
 
-Status is OPEN from provisional local SC-CW1 commit `81ca28d95`; the reproduction
-is not merged. `ConfigOverlay.qml` divides `wheel.angleDelta.y` by 8, increases
-for `angle > 12`, then decreases for `angle < 12` instead of `angle < -12`.
-Repeated nested runs on horizontal and vertical views observed +120:+8,
--120:-8, +96:0, -96:-8, +90:-8, -90:-8, and horizontal +/-120:-8. The explicit
-`axisstop` control requests `wl_pointer.axis_stop`; Qt emits no `QWheelEvent` in
-this isolated sequence, and a following +120 control still increases length.
-The recipe exits 57 only for the complete inherited matrix after cleanup, exits
-0 for the corrected XPASS matrix, and fails every partial or harness signature.
-SC-CW2 (the D57 signed decrease-threshold fix and regression promotion) remains
-approval-required and is not approved.
+Status is OPEN at provisional local SC-CW1 commit `81ca28d95`; it is not merged.
+`ConfigOverlay.qml` divides `wheel.angleDelta.y` by 8 but decreases for
+`angle < 12` instead of `angle < -12`. Both view axes produced +120:+8,
+-120:-8, +96:0, -96:-8, +90:-8, -90:-8, and horizontal +/-120:-8. Explicit
+`axisstop` requests `wl_pointer.axis_stop`; Qt emits no `QWheelEvent`, and the
+following +120 still increases length. Only the complete cleaned-up matrix exits
+57; corrected behavior exits 0 as XPASS, and partial or harness failures fail.
+SC-CW2 (the D57 signed decrease-threshold fix and regression promotion) remains approval-required and unapproved.
 
 ### D58 (close-only and minimize-toggle settings do not enable window tracking)
 
@@ -479,17 +476,16 @@ in SC-R6.
       c61ce8502
 - [ ] **SC-CW1 (the D57 ConfigOverlay wheel-threshold reproduction):** drive a
       Latte-style applet through positive, negative, horizontal, boundary, and
-      sub-threshold wheel deltas, plus an explicit axis-stop control, and record
-      independent applet-length effects. This unit reproduces only. PR #95
-      supplied the generic prerequisites at `57bc03ce0`, `7f747f944`,
-      `fb3466223`, and `ce424574a`. Provisional local reproduction commit:
-      `81ca28d95`; not merged. Approved. Commits:
+      sub-threshold deltas plus an axis-stop control, recording independent
+      applet-length effects. PR #95 supplied the generic prerequisites at
+      `57bc03ce0`, `7f747f944`, `fb3466223`, and `ce424574a`. Reproduction only;
+      provisional local commit `81ca28d95`, not merged. Approved. Commits:
 - [ ] **SC-CW2 (the D57 signed decrease-threshold fix and regression
       promotion):** after SC-CW1 merges and explicit approval is recorded,
       change only the decrease comparison from `angle < 12` to `angle < -12`,
-      remove the expected-failure marker, and retain the complete both-axis
-      matrix as a status-0 regression. Dependencies: merged SC-CW1 and explicit
-      maintainer approval. Approval required; not approved. Commits:
+      remove the expected-failure marker, and retain the both-axis matrix as a
+      status-0 regression after merged SC-CW1 and explicit maintainer approval.
+      Approval required; not approved. Commits:
 - [x] **SC-B1 (the D30 current-contract investigation):** confirmed current
       gestures, event ownership, booleans/defaults, target lifecycle, requests,
       effects, and Qt5/fork parity across enabled, disabled, and no-target nested
