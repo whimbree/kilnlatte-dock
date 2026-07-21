@@ -48,6 +48,92 @@ set -uo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 
+valid_recipe_expectation() {
+    local expectation="$1" status
+    case "$expectation" in
+        ""|fail) return 0;;
+    esac
+    if [[ "$expectation" =~ ^status\ ([1-9][0-9]{0,2})$ ]]; then
+        status="${BASH_REMATCH[1]}"
+        (( status <= 255 ))
+        return
+    fi
+    return 1
+}
+
+classify_recipe_result() {
+    local expectation="$1" status="$2" name="$3" expected_status
+    if [[ -z "$expectation" ]]; then
+        if (( status == 0 )); then
+            recipe_result=PASS
+            recipe_result_message="run-e2e: PASS $name"
+        else
+            recipe_result=FAIL
+            recipe_result_message="run-e2e: FAIL $name"
+        fi
+    elif [[ "$expectation" == fail ]]; then
+        if (( status == 0 )); then
+            recipe_result=XPASS
+            recipe_result_message="run-e2e: XPASS $name (expected to fail but passed - remove '# e2e-expect: fail', the guarded condition is fixed)"
+        else
+            recipe_result=XFAIL
+            recipe_result_message="run-e2e: XFAIL $name (expected failure of a known-open bug, not counted)"
+        fi
+    else
+        expected_status="${expectation#status }"
+        if (( status == 0 )); then
+            recipe_result=XPASS
+            recipe_result_message="run-e2e: XPASS $name (expected reserved status $expected_status but passed - the guarded condition is fixed)"
+        elif (( status == expected_status )); then
+            recipe_result=XFAIL
+            recipe_result_message="run-e2e: XFAIL $name (matched reserved status $expected_status for the known-open bug)"
+        else
+            recipe_result=FAIL
+            recipe_result_message="run-e2e: FAIL $name (expected reserved status $expected_status, got $status; failure is outside the known signature)"
+        fi
+    fi
+}
+
+run_expectation_selftest() {
+    local failures=0
+    check_result() {
+        local label="$1" expectation="$2" status="$3" expected="$4"
+        classify_recipe_result "$expectation" "$status" selftest
+        if [[ "$recipe_result" == "$expected" ]]; then
+            echo "  ok   $label -> $expected"
+        else
+            echo "  FAIL $label -> $recipe_result, expected $expected" >&2
+            failures=$((failures + 1))
+        fi
+    }
+
+    check_result pass "" 0 PASS
+    check_result fail "" 1 FAIL
+    check_result legacy-xfail fail 1 XFAIL
+    check_result legacy-xpass fail 0 XPASS
+    check_result exact-xfail "status 42" 42 XFAIL
+    check_result exact-xpass "status 42" 0 XPASS
+    check_result status-mismatch "status 42" 1 FAIL
+    valid_recipe_expectation "status 42" || failures=$((failures + 1))
+    for invalid in "unknown" "status 0" "status 256" "status nope"; do
+        if valid_recipe_expectation "$invalid"; then
+            echo "  FAIL accepted invalid expectation '$invalid'" >&2
+            failures=$((failures + 1))
+        fi
+    done
+    (( failures == 0 )) || return 1
+    echo "run-e2e: PASS expectation classifier self-test"
+}
+
+if [[ "${1:-}" == "--self-test-expectations" ]]; then
+    run_expectation_selftest
+    exit $?
+fi
+if ! run_expectation_selftest >/dev/null; then
+    echo "run-e2e: FAIL expectation classifier self-test"
+    exit 2
+fi
+
 MODE=nested
 if [[ "${1:-}" == "--live" ]]; then
     MODE=live; shift
@@ -86,10 +172,9 @@ mapfile -t recipes < <(
 )
 
 recipe_mode() { sed -n 's/^# e2e-mode: *//p' "$1" | head -1; }
-# A recipe that reproduces a known-open bug carries "# e2e-expect: fail": the
-# driver then treats its failure as EXPECTED (XFAIL, not counted against the
-# suite) and its unexpected PASS as a hard failure (XPASS - the guarded bug is
-# fixed, so the marker must come off and the recipe becomes a real guard).
+# A known-open bug recipe carries "# e2e-expect: fail" for the legacy any-failure
+# contract or "# e2e-expect: status N" when only one reserved status proves the
+# known signature. Status 0 remains XPASS until the marker is removed.
 recipe_expect() { sed -n 's/^# e2e-expect: *//p' "$1" | head -1; }
 
 # ---- nested vehicle --------------------------------------------------------
@@ -214,10 +299,10 @@ for recipe in "${recipes[@]}"; do
         *) echo "run-e2e: FAIL unknown e2e-mode marker '$constraint' in $name (allowed: nested-only, live-only, or none)"; failed=$((failed+1)); continue;;
     esac
     expect="$(recipe_expect "$recipe")"
-    case "$expect" in
-        ""|fail) ;;
-        *) echo "run-e2e: FAIL unknown e2e-expect marker '$expect' in $name (allowed: fail, or none)"; failed=$((failed+1)); continue;;
-    esac
+    if ! valid_recipe_expectation "$expect"; then
+        echo "run-e2e: FAIL unknown e2e-expect marker '$expect' in $name (allowed: fail, status 1..255, or none)"
+        failed=$((failed+1)); continue
+    fi
     if [[ ( "$constraint" == "nested-only" && "$MODE" != nested ) \
        || ( "$constraint" == "live-only"   && "$MODE" != live   ) ]]; then
         echo "run-e2e: SKIP $name ($constraint)"; skipped=$((skipped+1)); continue
@@ -238,24 +323,16 @@ for recipe in "${recipes[@]}"; do
 
     echo "run-e2e: ---- $name"
     ran=$((ran+1))
-    if "$recipe"; then
-        if [[ "$expect" == fail ]]; then
-            #! the guarded bug is FIXED - this must go red until the marker is
-            #! removed and the recipe is promoted to a real guard
-            echo "run-e2e: XPASS $name (expected to fail but passed - remove '# e2e-expect: fail', the guarded condition is fixed)"
-            failed=$((failed+1))
-        else
-            echo "run-e2e: PASS $name"
-            passed=$((passed+1))
-        fi
-    else
-        if [[ "$expect" == fail ]]; then
-            echo "run-e2e: XFAIL $name (expected failure of a known-open bug, not counted)"
-            xfailed=$((xfailed+1))
-        else
-            echo "run-e2e: FAIL $name"
-            failed=$((failed+1))
-        fi
+    "$recipe"
+    status=$?
+    classify_recipe_result "$expect" "$status" "$name"
+    echo "$recipe_result_message"
+    case "$recipe_result" in
+        PASS) passed=$((passed+1));;
+        XFAIL) xfailed=$((xfailed+1));;
+        FAIL|XPASS) failed=$((failed+1));;
+    esac
+    if (( status != 0 )); then
         if [[ "$MODE" == nested ]]; then
             cp "$E2E_DOCK_LOG" "$E2E_ARTIFACTS/$name.dock.log" 2>/dev/null || true
             cp "$E2E_KWIN_LOG" "$E2E_ARTIFACTS/$name.kwin.log" 2>/dev/null || true
