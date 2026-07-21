@@ -289,10 +289,11 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   protocol operation families, migration, UI, observability, and nested gesture
   matrices remain separate units if a divergence is later approved.
 - FINDINGS: D58 (close-only and minimize-toggle settings do not enable window
-  tracking) is the confirmed root defect found by SC-B1. Separate plan findings
-  cover Wayland close without an `isCloseable()` check, minimize without an
-  `isMinimizeable()` check, and void operation APIs that cannot return typed
-  refusal. Those seams require later decision units and are not part of D58.
+  tracking) was the confirmed root defect found by SC-B1 and is fixed by PR #94.
+  Separate plan findings cover Wayland close without an `isCloseable()` check,
+  minimize without an `isMinimizeable()` check, and void operation APIs that
+  cannot return typed refusal. Those seams require later decision units and are
+  not part of D58.
 
 ### D56 - Pure-launcher task wheel uses inherited asymmetric activation
 - STATUS: ACCEPTED (Qt5-faithful behavior, not a Qt6 routing regression).
@@ -341,11 +342,11 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   `91cfb2bac`, e2e harness hardening at `14da9e7ce`, the complete
   requester source guard at `0a796e1ec`, and review tracking at `8c6b1c826`.
 - FOUND: 2026-07-20, SC-B1 (the D30 current-contract investigation).
-- SYMPTOM: close-only and `ScrollToggleMinimized` configurations report
-  `tracker.enabled=false`, leaving the configured close or minimize gesture with
-  no active-window target and no effect.
-- ROOT CAUSE: the `BindingsExternal.qml` active-window tracker expression enables
-  tracking for `dragActiveWindowEnabled`, but omits
+- SYMPTOM: before PR #94, close-only and `ScrollToggleMinimized` configurations
+  reported `tracker.enabled=false`, leaving the configured close or minimize
+  gesture with no active-window target and no effect.
+- ROOT CAUSE: the `BindingsExternal.qml` active-window tracker expression enabled
+  tracking for `dragActiveWindowEnabled`, but omitted
   `closeActiveWindowEnabled` and `scrollAction === ScrollToggleMinimized`.
 - EVIDENCE: the SC-B1 current-contract matrix independently observed the missing
   effects. SC-WT1 (the D58 tracker-enablement root fix and regression) then went

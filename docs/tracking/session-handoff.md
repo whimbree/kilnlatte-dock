@@ -249,10 +249,9 @@ below. Page behavior changes, action expansion, schemas, migrations, and
 maintained-continuation divergences are not approved by the plan.
 
 PR #88 landed SC-F1 at final commit `472711d11`. PR #89 landed SC-W1 at final
-commits `d2fa8bbd1`, `3b6930851`, and `c61ce8502`. These completions do not
-approve SC-F2 (the source-to-ledger coverage gate), SC-T3 (the D29 narrow
-dispatch readback), SC-CW1 (the D57 ConfigOverlay wheel-threshold reproduction),
-or SC-WT1 (the D58 tracker-enablement root fix and regression).
+commits `d2fa8bbd1`, `3b6930851`, and `c61ce8502`. SC-F2 (the source-to-ledger
+coverage gate) and SC-T3 (the D29 narrow dispatch readback) remain incomplete;
+their existing approval does not widen any adjacent unit.
 
 - D29 (task-icon middle click appears to execute left-click behavior) is
   ACCEPTED as Qt5-faithful configuration-scope behavior. At `5c2223a3e`, a
@@ -273,15 +272,15 @@ or SC-WT1 (the D58 tracker-enablement root fix and regression).
   target history. The evidence favors retain-and-clarify, but SC-B2 remains
   pending and no expanded action model is approved.
 - D57 (ConfigOverlay wheel threshold accepts nonnegative decrease deltas) is
-  SUSPECTED from code-reading: the decrease branch uses `angle < 12` instead of
-  `angle < -12`. SC-CW1 (the D57 ConfigOverlay wheel-threshold reproduction) is
-  approved as evidence only; no fix is approved.
+  OPEN and reproduced. PR #96 landed SC-CW1 (the D57 ConfigOverlay
+  wheel-threshold reproduction) at final commits `5ec57175f`, `aa6399b44`,
+  `709c0946b`, and `9b0672cf9`. SC-CW2 (the D57 signed decrease-threshold fix and
+  regression promotion) remains unchecked, approval-required, and unapproved.
 - D58 (close-only and minimize-toggle settings do not enable window tracking) is
-  OPEN and confirmed. `BindingsExternal.qml` enables tracking for drag but omits
-  close and `ScrollToggleMinimized`, so those configurations report
-  `tracker.enabled=false` and have no effect. SC-WT1 (the D58 tracker-enablement
-  root fix and regression) is approved. Wayland close/minimize capability checks
-  and typed-refusal APIs remain separate plan findings.
+  FIXED by PR #94. SC-WT1 (the D58 tracker-enablement root fix and regression)
+  landed at final commits `15f026887`, `91cfb2bac`, `14da9e7ce`, `0a796e1ec`,
+  and `8c6b1c826`. Wayland close/minimize capability checks and typed-refusal APIs
+  remain separate plan findings.
 - D56 (pure-launcher task wheel uses inherited asymmetric activation) is
   ACCEPTED as Qt5-faithful. The initial disposable nested capture at `6765b2320`
   is now backed by the permanent SC-W1 (the D56 launcher-wheel regression guard)

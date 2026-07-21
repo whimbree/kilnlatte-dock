@@ -235,14 +235,16 @@ The evidence favors retain-and-clarify, but SC-B2 (the D30 product decision and
 sign-off gate) remains pending and no product decision or action expansion is
 approved.
 
-SC-B1 also confirmed D58 (close-only and minimize-toggle settings do not enable
-window tracking): `BindingsExternal.qml` enables the active-window tracker for
-`dragActiveWindowEnabled` but omits `closeActiveWindowEnabled` and
-`ScrollToggleMinimized`. SC-WT1 owns only that existing-contract root fix and
-regression. Separate findings remain for Wayland close without an
-`isCloseable()` capability check, minimize without an `isMinimizeable()` check,
-and void operation APIs that cannot report typed refusal. Those seams require
-later decision units and are not bundled into D58 or SC-B2.
+SC-B1 also found D58 (close-only and minimize-toggle settings do not enable
+window tracking). PR #94 fixed it under SC-WT1 (the D58 tracker-enablement root
+fix and regression): `BindingsExternal.qml` now enables the active-window
+tracker for `dragActiveWindowEnabled`, `closeActiveWindowEnabled`, and
+`ScrollToggleMinimized`. Root commit `15f026887` added the two missing requesters;
+`14da9e7ce` and `0a796e1ec` hardened the regression and complete requester guard.
+Separate findings remain for Wayland close without an `isCloseable()` capability
+check, minimize without an `isMinimizeable()` check, and void operation APIs that
+cannot report typed refusal. Those seams require later decision units and are not
+bundled into D58 or SC-B2.
 
 ### D56 (pure-launcher task wheel uses inherited asymmetric activation)
 
