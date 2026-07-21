@@ -245,46 +245,54 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   gap that let the collapse be invisible.
 
 ### D29 - Task-icon middle click appears to execute left-click behavior
-- STATUS: OPEN (observed live on a task icon 2026-07-19; the exact row kind,
-  stored action, event recipient, request, and independent effect remain
-  unproven).
-- SYMPTOM: middle click appeared to produce the same activation as left click.
-- CODE GROUNDING: non-launcher rows dispatch `middleClickAction`, while a pure
-  launcher calls `activateTask()`. Modifier-click has the same launcher
-  fallback. Both branches are inherited from Qt5, so code shape alone does not
-  identify the observed row or prove a defect.
-- TEST GAP: `taskshandleraudittest` proves config round-trip,
-  `tst_taskactions.qml` proves enum-to-command mapping, and
-  `034-tasks-config-apply.sh` seeds config directly. No permanent test captures
-  one real middle click from row classification through event receipt and model
-  request to an independent effect.
-- NEXT: SC-T1 (the D29 middle-click evidence capture) in
-  `settings-surface-completion-plan.md` records the exact row kind, stored
-  action, event recipient, command or model request, and independent effect
-  before any solution is selected. It remains inactive until the dependent
-  execution-ledger PR lands. Any real Qt5 divergence requires explicit
-  maintainer sign-off. No action expansion, enum, schema, or target/action
-  matrix is approved.
+- STATUS: ACCEPTED (resolved from OPEN 2026-07-20; inherited Qt5 behavior and a
+  configuration-scope misunderstanding, not a Qt6 defect).
+- EVIDENCE: at `origin/main` commit `5c2223a3e`, the default
+  `middleClickAction=2` means `NewInstance`. A physical middle click on a pure
+  Dolphin launcher reached `TaskMouseArea` as `Qt.MiddleButton`. The launcher
+  branch ignored `middleClickAction`, called `activateTask()`, then
+  `activateLauncher()`, and reached `TasksModel.requestActivate`. Independent
+  KWin and model state changed from zero to one Dolphin window, and the row
+  became the active window.
+- CONTROL: the same click on the resulting single-window row used the
+  non-launcher dispatch, selected `newInstance`, and reached
+  `TasksModel.requestNewInstance`. Independent state changed from one to two
+  Dolphin windows and the grouped row reported `childCount=2`. The complete
+  sequence was reproduced twice.
+- HISTORY: Qt5 and both reference forks retain the launcher exception. The
+  configured task action applies after a launcher has become a window row; it
+  does not replace pure-launcher activation.
+- DISPOSITION: preserve the behavior with no fix or divergence. Existing D-Bus
+  state cannot distinguish `requestActivate` from `requestNewInstance`, so
+  SC-T3 (the D29 narrow dispatch readback) remains as a small observability
+  follow-up before SC-T5 (the D29 permanent runtime-effect acceptance). SC-T4
+  (the D29 root fix) is not applicable. Temporary instrumentation was removed.
 
 ### D30 - Behavior mouse actions expose fixed booleans instead of full choices
-- STATUS: OPEN (confirmed by code and the live settings surface 2026-07-19;
-  investigation planned but inactive until the dependent execution-ledger PR
-  lands; action expansion not approved).
-- SYMPTOM: the Actions section presents `Left Button: Drag Active Window` and
-  `Middle Button: Close Active Window` as action-valued rows, but the controls
-  are checkable buttons with no popup or explicit choice list.
-- ROOT: `BehaviorConfig.qml` binds the buttons to
-  `dragActiveWindowEnabled` and `closeActiveWindowEnabled`.
-  `EnvironmentActions.qml` uses the first boolean for left drag and
-  double-click maximize/restore, and the second for middle-click close. This is
-  inherited Qt5 behavior, not a Qt6 popup regression. Task-icon actions are a
-  separate Tasks-page surface.
-- NEXT: SC-B1 (the D30 current-contract investigation) inventories gesture
-  ownership, defaults, requests, target lifecycle, capabilities, effects, Qt5,
-  and both forks. SC-B2 (the D30 product decision and sign-off gate) then selects
-  retain-and-clarify or a bounded maintained-continuation divergence. Typed
-  core/API work, each protocol operation family, migration, UI, observability,
-  and each nested gesture matrix remain separate PR units after sign-off.
+- STATUS: OPEN at the product-decision gate. SC-B1 confirmed the current
+  contract and its Qt5/fork parity; SC-B2 remains pending and no action expansion
+  is approved.
+- CURRENT CONTRACT: `BehaviorConfig.qml` binds two checkable buttons to
+  `dragActiveWindowEnabled` and `closeActiveWindowEnabled`, with no action model
+  or popup. The first boolean owns left drag or hold-to-move and left
+  double-click maximize/restore. The second owns middle-click close. Left
+  single-click is a no-op. Both booleans default to false, and `scrollAction`
+  defaults to 0 (`ScrollNone`). Values 0 through 4 retain the existing none,
+  desktop, activity, task, and minimize-toggle behavior. Task-icon actions remain
+  a separate Tasks-page surface.
+- EVIDENCE: nested runs covered enabled, disabled, and no-target configurations;
+  move, maximize, and close; desktop and task wheel paths; activity refusal; and
+  target history. Qt5 and both reference forks retain the same boolean controls
+  and gesture ownership. This is inherited behavior, not a Qt6 popup regression.
+- DISPOSITION: the evidence favors retain-and-clarify, but SC-B2 (the D30
+  product decision and sign-off gate) remains pending. Typed core/API work,
+  protocol operation families, migration, UI, observability, and nested gesture
+  matrices remain separate units if a divergence is later approved.
+- FINDINGS: D58 (close-only and minimize-toggle settings do not enable window
+  tracking) is the confirmed root defect found by SC-B1. Separate plan findings
+  cover Wayland close without an `isCloseable()` check, minimize without an
+  `isMinimizeable()` check, and void operation APIs that cannot return typed
+  refusal. Those seams require later decision units and are not part of D58.
 
 ### D56 - Pure-launcher task wheel uses inherited asymmetric activation
 - STATUS: ACCEPTED (Qt5-faithful behavior, not a Qt6 routing regression;
@@ -302,6 +310,37 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   guard) adds permanent coverage for positive, negative, `ScrollNone`, manual
   scrolling, and no-overflow branches. This finding is separate from D29
   (task-icon middle click appears to execute left-click behavior).
+
+### D57 - ConfigOverlay wheel threshold accepts nonnegative decrease deltas
+- STATUS: SUSPECTED (code-reading only; no driven reproduction).
+- FOUND: 2026-07-20, SC-F1 (the per-view source inventory and evidence ledger).
+- SYMPTOM: zero, horizontal, and small positive wheel deltas can decrease a
+  Latte-style applet's length.
+- EVIDENCE: `containment/package/contents/ui/editmode/ConfigOverlay.qml` increases
+  length for `angle > 12`, then decreases for `angle < 12` instead of
+  `angle < -12`. The branch shape is inherited, but the real event path and
+  independent applet-length effect have not been driven.
+- NEXT: SC-CW1 (the D57 ConfigOverlay wheel-threshold reproduction) is approved
+  to drive positive, negative, zero, horizontal, and sub-threshold controls. It
+  is an evidence unit only; no fix is approved before reproduction.
+
+### D58 - Close-only and minimize-toggle settings do not enable window tracking
+- STATUS: OPEN (confirmed by SC-B1 nested evidence 2026-07-20).
+- FOUND: 2026-07-20, SC-B1 (the D30 current-contract investigation).
+- SYMPTOM: close-only and `ScrollToggleMinimized` configurations report
+  `tracker.enabled=false`, leaving the configured close or minimize gesture with
+  no active-window target and no effect.
+- ROOT CAUSE: the `BindingsExternal.qml` active-window tracker expression enables
+  tracking for `dragActiveWindowEnabled`, but omits
+  `closeActiveWindowEnabled` and `scrollAction === ScrollToggleMinimized`.
+- EVIDENCE: the nested current-contract matrix covered enabled, disabled, and
+  no-target cases and independently observed the missing effects. The same run
+  proved the move/maximize/close, desktop/task wheel, activity-refusal, and
+  target-history paths when tracking was enabled by another requester.
+- FIX DIRECTION: SC-WT1 (the D58 tracker-enablement root fix and regression) is
+  approved to add only the two missing existing-contract dependencies and
+  regress close-only and minimize-toggle effects. Wayland capability checks and
+  typed-refusal API work remain separate plan findings, not part of D58.
 
 ## Recorded elsewhere - indexed here so the flat scan is complete
 

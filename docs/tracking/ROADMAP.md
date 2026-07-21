@@ -32,18 +32,27 @@ every target, at which point VERSION bumps to 0.20.0 and the tag lands.
   drivers), SC-D2 (the popup and lifecycle driver helpers), SC-C1 (the ComboBox
   and ComboBoxButton family), SC-C2 (the slider and numeric-field family), SC-C3
   (the text-entry family), SC-C4 (the checkable and grouped-button family), SC-C5
-  (the color-control and dialog family), SC-T1 (the middle-click evidence
-  capture), SC-B1 (the empty-area action investigation), and SC-W1 (the
-  launcher-wheel regression guard). Per-view pages come first; global Qt Widgets
-  settings follow under the same C1-C9 (nine-property control completion)
-  contract. D29 (task-icon middle click appears to execute
-  left-click behavior) remains unproven. D30 (Behavior mouse actions expose fixed
-  booleans instead of full choices) is code-grounded but has no approved action
-  expansion. D56 (pure-launcher task wheel uses inherited asymmetric activation)
-  is accepted as Qt5-faithful pending a permanent regression guard. D24 (TypeSelection
-  Dock/Panel presets write two dead keys) is an independent small cleanup.
-  D31 (valid Justify splitter moves reset after restart) is already fixed by PR
-  #73 and is outside this plan.
+  (the color-control and dialog family), SC-W1 (the launcher-wheel regression
+  guard), SC-T3 (the D29 narrow dispatch readback), SC-T5 (the D29 permanent
+  runtime-effect acceptance), SC-CW1 (the D57 ConfigOverlay wheel-threshold
+  reproduction), and SC-WT1 (the D58 tracker-enablement root fix and regression).
+  SC-T1 (the D29 middle-click evidence capture), SC-T2 (the D29 disposition), and
+  SC-B1 (the D30 current-contract investigation) are complete evidence records.
+  Per-view pages come first; global Qt Widgets settings follow under the same
+  C1-C9 (nine-property control completion) contract. D29 (task-icon middle click
+  appears to execute left-click behavior) is accepted as Qt5-faithful
+  configuration-scope behavior; SC-T4 (the D29 root fix) is not applicable. D30
+  (Behavior mouse actions expose fixed booleans instead of full choices) is an
+  inherited contract whose evidence favors retain-and-clarify, but SC-B2 (the
+  D30 product decision and sign-off gate) remains pending with no action
+  expansion approved. D57 (ConfigOverlay wheel threshold accepts nonnegative
+  decrease deltas) remains suspected pending reproduction. D58 (close-only and
+  minimize-toggle settings do not enable window tracking) is confirmed and open
+  for its narrow root fix. D56 (pure-launcher task wheel uses inherited
+  asymmetric activation) is accepted as Qt5-faithful pending a permanent
+  regression guard. D24 (TypeSelection Dock/Panel presets write two dead keys)
+  is an independent small cleanup. D31 (valid Justify splitter moves reset after
+  restart) is already fixed by PR #73 and is outside this plan.
 - [E2e interaction tests](e2e-interaction-test-plan.md) - the nested-vehicle
   interaction matrix. The interaction DRIVER layer (C-I chunks) landed; the
   scenario and abort chunks (C-S/C-A) and C-I5 (moveViewToScreen) are pending; a

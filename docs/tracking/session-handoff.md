@@ -91,7 +91,7 @@ Gentoo and Void followed in PRs #85 and #86, with current evidence recorded
 above. No settings or defect state changed, and no new defect was found or
 filed.
 
-## 2026-07-20: settings completion plan limited to evidence and scaffold work
+## 2026-07-20: settings investigations disposed and focused follow-ups approved
 
 `docs/tracking/settings-surface-completion-plan.md` now separates the per-view
 and global settings initiative into one-PR source inventory, read-only registry,
@@ -105,22 +105,39 @@ Approval covers only the evidence-first and scaffold sequence: SC-F1 (the
 per-view source inventory and evidence ledger), SC-F2 (the source-to-ledger
 coverage gate), SC-O1 (the read-only settings-control D-Bus registry),
 SC-D1 (the pointer and keyboard driver), SC-D2 (the popup and lifecycle helper),
-SC-C1 through SC-C5 (the five shared-control component families), and the three
-focused evidence/guard units below. Page behavior changes, action expansion,
-schemas, migrations, and maintained-continuation divergences are not approved
-by the plan.
+SC-C1 through SC-C5 (the five shared-control component families), SC-W1 (the
+launcher-wheel regression guard), and the focused D29, D57, and D58 follow-ups
+below. Page behavior changes, action expansion, schemas, migrations, and
+maintained-continuation divergences are not approved by the plan.
 
-- D29 (task-icon middle click appears to execute left-click behavior) remains
-  OPEN and unproven. SC-T1 (the D29 middle-click evidence capture) must record
-  exact row kind, stored action, event recipient, command or model request, and
-  independent effect before any solution is selected. Any real Qt5 divergence
-  requires explicit maintainer sign-off.
+- D29 (task-icon middle click appears to execute left-click behavior) is
+  ACCEPTED as Qt5-faithful configuration-scope behavior. At `5c2223a3e`, a
+  physical middle click with default `middleClickAction=2` reached a pure Dolphin
+  launcher, dispatched `activateLauncher` to `requestActivate`, and changed zero
+  windows to one active window. The same click on that single-window row
+  dispatched `newInstance` to `requestNewInstance`, changing one window to a
+  two-child group. The sequence was reproduced twice; Qt5 and both forks retain
+  the launcher exception; temporary instrumentation was removed. SC-T3 (the D29
+  narrow dispatch readback) is approved, followed by SC-T5 (the D29 permanent
+  runtime-effect acceptance). SC-T4 (the D29 root fix) is not applicable.
 - D30 (Behavior mouse actions expose fixed booleans instead of full choices)
-  remains OPEN and code-grounded. SC-B1 (the D30 current-contract
-  investigation) precedes the product decision. Typed core/API work, each
-  protocol operation family, migration, UI, observability, and each nested
-  gesture matrix are separate later PR units. No expanded action model is
-  approved.
+  remains OPEN only at SC-B2 (the product decision and sign-off gate). SC-B1
+  (the D30 current-contract investigation) confirmed inherited booleans for
+  left move/double-click maximize and middle close, a left single-click no-op,
+  and the current wheel 0-4 behavior. Nested proof covered enabled, disabled,
+  no-target, move/maximize/close, desktop/task wheel, activity refusal, and
+  target history. The evidence favors retain-and-clarify, but SC-B2 remains
+  pending and no expanded action model is approved.
+- D57 (ConfigOverlay wheel threshold accepts nonnegative decrease deltas) is
+  SUSPECTED from code-reading: the decrease branch uses `angle < 12` instead of
+  `angle < -12`. SC-CW1 (the D57 ConfigOverlay wheel-threshold reproduction) is
+  approved as evidence only; no fix is approved.
+- D58 (close-only and minimize-toggle settings do not enable window tracking) is
+  OPEN and confirmed. `BindingsExternal.qml` enables tracking for drag but omits
+  close and `ScrollToggleMinimized`, so those configurations report
+  `tracker.enabled=false` and have no effect. SC-WT1 (the D58 tracker-enablement
+  root fix and regression) is approved. Wayland close/minimize capability checks
+  and typed-refusal APIs remain separate plan findings.
 - D56 (pure-launcher task wheel uses inherited asymmetric activation) is
   ACCEPTED as Qt5-faithful after a disposable nested capture at `6765b2320`.
   Positive wheel activates the launcher through `TasksModel.requestActivate`,
@@ -131,6 +148,11 @@ by the plan.
   SC-M1 (the D24 dead TypeSelection write cleanup), independent of D30.
   D31 (valid Justify splitter moves reset after restart) remains FIXED by PR #73
   and is outside the settings-completion ownership.
+
+SC-T1 (the D29 middle-click evidence capture), SC-T2 (the D29 disposition), and
+SC-B1 are provisionally checked against this docs-only branch record. Their
+final post-rebase commit hash must replace the provisional trace after merge;
+no final hash is claimed in this branch.
 
 ## 2026-07-20: D25 (task icons stay stale after icon-theme changes) fixed
 

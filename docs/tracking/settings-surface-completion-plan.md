@@ -1,23 +1,23 @@
 # Settings surface completion plan
 
-Planning artifact, split for review 2026-07-20. Approval is inactive in this
-foundation. The evidence-first and scaffold sequence becomes authorized only
-after the dependent execution-ledger PR lands and this document includes
-sections 7-9. This initiative proves that Latte-owned settings can be reached,
-operated, persisted, and observed through their real interfaces. It follows the
-completed `edit-mode-settings-audit-plan.md` wiring audit without treating
-handler transcription or direct config seeding as end-to-end evidence.
+Planning artifact, split for review 2026-07-20. The dependent execution ledger
+has landed, and authorization is limited to the exact units in section 1. This
+initiative proves that Latte-owned settings can be reached, operated, persisted,
+and observed through their real interfaces. It follows the completed
+`edit-mode-settings-audit-plan.md` wiring audit without treating handler
+transcription or direct config seeding as end-to-end evidence.
 
-Production behavior changes are not approved by this document. In particular,
-no task-action expansion, empty-area action expansion, persisted action enum,
-schema migration, or maintained-continuation divergence is approved before the
-driven evidence and sign-off gates below. Exact models, enum values, D-Bus
-records, and migrations are selected only after source inventory and runtime
-evidence establish what is needed.
+Production behavior changes are not approved by this document except SC-WT1
+(the D58 tracker-enablement root fix and regression) at the exact existing-
+contract boundary recorded below. No task-action expansion, empty-area action
+expansion, persisted action enum, schema migration, or maintained-continuation
+divergence is approved before the driven evidence and sign-off gates below.
+Exact models, enum values, D-Bus records, and migrations are selected only after
+source inventory and runtime evidence establish what is needed.
 
 ## 1. Approval boundary
 
-Only after the dependent execution-ledger PR lands may the following work start:
+The exact approved or completed boundary is:
 
 - SC-F1 (the per-view source inventory and evidence ledger) and SC-F2 (the
   source-to-ledger coverage gate);
@@ -30,18 +30,20 @@ Only after the dependent execution-ledger PR lands may the following work start:
 - SC-C3 (the text-entry component family);
 - SC-C4 (the checkable and grouped-button component family);
 - SC-C5 (the color-control and dialog component family);
-- SC-T1 (the middle-click evidence capture) for D29 (task-icon middle click
-  appears to execute left-click behavior), SC-B1 (the empty-area action
-  investigation) for D30 (Behavior mouse actions expose fixed booleans instead
-  of full choices), and SC-W1 (the launcher-wheel regression guard) for
-  D56 (pure-launcher task wheel uses inherited asymmetric activation).
+- SC-T1 (the D29 middle-click evidence capture), SC-T2 (the D29 disposition),
+  and SC-B1 (the D30 current-contract investigation) are complete records;
+- SC-T3 (the D29 narrow dispatch readback), followed by SC-T5 (the D29
+  permanent runtime-effect acceptance);
+- SC-W1 (the launcher-wheel regression guard) for D56 (pure-launcher task wheel
+  uses inherited asymmetric activation);
+- SC-CW1 (the D57 ConfigOverlay wheel-threshold reproduction); and
+- SC-WT1 (the D58 tracker-enablement root fix and regression).
 
-No listed work is authorized by this foundation alone. After the dependency
-lands, every other unchecked item remains sequenced but unauthorized for
+Every other unchecked item remains sequenced but unauthorized for
 implementation. The relevant evidence gate and explicit maintainer sign-off for
 any Qt5 divergence must be recorded in this plan before an implementation agent
-is farmed. A sign-off for one behavior does not approve adjacent action
-expansion.
+is farmed. SC-B2 (the D30 product decision and sign-off gate) remains pending. A
+sign-off for one behavior does not approve adjacent action expansion.
 
 ## 2. Why the earlier audit is not completion evidence
 
@@ -191,53 +193,56 @@ page or matrix unit starts.
 
 ### D29 (task-icon middle click appears to execute left-click behavior)
 
-Status remains OPEN and unproven. Live observation on 2026-07-19 established a
-task-icon symptom, not the exact row or dispatch path. Current code dispatches
-`middleClickAction` for non-launcher rows, while a pure launcher calls
-`activateTask()`. Both branches are inherited from Qt5.
+Status is ACCEPTED as Qt5-faithful behavior and a configuration-scope
+misunderstanding, not a Qt6 defect. At `origin/main` commit `5c2223a3e`, the
+default `middleClickAction=2` means `NewInstance`. A physical middle click on a
+pure Dolphin launcher reached `TaskMouseArea` as `Qt.MiddleButton`. The launcher
+exception deliberately ignored `middleClickAction`, called `activateTask()`,
+then `activateLauncher()`, and reached `TasksModel.requestActivate`. Independent
+KWin and model state changed from zero to one Dolphin window, and that row became
+the active window.
 
-After the dependent execution-ledger PR lands, SC-T1 is the first and only
-authorized D29 task. It must capture one physical middle click end to end and
-record all five facts together:
+The same physical click on the resulting single-window row then used the
+non-launcher dispatch, selected `newInstance`, and reached
+`TasksModel.requestNewInstance`. Independent state changed from one to two
+Dolphin windows and the grouped row reported `childCount=2`. The complete
+sequence was reproduced twice. Qt5 and both reference forks retain the launcher
+exception, so no fix or divergence is selected. Temporary instrumentation was
+removed.
 
-1. exact task row kind and stable target identity;
-2. stored `middleClickAction` value at the moment of input;
-3. QML event recipient and accepted-button path;
-4. exact command or tasks-model request emitted, including no request;
-5. an independent model, window, process, or compositor effect.
-
-The capture starts with the observed configuration. Additional row kinds are
-controls only after the first path is known. Temporary instrumentation is
-allowed in a disposable worktree and is removed before the evidence PR.
-
-No solution, action enum, persisted schema, target/action matrix, group policy,
-or unsupported-value policy is selected in advance. SC-T2 records whether the
-capture is a config misunderstanding, inherited Qt5 behavior, or a real defect.
-Any proposed behavior that differs from Qt5 requires explicit maintainer sign-off
-under the orchestrator rules before a production task is added. An action-
-surface expansion is a separate continuation proposal and cannot be attached to
-D29.
+Existing D-Bus state proves the independent effects but cannot distinguish
+`requestActivate` from `requestNewInstance`. SC-T3 (the D29 narrow dispatch
+readback) is therefore authorized to expose only the latest middle-click row
+kind and identity, configured action, dispatched operation, and monotonic
+sequence. SC-T5 (the D29 permanent runtime-effect acceptance) follows it and
+pins both observed rows and effects. SC-T4 (the D29 root fix) is not applicable.
+No action enum, persisted schema, target/action matrix, group-policy change, or
+action-surface expansion is approved.
 
 ### D30 (Behavior mouse actions expose fixed booleans instead of full choices)
 
-Status remains OPEN and code-grounded. `BehaviorConfig.qml` uses two checkable
-buttons backed by `dragActiveWindowEnabled` and
-`closeActiveWindowEnabled`. `EnvironmentActions.qml` uses the first boolean for
-left-button drag and double-click maximize/restore, and the second for
-middle-click close. The controls have no action model or popup. This is inherited
-Qt5 behavior, not a Qt6 popup regression.
+SC-B1 confirms an inherited boolean contract, not a popup regression.
+`dragActiveWindowEnabled` owns left drag or hold-to-move and left double-click
+maximize/restore. `closeActiveWindowEnabled` owns middle-click close. Left
+single-click is a no-op. Both booleans default to false, and `scrollAction`
+defaults to 0 (`ScrollNone`). Values 0 through 4 retain their current none,
+desktop, activity, task, and minimize-toggle behavior.
 
-SC-B1 inventories the exact current gestures, event ownership, config defaults,
-runtime requests, target retention, capabilities, and protocol surface. It also
-compares Qt5 and both reference forks. SC-B2 then presents the evidence and the
-smallest alternatives: retain and clarify the boolean UI, or approve a recorded
-maintained-continuation divergence with a bounded set of choices.
+Nested evidence covered enabled, disabled, and no-target states; move, maximize,
+and close; desktop and task wheel paths; activity refusal; and target history.
+Qt5 and both reference forks retain the same two booleans and gesture ownership.
+The evidence favors retain-and-clarify, but SC-B2 (the D30 product decision and
+sign-off gate) remains pending and no product decision or action expansion is
+approved.
 
-No expansion is approved yet. If a divergence is approved, typed decision core,
-window-system API additions, migration, UI, observability, and each nested
-gesture matrix remain separate PR units. Exact action values and models are
-chosen after SC-B1 and recorded at SC-B2. Missing `LastActiveWindow` or Wayland
-operations are added one operation family per PR, not as one protocol sweep.
+SC-B1 also confirmed D58 (close-only and minimize-toggle settings do not enable
+window tracking): `BindingsExternal.qml` enables the active-window tracker for
+`dragActiveWindowEnabled` but omits `closeActiveWindowEnabled` and
+`ScrollToggleMinimized`. SC-WT1 owns only that existing-contract root fix and
+regression. Separate findings remain for Wayland close without an
+`isCloseable()` capability check, minimize without an `isMinimizeable()` check,
+and void operation APIs that cannot report typed refusal. Those seams require
+later decision units and are not bundled into D58 or SC-B2.
 
 ### D56 (pure-launcher task wheel uses inherited asymmetric activation)
 
@@ -255,6 +260,27 @@ occurs. Production does not call `TaskActions.scrollCommandFor` on this path.
 not D29 and not a Qt6 routing regression. SC-W1 adds a permanent regression test
 for the observed positive, negative, `ScrollNone`, manual-scroll, and no-overflow
 branches without changing behavior.
+
+### D57 (ConfigOverlay wheel threshold accepts nonnegative decrease deltas)
+
+Status is SUSPECTED from code-reading only. `ConfigOverlay.qml` increases applet
+length for `angle > 12`, then decreases for `angle < 12` instead of
+`angle < -12`. Zero, horizontal, and small positive deltas can therefore enter
+the decrease branch. The shape is inherited, but no driven reproduction exists.
+SC-CW1 is approved only to reproduce the real event path with positive,
+negative, zero, horizontal, and sub-threshold controls. A fix is not approved
+until that evidence records the actual effect.
+
+### D58 (close-only and minimize-toggle settings do not enable window tracking)
+
+Status is OPEN and confirmed by the SC-B1 nested evidence. The active-window
+tracker enablement expression includes `dragActiveWindowEnabled` but omits both
+`closeActiveWindowEnabled` and `scrollAction === ScrollToggleMinimized`. A
+close-only or minimize-toggle fixture therefore reports `tracker.enabled=false`
+and the configured gesture has no target or effect. SC-WT1 is approved to add
+only those two existing-contract enablement dependencies and regress enabled,
+disabled, and no-target effects. Capability checks and typed refusal remain
+separate findings.
 
 ### Existing defect boundaries
 
@@ -417,42 +443,59 @@ in SC-R6.
       expected-dead-write assertions with absence guards. Dependencies: SC-P10
       evidence. Commits:
 
-### Evidence-gated task and empty-area work
+### Evidence-gated task, empty-area, and focused defect work
 
-- [ ] **SC-T1 (the D29 middle-click evidence capture):** capture exact row,
-      stored action, event recipient, command/model request, and independent
-      effect for the observed click. No production behavior change.
-      Dependencies: existing fakepointer, `appletConfigData`, and
-      `viewTasksData`; no new settings scaffold. Commits:
-- [ ] **SC-T2 (the D29 disposition and sign-off gate):** compare the captured
-      path with Qt5 and both forks, record the defect or accepted behavior, and
-      obtain explicit maintainer sign-off before any divergence. Dependencies:
-      SC-T1. Commits:
-- [ ] **SC-T3 (the D29 observability readback, if required):** expose only the
-      proven dispatch fact missing from independent acceptance. This item is
-      removed if existing model/compositor state is sufficient. Dependencies:
-      SC-T2. Not approved before SC-T2. Commits:
-- [ ] **SC-T4 (the D29 root fix, if proven):** change only the captured
-      middle-click root cause while preserving unrelated task actions. Exact
-      behavior is written here after SC-T2. Dependencies: SC-T2 and SC-T3 when
-      retained. Not approved. Commits:
+- [x] **SC-T1 (the D29 middle-click evidence capture):** captured the pure
+      Dolphin launcher and resulting single-window row with the stored action,
+      event recipient, model requests, and independent effects. The sequence was
+      reproduced twice and temporary instrumentation was removed. Dependencies:
+      existing fakepointer, `appletConfigData`, and `viewTasksData`; no new
+      settings scaffold. Commits: PROVISIONAL (this docs-only evidence record;
+      final post-rebase hash pending)
+- [x] **SC-T2 (the D29 disposition and sign-off gate):** Qt5 and both forks
+      retain the launcher exception. D29 is accepted as Qt5-faithful behavior
+      and a configuration-scope misunderstanding, with no divergence or fix.
+      Dependencies: SC-T1. Commits: PROVISIONAL (this docs-only disposition
+      record; final post-rebase hash pending)
+- [ ] **SC-T3 (the D29 narrow dispatch readback):** expose only the
+      latest middle-click row identity and kind, configured action, dispatched
+      operation, and monotonic sequence needed to distinguish launcher
+      activation from new-instance dispatch. No setter, history, or action
+      expansion. Dependencies: SC-T2. Approved. Commits:
+- [x] **SC-T4 (the D29 root fix, if proven):** not applicable because SC-T2
+      established Qt5-faithful behavior with no defect or selected divergence.
+      Dependencies: SC-T2. Commits: N/A (accepted behavior requires no fix)
 - [ ] **SC-T5 (the D29 permanent runtime-effect acceptance):** always drive the
-      captured row and necessary control rows, assert dispatch plus an
-      independent effect, and include a negative control. This unit remains even
-      when SC-T2 records no defect or ACCEPTED behavior. Dependencies: SC-T2 and
-      SC-T3/SC-T4 as retained. Not approved before SC-T2. Commits:
+      pure launcher and resulting single-window row, assert the SC-T3 dispatch
+      plus the zero-to-one active-window and one-to-two grouped-child effects,
+      and include a negative control. Dependencies: SC-T2 and SC-T3; SC-T4 is
+      not applicable. Approved after SC-T3. Commits:
 - [ ] **SC-W1 (the D56 launcher-wheel regression guard):** pin inherited pure
       launcher positive activation, negative no-op, `ScrollNone` refusal,
       manual-scroll enablement, and no-overflow behavior. Dependencies: existing
       task fixture and wheel driver only. Commits:
-- [ ] **SC-B1 (the D30 current-contract investigation):** capture existing
+- [ ] **SC-CW1 (the D57 ConfigOverlay wheel-threshold reproduction):** drive a
+      Latte-style applet through positive, negative, zero, horizontal, and
+      sub-threshold wheel deltas and record independent applet-length effects.
+      This unit reproduces only; any fix requires a new approved item.
+      Dependencies: existing fakepointer wheel driver, ConfigOverlay fixture,
+      and applet-length readback. Approved. Commits:
+- [x] **SC-B1 (the D30 current-contract investigation):** confirmed current
       gestures, event ownership, booleans/defaults, target lifecycle, requests,
-      capabilities, effects, and Qt5/fork parity. No production behavior change.
-      Dependencies: existing fakepointer and window/view readbacks; no new
-      settings scaffold. Commits:
+      effects, and Qt5/fork parity across enabled, disabled, and no-target nested
+      cases. No production behavior changed. Dependencies: existing fakepointer
+      and window/view readbacks; no new settings scaffold. Commits: PROVISIONAL
+      (this docs-only evidence record; final post-rebase hash pending)
+- [ ] **SC-WT1 (the D58 tracker-enablement root fix and regression):** add only
+      `closeActiveWindowEnabled` and `ScrollToggleMinimized` to the active-window
+      tracker enablement expression, then regress close-only and minimize-toggle
+      enabled, disabled, and no-target effects. Capability checks and typed
+      refusal are excluded. Dependencies: SC-B1 and existing tracker/window
+      readbacks. Approved. Commits:
 - [ ] **SC-B2 (the D30 product decision and sign-off gate):** select retain and
       clarify, or a bounded action-choice divergence. Record exact gestures and
-      choices only here after SC-B1. Dependencies: SC-B1. Commits:
+      choices only here after SC-B1. Evidence favors retain-and-clarify, but the
+      explicit product decision remains pending. Dependencies: SC-B1. Commits:
 - [ ] **SC-B3 (the D30 typed action decision core):** implement only the
       approved gesture/action decision table as a sanitized C++20 core. No
       schema, QML, or window protocol changes. Dependencies: SC-B2. Not
@@ -509,27 +552,27 @@ writes leave C3 open.
 - [ ] **SC-X1 (the mode and geometry e2e matrix):** cover basic/advanced,
       dock/panel, both axes, applicable edges, and alignments for novel ledger
       branches. Dependencies: all SC-P page units, SC-R1 through SC-R11, SC-M1,
-      SC-T2, SC-T5, and SC-T3/SC-T4 as retained. Commits:
+      SC-T2, SC-T3, and SC-T5. Commits:
 - [ ] **SC-X2 (the settings persistence e2e matrix):** close/reopen and restart
       persistent controls while proving transient actions leave no residue.
       Dependencies: all SC-P and SC-A units, SC-R1 through SC-R11, SC-M1,
-      SC-T2, SC-T5, and SC-T3/SC-T4 as retained. Commits:
+      SC-T2, SC-T3, and SC-T5. Commits:
 - [ ] **SC-X3 (the settings abort and lifecycle e2e matrix):** abort active
       popup, drag, field edit, dialog, page switch, and edit exit without stale
       surfaces or registry generations. Dependencies: SC-D2, all SC-P units,
-      SC-R1 through SC-R11, SC-M1, SC-T2, SC-T5, and SC-T3/SC-T4 as retained.
+      SC-R1 through SC-R11, SC-M1, SC-T2, SC-T3, and SC-T5.
       Commits:
 - [ ] **SC-X4 (the settings keyboard and accessibility e2e matrix):** complete
       focus order, roles, names, values, actions, activation, popup focus return,
       and rendered focus checks. Record only announcement quality in
       `docs/reference/live-only.md`. Dependencies: all SC-P units, SC-R1 through
-      SC-R11, SC-M1, SC-T2, SC-T5, and SC-T3/SC-T4 as retained. Commits:
+      SC-R11, SC-M1, SC-T2, SC-T3, and SC-T5. Commits:
 
 ## 8. Global Qt Widgets PR units
 
 Global implementation starts only after SC-X1 through SC-X4 close, SC-R1 through
-SC-R11 and SC-M1 land, and SC-T2 plus the always-retained SC-T5 and any retained
-SC-T3/SC-T4 land. GS-F1 may refine the units below before any code is farmed.
+SC-R11 and SC-M1 land, and SC-T2, SC-T3, and SC-T5 land. GS-F1 may refine the
+units below before any code is farmed.
 Every schema migration or new runtime core found by GS-F1 receives a separate
 `GS-M<n>` or `GS-R<n>` item, with a plain-English gloss, before implementation.
 
@@ -538,8 +581,8 @@ Every schema migration or new runtime core found by GS-F1 receives a separate
 - [ ] **GS-F1 (the global Qt Widgets source inventory):** inventory every
       widget, delegate, action, dialog result, validation branch, and persistence
       path in `app/settings/`; add independent C1-C9 ledger rows. Dependencies:
-      SC-X1 through SC-X4, SC-R1 through SC-R11, SC-M1, SC-T2, SC-T5, and
-      retained SC-T3/SC-T4. Commits:
+      SC-X1 through SC-X4, SC-R1 through SC-R11, SC-M1, SC-T2, SC-T3, and
+      SC-T5. Commits:
 - [ ] **GS-O1 (the read-only Qt Widgets control registry):** expose only the
       inventory-required object identity, dialog generation, geometry, state,
       model rows, selection, and enabled data. Dependencies: GS-F1. Commits:
@@ -631,7 +674,7 @@ Every schema migration or new runtime core found by GS-F1 receives a separate
   gate from `docs/prompts/orchestrator-prompt.md`.
 - The plan and master checklist receive post-rebase commit hashes. Newly found
   defects are filed even when fixed in the same session.
-- The ledger carries 87 checklist items and 87 `Commits:` slots. Both counts
+- The ledger carries 89 checklist items and 89 `Commits:` slots. Both counts
   change together whenever an investigation splits another root or surface.
 - No implementation agent may interpret this plan's reserved D29 or D30 units
   as approval for speculative action expansion.
