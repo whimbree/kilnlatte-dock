@@ -347,6 +347,146 @@ require_plugin_metadata() {
         || fail "$label metadata does not declare $metadata_description"
 }
 
+require_appstream_metadata() {
+    local metadata="$1" metadata_error
+    if metadata_error="$(perl - "$metadata" 2>&1 <<'PERL'
+use strict;
+use warnings;
+
+my $path = shift @ARGV;
+open my $handle, '<', $path or die "cannot open $path: $!\n";
+local $/;
+my $xml = <$handle>;
+close $handle or die "cannot close $path: $!\n";
+
+my @stack;
+my @component_ids;
+my @launchables;
+my @provider_names;
+my @provider_binaries;
+my @provider_libraries;
+my $component_type;
+my $extends_count = 0;
+my $provides_count = 0;
+my $root_count = 0;
+
+sub reject {
+    print STDERR "$_[0]\n";
+    exit 2;
+}
+
+sub finish_node {
+    my ($node, $parent, $grandparent) = @_;
+    my $text = $node->{text};
+    $text =~ s/^\s+|\s+$//g;
+
+    if (defined $parent && $parent eq 'component') {
+        push @component_ids, $text if $node->{name} eq 'id';
+        $extends_count++ if $node->{name} eq 'extends';
+        $provides_count++ if $node->{name} eq 'provides';
+        if ($node->{name} eq 'launchable') {
+            push @launchables, [$text, $node->{attributes}->{type} // ''];
+        }
+    }
+    if (defined $parent && defined $grandparent
+            && $parent eq 'provides' && $grandparent eq 'component') {
+        push @provider_names, $node->{name};
+        push @provider_binaries, $text if $node->{name} eq 'binary';
+        push @provider_libraries, $text if $node->{name} eq 'library';
+    }
+}
+
+pos($xml) = 0;
+while (pos($xml) < length($xml)) {
+    if ($xml =~ /\G<\?[^?]*\?>/gc) {
+        next;
+    }
+    if ($xml =~ /\G<!--.*?-->/gcs) {
+        next;
+    }
+    if ($xml =~ /\G<!\[CDATA\[(.*?)\]\]>/gcs) {
+        @stack or reject('CDATA is not allowed outside the component root');
+        $stack[-1]->{text} .= $1;
+        next;
+    }
+    if ($xml =~ /\G<\/([A-Za-z_][A-Za-z0-9_.:-]*)\s*>/gc) {
+        my $name = $1;
+        @stack or reject("closing tag </$name> has no opening tag");
+        my $node = pop @stack;
+        $node->{name} eq $name
+            or reject("closing tag </$name> does not match <$node->{name}>");
+        finish_node($node,
+            @stack ? $stack[-1]->{name} : undef,
+            @stack > 1 ? $stack[-2]->{name} : undef);
+        next;
+    }
+    if ($xml =~ /\G<([A-Za-z_][A-Za-z0-9_.:-]*)([^<>]*?)(\/?)>/gcs) {
+        my ($name, $attribute_source, $self_closing) = ($1, $2, $3);
+        my %attributes;
+        pos($attribute_source) = 0;
+        while ($attribute_source =~ /\G\s+([A-Za-z_][A-Za-z0-9_.:-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/gc) {
+            my ($attribute_name, $double_value, $single_value) = ($1, $2, $3);
+            exists $attributes{$attribute_name}
+                and reject("<$name> repeats attribute $attribute_name");
+            $attributes{$attribute_name} = defined $double_value ? $double_value : $single_value;
+        }
+        $attribute_source =~ /\G\s*\z/gc
+            or reject("<$name> contains malformed attributes");
+
+        if (!@stack) {
+            $root_count++;
+            $name eq 'component' or reject("root element is <$name>, expected <component>");
+            $component_type = $attributes{type} // '';
+        }
+        my $node = {name => $name, attributes => \%attributes, text => ''};
+        if ($self_closing) {
+            finish_node($node,
+                @stack ? $stack[-1]->{name} : undef,
+                @stack > 1 ? $stack[-2]->{name} : undef);
+        } else {
+            push @stack, $node;
+        }
+        next;
+    }
+    if ($xml =~ /\G([^<]+)/gcs) {
+        my $text = $1;
+        if (@stack) {
+            $stack[-1]->{text} .= $text;
+        } elsif ($text =~ /\S/) {
+            reject('non-whitespace text is not allowed outside the component root');
+        }
+        next;
+    }
+    reject('metadata contains unsupported or malformed XML');
+}
+
+@stack and reject("unclosed tag <$stack[-1]->{name}>");
+$root_count == 1 or reject("metadata contains $root_count root elements, expected one");
+$component_type eq 'desktop-application'
+    or reject("component type is '$component_type', expected 'desktop-application'");
+@component_ids == 1 && $component_ids[0] eq 'org.kde.latte-dock'
+    or reject("component ID must be exactly org.kde.latte-dock");
+@launchables == 1
+    && $launchables[0]->[0] eq 'org.kde.latte-dock.desktop'
+    && $launchables[0]->[1] eq 'desktop-id'
+    or reject('launchable must be exactly desktop-id org.kde.latte-dock.desktop');
+$extends_count == 0 or reject('standalone component must not declare extends');
+@provider_libraries == 0
+    or reject("provider must not advertise library $provider_libraries[0]");
+$provides_count == 1
+    && @provider_names == 1
+    && $provider_names[0] eq 'binary'
+    && @provider_binaries == 1
+    && $provider_binaries[0] eq 'latte-dock'
+    or reject('provides must contain only the latte-dock binary');
+PERL
+    )"; then
+        :
+    else
+        fail "installed AppStream metadata violates the standalone application contract: $metadata_error"
+    fi
+}
+
 require_one_match() {
     local label="$1"
     shift
@@ -532,6 +672,10 @@ require_package_file "tasks applet package metadata" "$tasks_package/metadata.js
     "$tasks_package" resolved_metadata
 require_package_file "desktop entry" "$package_data/applications/org.kde.latte-dock.desktop" \
     "$package_data/applications" resolved_metadata
+appstream_metadata_path="$package_data/metainfo/org.kde.latte-dock.appdata.xml"
+require_package_file "AppStream metadata" "$appstream_metadata_path" \
+    "$package_data/metainfo" appstream_metadata
+require_appstream_metadata "$appstream_metadata"
 audit_package_tree "Latte shell package" "$shell_package"
 audit_package_tree "Latte containment package" "$containment_package"
 audit_package_tree "Latte tasks applet package" "$tasks_package"
