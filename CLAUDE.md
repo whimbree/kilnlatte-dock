@@ -135,6 +135,12 @@ stale checkboxes."
   `... || { ... }` compounds that mask the exit code, and never put the
   verdict read and the push in the same tool invocation - a broken master
   shipped for 20 minutes on 2026-07-16 from exactly that pair of mistakes.
+- Every test or gate run names the meaningful engineering risk it reduces
+  (maintainer direction, 2026-07-21). Overlapping runs performed only for
+  ceremony are forbidden. Focused tests cover the changed contracts during
+  development. The canonical full gate runs once on the final code head before
+  push and repeats only when a code change or movement of `main` through rebase
+  invalidates that stamp.
 - The README is public-facing state and updates IN THE SAME SESSION any
   major change lands (a new surface, harness, phase completion, or defect
   class retired) - a landed major change without its README line is an
@@ -215,8 +221,8 @@ hashes at merge time since the rebase rewrote them. Never append a
 "Generated with Claude Code" or any tool-attribution footer to a PR
 body (same ban as commit trailers).
 
-Every PR gets an INDEPENDENT review before merge: a fresh subagent with
-cold context reviews the full diff read-only against this file's
+Every PR gets one completed INDEPENDENT review before merge by default: a fresh
+subagent with cold context reviews the full diff read-only against this file's
 standards - commit bodies checked against their own claims, deleted
 "dead" arms verified actually dead, removed API grepped tree-wide for
 surviving callers. Keep the review LEAN IN SCOPE but use a lean OPUS
@@ -228,8 +234,14 @@ the gates (one gate-all is the verdict), so the review is diff-reading
 only. Verdict is MERGE / MERGE
 AFTER FIXES / DO NOT MERGE with concrete findings; blockers get
 root-caused and fixed on the branch before merge, non-blocking nits get
-filed as plan items. The author-session merges only on a MERGE verdict -
-authoring and approving inside one context is not review.
+filed as plan items. Findings are fixed without recursive rereview
+(maintainer direction, 2026-07-21). Another independent review occurs only
+after a major code or design change, or an egregious factual or traceability
+error that invalidates the original verdict. Ordinary wording changes never
+trigger another review. The authoring session may merge after a MERGE verdict,
+or after every concrete condition in MERGE AFTER FIXES is resolved without one
+of those rereview triggers. Authoring and approving inside one context is not
+review.
 
 ### Commit shape and definition of done
 
