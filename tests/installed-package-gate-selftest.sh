@@ -10,7 +10,7 @@ set -euo pipefail
 
 for required_command in \
         awk bash c++ cc chmod cp dirname env find ld ln mkdir mktemp mv patchelf pgrep \
-        pkg-config readelf realpath rm setsid sleep timeout; do
+        perl pkg-config readelf realpath rm setsid sleep timeout; do
     command -v "$required_command" >/dev/null 2>&1 || {
         printf "installed-package-gate-selftest: FAIL: required command '%s' is missing\n" \
             "$required_command" >&2
@@ -26,6 +26,28 @@ gate="$repo/scripts/installed-package-gate.sh"
 source "$repo/scripts/lib-installed-package-gate.sh"
 work="$(mktemp -d /tmp/latte-installed-gate-selftest.XXXXXX)"
 trap 'rm -rf "$work"' EXIT
+
+write_appstream_metadata() {
+    local root="$1" component_type="$2" component_id="$3" launchable="$4"
+    local extends="${5:--}" library="${6:--}"
+    {
+        printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>'
+        printf '<component type="%s">\n' "$component_type"
+        printf '  <id>%s</id>\n' "$component_id"
+        [[ "$extends" == - ]] || printf '  <extends>%s</extends>\n' "$extends"
+        printf '%s\n' \
+            '  <name>Latte</name>' \
+            '  <summary>Dock and task launcher</summary>' \
+            '  <metadata_license>CC0-1.0</metadata_license>' \
+            '  <project_license>GPL-2.0-or-later</project_license>' \
+            '  <provides>' \
+            '    <binary>latte-dock</binary>'
+        [[ "$library" == - ]] || printf '    <library>%s</library>\n' "$library"
+        printf '  </provides>\n'
+        printf '  <launchable type="desktop-id">%s</launchable>\n' "$launchable"
+        printf '%s\n' '</component>'
+    } >"$root/usr/share/metainfo/org.kde.latte-dock.appdata.xml"
+}
 
 make_package() {
     local root="$1"
@@ -44,6 +66,7 @@ make_package() {
         "$data/plasma/plasmoids/org.kde.latte.containment" \
         "$data/plasma/plasmoids/org.kde.latte.plasmoid" \
         "$data/applications" \
+        "$data/metainfo" \
         "$data/latte/indicators/default"
     cp "$fixture_binary" "$root/usr/bin/latte-dock"
     : >"$qml/org/kde/latte/core/qmldir"
@@ -72,6 +95,8 @@ make_package() {
     : >"$data/plasma/plasmoids/org.kde.latte.plasmoid/metadata.json"
     : >"$data/plasma/plasmoids/org.kde.latte.plasmoid/Installed.qml"
     : >"$data/applications/org.kde.latte-dock.desktop"
+    write_appstream_metadata "$root" desktop-application org.kde.latte-dock \
+        org.kde.latte-dock.desktop
     : >"$data/latte/indicators/default/Installed.qml"
 }
 
@@ -293,6 +318,32 @@ qt_version_probe_seconds=$((SECONDS - qt_version_probe_start))
     || { echo "FAIL: hanging version probe did not continue boundedly to the next candidate" >&2; exit 1; }
 echo "PASS: hanging version probes time out and continue to the next Qt 6 candidate"
 
+missing_appstream="$work/missing-appstream-metadata"
+cp -a "$good" "$missing_appstream"
+rm "$missing_appstream/usr/share/metainfo/org.kde.latte-dock.appdata.xml"
+expect_failure "missing AppStream metadata" "missing AppStream metadata" \
+    run_check "$missing_appstream"
+
+invalid_appstream_specs=(
+    "wrong component type|addon|org.kde.latte-dock|org.kde.latte-dock.desktop|-|-|component type is 'addon', expected 'desktop-application'"
+    "wrong component ID|desktop-application|org.kde.latte-dock.desktop|org.kde.latte-dock.desktop|-|-|component ID must be exactly org.kde.latte-dock"
+    "wrong desktop launchable|desktop-application|org.kde.latte-dock|org.kde.latte.desktop|-|-|launchable must be exactly desktop-id org.kde.latte-dock.desktop"
+    "forbidden component extension|desktop-application|org.kde.latte-dock|org.kde.latte-dock.desktop|org.kde.plasmashell|-|standalone component must not declare extends"
+    "stale public library provider|desktop-application|org.kde.latte-dock|org.kde.latte-dock.desktop|-|liblatte2plugin.so|provider must not advertise library liblatte2plugin.so"
+)
+for invalid_appstream_spec in "${invalid_appstream_specs[@]}"; do
+    IFS='|' read -r invalid_appstream_name invalid_appstream_type \
+        invalid_appstream_id invalid_appstream_launchable invalid_appstream_extends \
+        invalid_appstream_library invalid_appstream_diagnostic <<<"$invalid_appstream_spec"
+    invalid_appstream_root="$work/appstream-${invalid_appstream_name// /-}"
+    cp -a "$good" "$invalid_appstream_root"
+    write_appstream_metadata "$invalid_appstream_root" "$invalid_appstream_type" \
+        "$invalid_appstream_id" "$invalid_appstream_launchable" \
+        "$invalid_appstream_extends" "$invalid_appstream_library"
+    expect_failure "$invalid_appstream_name" "$invalid_appstream_diagnostic" \
+        run_check "$invalid_appstream_root"
+done
+
 expect_failure "live root without ownership manifest" \
     "--manifest is required with --root /" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
@@ -300,6 +351,12 @@ expect_failure "live root without ownership manifest" \
 
 live_manifest="$work/live-root.manifest"
 stale_tasks_plugin="$good/usr/lib/qt6/qml/org/kde/latte/private/tasks/liblattetasksplugin.so"
+unowned_appstream="$good/usr/share/metainfo/org.kde.latte-dock.appdata.xml"
+write_package_manifest "$good" "$live_manifest" "$unowned_appstream" /
+expect_failure "AppStream metadata omitted by the package under test" \
+    "installed AppStream metadata is present under the package prefix but omitted by the package manifest" \
+    env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
+    bash "$gate" --root / --prefix "$good/usr" --manifest "$live_manifest" --check-only
 write_package_manifest "$good" "$live_manifest" "$stale_tasks_plugin" /
 expect_failure "same-prefix stale tasks plugin omitted by the package under test" \
     "omitted by the package manifest" \
@@ -1158,4 +1215,4 @@ expect_failure "incomplete package" "missing tasks QML plugin" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$incomplete" --prefix /usr --check-only
 
-echo "installed-package-gate-selftest: PASS (77 focused controls)"
+echo "installed-package-gate-selftest: PASS (84 focused controls)"
