@@ -81,6 +81,74 @@ private:
         return s;
     }
 
+    static QString normalizedCode(const QString &source)
+    {
+        QString code = source;
+        code.remove(QRegularExpression(QStringLiteral("/\\*[\\s\\S]*?\\*/")));
+        code.remove(QRegularExpression(QStringLiteral("//[^\\n]*")));
+        code.remove(QRegularExpression(QStringLiteral("\\s+")));
+        return code;
+    }
+
+    static bool matchesExactMiddleClickReporterForwarding(const QString &body)
+    {
+        return normalizedCode(body) == QStringLiteral(
+                   "{taskMouseArea.dispatchReporter.recordMiddleClickDispatch("
+                   "taskMouseArea.stableRowIdentity(),taskMouseArea.dispatchIsLauncher,"
+                   "taskMouseArea.configuredMiddleClickAction,operation);}");
+    }
+
+    static bool matchesMiddleClickCollectorBridge(const QString &body)
+    {
+        const QString code = normalizedCode(body);
+        const QString containment = QStringLiteral("constuintactualContainmentId=view->containment()->id();");
+        const QString scopeCheck = QStringLiteral("if(actualContainmentId!=containmentId)");
+        const QString appletLoop = QStringLiteral("for(auto*applet:view->containment()->applets())");
+        const QString propertyRead = QStringLiteral(
+            "constQVariantvalue=readLiveProperty(plasmoidRoot,\"latestMiddleClickDispatch\");");
+        const QString append = QStringLiteral(
+            "candidates.append(MiddleClickDispatchCandidate{actualContainmentId,"
+            "static_cast<int>(applet->id()),value});");
+        const QString selector = QStringLiteral(
+            "constautoselection=selectLatestMiddleClickDispatch(containmentId,candidates);");
+        const QString refusalSwitch = QStringLiteral("switch(selection.refusal)");
+        const QString serialization = QStringLiteral(
+            "caseMiddleClickDispatchRefusal::None:returnserializeMiddleClickDispatchData(selection.record);");
+
+        const int containmentPosition = code.indexOf(containment);
+        const int scopeCheckPosition = code.indexOf(scopeCheck, containmentPosition);
+        const int loopPosition = code.indexOf(appletLoop, scopeCheckPosition);
+        const int scopeRefusalPosition = code.indexOf(QStringLiteral("returnQStringLiteral(\"{}\");"), scopeCheckPosition);
+        const int missingQuickItemPosition = code.indexOf(QStringLiteral("if(!plasmoidRoot)"), loopPosition);
+        const int missingQuickItemContinuePosition = code.indexOf(QStringLiteral("continue;"), missingQuickItemPosition);
+        const int propertyPosition = code.indexOf(propertyRead, loopPosition);
+        const int appendPosition = code.indexOf(append, propertyPosition);
+        const int selectorPosition = code.indexOf(selector, appendPosition);
+        const int switchPosition = code.indexOf(refusalSwitch, selectorPosition);
+        const int serializationPosition = code.indexOf(serialization, switchPosition);
+
+        return containmentPosition != -1
+            && scopeCheckPosition > containmentPosition
+            && loopPosition > scopeCheckPosition
+            && scopeRefusalPosition > scopeCheckPosition
+            && scopeRefusalPosition < loopPosition
+            && missingQuickItemPosition > loopPosition
+            && missingQuickItemContinuePosition > missingQuickItemPosition
+            && missingQuickItemContinuePosition < propertyPosition
+            && propertyPosition > loopPosition
+            && appendPosition > propertyPosition
+            && selectorPosition > appendPosition
+            && switchPosition > selectorPosition
+            && serializationPosition > switchPosition
+            && code.contains(QStringLiteral("caseMiddleClickDispatchRefusal::ContainmentMismatch:"))
+            && code.contains(QStringLiteral("caseMiddleClickDispatchRefusal::MalformedState:"))
+            && code.contains(QStringLiteral("caseMiddleClickDispatchRefusal::DuplicateSequence:"))
+            && code.count(QStringLiteral("selectLatestMiddleClickDispatch(")) == 1
+            && code.count(QStringLiteral("serializeMiddleClickDispatchData(")) == 1
+            && code.lastIndexOf(QStringLiteral("returnQStringLiteral(\"{}\");")) > switchPosition
+            && !code.contains(QStringLiteral("inScheduledDestruction"));
+    }
+
 private Q_SLOTS:
     void visibilityManager_updateSidebarState_assignsState();
     void layoutsController_modeIsChanged_delegatesToModel();
@@ -89,6 +157,7 @@ private Q_SLOTS:
     void visibilityManager_strutThicknessBypassesGeometryThrottle();
     void middleClickDispatch_keepsProductionRecordingContract();
     void middleClickDispatch_keepsContainmentLifecycleScope();
+    void middleClickDispatch_sourceGuardsRejectControlledMutations();
 };
 
 void SourceGuardTest::visibilityManager_updateSidebarState_assignsState()
@@ -209,6 +278,10 @@ void SourceGuardTest::visibilityManager_strutThicknessBypassesGeometryThrottle()
 void SourceGuardTest::middleClickDispatch_keepsProductionRecordingContract()
 {
     const QString mouseAreaSource = readFile(QStringLiteral("plasmoid/package/contents/ui/task/TaskMouseArea.qml"));
+    const QString forwarding = functionBody(mouseAreaSource, QStringLiteral("function recordMiddleClickDispatch(operation)"));
+    QVERIFY2(matchesExactMiddleClickReporterForwarding(forwarding),
+             "recordMiddleClickDispatch must forward stable identity, row kind, configured action, and operation in order");
+
     const QString release = stripped(functionBody(mouseAreaSource, QStringLiteral("onReleased: (mouse) =>")));
     QVERIFY2(!release.isEmpty(), "TaskMouseArea.onReleased not found");
 
@@ -257,16 +330,79 @@ void SourceGuardTest::middleClickDispatch_keepsProductionRecordingContract()
 
 void SourceGuardTest::middleClickDispatch_keepsContainmentLifecycleScope()
 {
-    const QString collector = stripped(functionBody(readFile(QStringLiteral("app/dbusreports.cpp")),
-                                                    QStringLiteral("QString collectMiddleClickDispatchData")));
+    const QString collector = functionBody(readFile(QStringLiteral("app/dbusreports.cpp")),
+                                           QStringLiteral("QString collectMiddleClickDispatchData"));
     QVERIFY2(!collector.isEmpty(), "collectMiddleClickDispatchData not found");
-    QVERIFY2(collector.contains(QStringLiteral("for(auto*applet:view->containment()->applets())")),
-             "middle-click collection must iterate the requested view's current containment applets");
-    QVERIFY2(!collector.contains(QStringLiteral("inScheduledDestruction")),
-             "applets in Plasma's undo window remain queryable until actual destruction removes them");
-    QVERIFY2(collector.contains(QStringLiteral("hasnoquickitemyet;taskMiddleClickDispatchDatacannotberead"))
-                 && collector.contains(QStringLiteral("continue;")),
-             "a startup-transient missing quick item must remain a loud, intentional unavailable candidate");
+    QVERIFY2(matchesMiddleClickCollectorBridge(collector),
+             "collector must validate containment, append each current applet property, and serialize only the tested selector result");
+}
+
+void SourceGuardTest::middleClickDispatch_sourceGuardsRejectControlledMutations()
+{
+    const QString forwarding = functionBody(
+        readFile(QStringLiteral("plasmoid/package/contents/ui/task/TaskMouseArea.qml")),
+        QStringLiteral("function recordMiddleClickDispatch(operation)"));
+    QVERIFY(matchesExactMiddleClickReporterForwarding(forwarding));
+    QVERIFY2(!matchesExactMiddleClickReporterForwarding(QStringLiteral("{}")),
+             "a missing reporter call must make the production seam guard fail");
+    QVERIFY2(!matchesExactMiddleClickReporterForwarding(QStringLiteral("{return;}")),
+             "a no-op reporter helper must make the production seam guard fail");
+
+    QString wrongReporter = normalizedCode(forwarding);
+    QCOMPARE(wrongReporter.count(QStringLiteral("taskMouseArea.dispatchReporter")), 1);
+    wrongReporter.replace(QStringLiteral("taskMouseArea.dispatchReporter"),
+                          QStringLiteral("taskMouseArea.dispatchModel"));
+    QVERIFY2(!matchesExactMiddleClickReporterForwarding(wrongReporter),
+             "the wrong reporter object must make the production seam guard fail");
+
+    QString swappedArguments = normalizedCode(forwarding);
+    const QString expectedArguments = QStringLiteral(
+        "taskMouseArea.stableRowIdentity(),taskMouseArea.dispatchIsLauncher,"
+        "taskMouseArea.configuredMiddleClickAction,operation");
+    const QString swapped = QStringLiteral(
+        "taskMouseArea.dispatchIsLauncher,taskMouseArea.stableRowIdentity(),"
+        "taskMouseArea.configuredMiddleClickAction,operation");
+    QCOMPARE(swappedArguments.count(expectedArguments), 1);
+    swappedArguments.replace(expectedArguments, swapped);
+    QVERIFY2(!matchesExactMiddleClickReporterForwarding(swappedArguments),
+             "swapped reporter arguments must make the production seam guard fail");
+
+    const QString collector = functionBody(readFile(QStringLiteral("app/dbusreports.cpp")),
+                                           QStringLiteral("QString collectMiddleClickDispatchData"));
+    QVERIFY(matchesMiddleClickCollectorBridge(collector));
+    QString withoutAppend = normalizedCode(collector);
+    const QString append = QStringLiteral(
+        "candidates.append(MiddleClickDispatchCandidate{actualContainmentId,"
+        "static_cast<int>(applet->id()),value});");
+    QCOMPARE(withoutAppend.count(append), 1);
+    withoutAppend.remove(append);
+    QVERIFY2(!matchesMiddleClickCollectorBridge(withoutAppend),
+             "removing candidate append must make the collector bridge guard fail");
+
+    QString selectorBypass = normalizedCode(collector);
+    const QString selector = QStringLiteral(
+        "constautoselection=selectLatestMiddleClickDispatch(containmentId,candidates);");
+    QCOMPARE(selectorBypass.count(selector), 1);
+    selectorBypass.replace(selector, QStringLiteral("constMiddleClickDispatchSelectionselection{};"));
+    QVERIFY2(!matchesMiddleClickCollectorBridge(selectorBypass),
+             "bypassing the tested selector must make the collector bridge guard fail");
+
+    QString wrongContainment = normalizedCode(collector);
+    wrongContainment.replace(selector,
+                             QStringLiteral("constautoselection=selectLatestMiddleClickDispatch("
+                                            "actualContainmentId,candidates);"));
+    QVERIFY2(!matchesMiddleClickCollectorBridge(wrongContainment),
+             "passing the wrong containment to the selector must make the collector bridge guard fail");
+
+    QString scheduledDestructionFilter = normalizedCode(collector);
+    const QString propertyRead = QStringLiteral(
+        "constQVariantvalue=readLiveProperty(plasmoidRoot,\"latestMiddleClickDispatch\");");
+    QCOMPARE(scheduledDestructionFilter.count(propertyRead), 1);
+    scheduledDestructionFilter.replace(
+        propertyRead,
+        QStringLiteral("if(applet->property(\"inScheduledDestruction\").toBool()){continue;}") + propertyRead);
+    QVERIFY2(!matchesMiddleClickCollectorBridge(scheduledDestructionFilter),
+             "filtering Plasma's scheduled-destruction undo window must make the collector bridge guard fail");
 }
 
 QTEST_GUILESS_MAIN(SourceGuardTest)
