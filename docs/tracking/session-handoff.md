@@ -3,6 +3,39 @@
 Rolling handoff for the next session to pick up without re-deriving context.
 Last updated 2026-07-21.
 
+## 2026-07-21: SC-T3 middle-click dispatch readback authored locally
+
+SC-T3 (the narrow dispatch readback for D29 (task-icon middle click appears to
+execute left-click behavior)) is authored on local branch
+`feat/tasks-middle-click-readback` at implementation commit `73566f503`. It is
+not pushed, reviewed, or merged, and the settings-plan checkbox remains open
+with the hash marked provisional. D60 (tasks QML type metadata omits two
+accessibility composer methods) is recorded at `cfe9ec9c5`.
+
+`TaskMouseArea.onReleased` records at the production launcher/task dispatch
+branch without changing its operation. The tasks backend retains one typed
+event per tasks applet and assigns a process-monotonic sequence; the D-Bus
+collector selects the newest event across the view. The new read-only method is
+`taskMiddleClickDispatchData(u containmentId) -> s`. It returns only
+`rowIdentity`, `rowKind`, `configuredAction`, `dispatchedOperation`, and
+`sequence`, or `{}` before the first event. There is no setter, history,
+arbitrary execution, action expansion, window title, or other application
+content. SC-T5 (the D29 permanent runtime-effect acceptance) remains separate
+and was not started.
+
+Focused application/tasks-plugin/test builds passed before the rebase.
+`tasksbackendtest` and the sanitizer-backed `dbusreportstest` passed, including
+launcher `requestActivate`, task-row `requestNewInstance`, cross-applet
+monotonicity, no-event state, and malformed-state refusal. The QML compile gate
+passed 130 files, qmllint matched its 5,832-warning baseline, the coverage
+ratchet passed 96 entries and 31 paired headers, and XML validation plus
+generated adaptor compilation passed. No full gate or runtime acceptance was
+run. Focused post-rebase verification remains required.
+
+The QML type-dump comparison found D60. It is pre-existing and unrelated to
+SC-T3; the new Backend property, signal, and method match regenerated metadata.
+D60 was recorded without fixing the unrelated drift.
+
 ## 2026-07-21: D57 ConfigOverlay wheel threshold reproduced
 
 PR #96 landed SC-CW1 (the D57 ConfigOverlay wheel-threshold reproduction) at
