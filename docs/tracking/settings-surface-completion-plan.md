@@ -465,7 +465,7 @@ in SC-R6.
       activation from new-instance dispatch. No setter, history, or action
       expansion. Dependencies: SC-T2. Approved. Authored locally on
       `feat/tasks-middle-click-readback` but not merged; the checkbox remains
-      open. Commits: 73566f503, ebdc7d9dc, e56db9e28, f08a49989
+      open. Commits: 9aea0d8bb, 2aa5a7a1e, c0ba3f66f, 9955f2035
       (provisional local hashes; replace with the final post-rebase hashes
       after merge)
 - [x] **SC-T4 (the D29 root fix, if proven):** not applicable because SC-T2

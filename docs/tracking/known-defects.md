@@ -439,7 +439,7 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 
 ### D61 - Middle-click aggregate could expose an older plausible event
 - STATUS: FIXED on local `feat/tasks-middle-click-readback` branch
-  (`ebdc7d9dc`); not merged.
+  (`2aa5a7a1e`); not merged.
 - FOUND: independent pre-PR review of SC-T3 (the D29 narrow middle-click
   dispatch readback).
 - ROOT: `collectMiddleClickDispatchData` skipped malformed candidates and only
@@ -455,12 +455,12 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 - EVIDENCE: sanitizer-backed `dbusreportstest` covers multiple applets, newest
   selection, exact JSON, mixed no-event candidates, malformed-plus-valid
   refusal, requested-containment mismatch, and 5/10/5 duplicate refusal.
-  Source guards at `e56db9e28` and `f08a49989` pin the complete QML reporter
+  Source guards at `c0ba3f66f` and `9955f2035` pin the complete QML reporter
   and live collector bridges, including the undo-window lifecycle contract.
 
 ### D62 - Middle-click readback accepted inconsistent action-operation pairs
 - STATUS: FIXED on local `feat/tasks-middle-click-readback` branch
-  (`ebdc7d9dc`); not merged.
+  (`2aa5a7a1e`); not merged.
 - FOUND: independent pre-PR review of SC-T3 (the D29 narrow middle-click
   dispatch readback).
 - ROOT: the backend and D-Bus parser validated enum ranges and the launcher
@@ -474,7 +474,7 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 - EVIDENCE: `tasksbackendtest` and sanitizer-backed `dbusreportstest` cover all
   six task pairs, all six launcher exceptions, every known unoffered action,
   unknown values, and mismatched row/action/operation combinations. The exact
-  production reporter forwarding is pinned at `e56db9e28`.
+  production reporter forwarding is pinned at `c0ba3f66f`.
 
 ## Recorded elsewhere - indexed here so the flat scan is complete
 

@@ -7,11 +7,12 @@ Last updated 2026-07-21.
 
 SC-T3 (the D29 narrow middle-click dispatch readback) is authored on local
 branch `feat/tasks-middle-click-readback` at implementation and review-hardening
-commits `73566f503`, `ebdc7d9dc`, `e56db9e28`, and `f08a49989`. Independent
-review findings are addressed; the final MERGE rereview verdict, push, and
-merge remain pending, and the settings-plan checkbox stays open with all four
-hashes marked provisional. D60 (tasks QML type metadata omits two accessibility
-composer methods) remains separately recorded at `cfe9ec9c5`.
+commits `9aea0d8bb`, `2aa5a7a1e`, `c0ba3f66f`, and `9955f2035`, rebased onto
+exact `origin/main` `ac1db809b7ba53992d2a71b92bfd80e236615abc`.
+Independent review findings are addressed; the final MERGE rereview verdict,
+push, and merge remain pending, and the settings-plan checkbox stays open with
+all four hashes marked provisional. D60 (tasks QML type metadata omits two
+accessibility composer methods) remains separately recorded at `dc32d00f0`.
 
 `TaskMouseArea.onReleased` records at the production launcher/task dispatch
 branch without changing its operation. The tasks backend retains one typed
