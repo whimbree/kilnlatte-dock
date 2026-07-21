@@ -24,15 +24,13 @@ signature, shutdown, restoration, and residue failures remain FAIL. SC-CW2 (the
 D57 signed decrease-threshold fix and regression promotion) remains unchecked,
 requires merged SC-CW1 evidence and explicit approval, and is not approved.
 
-## 2026-07-21: D58 tracker requester fix verified locally
+## 2026-07-21: D58 tracker requester fix landed
 
+PR #94 landed SC-WT1 (the D58 tracker-enablement root fix and regression), so
 D58 (close-only and minimize-toggle settings do not enable window tracking) is
-FIXED provisionally on local branch `fix/settings-tracker-enablement` at
-`421853cee`, with review hardening at `6cb63e7ee` and `808bdea`, based exactly on
-`b7a07fd08aa362ba581ad910683e2ca90953ae71`. The independent review verdict was
-MERGE AFTER FIXES; all findings are addressed locally, but no rereview, push,
-PR, or merge has occurred. SC-WT1 (the D58 tracker-enablement root fix and
-regression) remains unchecked pending landing.
+FIXED. Final commits are `15f026887` for the root fix, `91cfb2bac` for
+initial tracking, `14da9e7ce` for e2e harness hardening, `0a796e1ec` for the
+complete requester source guard, and `8c6b1c826` for review tracking.
 
 The root was the requester OR-set in
 `containment/package/contents/ui/BindingsExternal.qml`: it enabled the active-
@@ -56,8 +54,8 @@ close/minimize effect, final absence, and config-restore checks. Middle click
 needed two status-0 effect retries in each run; wheel effects arrived first try.
 QML compile passed 130/130, the 234-file qmllint baseline matched at 5,832
 warnings, and focused `sourceguardtest` passed. The earlier five-test focused set
-also remains green. No full gate ran. Remaining work is rereview, rebase, local-
-hash replacement, the required rebased-head gate, push, PR, and MERGE verdict.
+also remains green. The capability-check and typed-refusal follow-ups remain
+separate from D58, as does SC-B2 (the D30 product decision and sign-off gate).
 
 ## 2026-07-21: D59 AppStream source and native recipes complete
 
