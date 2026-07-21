@@ -49,7 +49,7 @@ pkgbase = latte-dock
 	depends = qt6-declarative>=6.6
 	depends = qt6-wayland>=6.6
 	depends = wayland
-	source = latte-dock-0.10.77-0e3af93b4659a53696177a11f7d3714caaa27d56.tar.gz
-	sha256sums = cf32687b24401e061886daad9cc3c9e49b6bf77b80a67b9c990681384c599e75
+	source = latte-dock-0.10.77-80451925475d7d5b0fb6d74f6b43d782c81dc4b5.tar.gz
+	sha256sums = 4bfda179309464052ca4805c5361478507f274a38239471b65b7fbb2b53542e6
 
 pkgname = latte-dock

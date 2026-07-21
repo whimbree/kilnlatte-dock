@@ -15,17 +15,13 @@ inherit ecm
 DESCRIPTION="Dock-style launcher and task manager for Plasma 6"
 HOMEPAGE="https://github.com/whimbree/lattecotta-dock"
 
-COMMIT="f1184c3d33929a93c6902c074230d7a487401e51"
+COMMIT="80451925475d7d5b0fb6d74f6b43d782c81dc4b5"
 SRC_URI="https://github.com/whimbree/lattecotta-dock/archive/${COMMIT}.tar.gz -> ${P}.tar.gz"
 S="${WORKDIR}/lattecotta-dock-${COMMIT}"
 
 LICENSE="CC0-1.0 GPL-2+ LGPL-2+ LGPL-2.1 || ( LGPL-2.1 LGPL-3 )"
 SLOT="0"
 KEYWORDS="~amd64"
-
-PATCHES=(
-	"${FILESDIR}/${PN}-appstream-id.patch"
-)
 
 COMMON_DEPEND="
 	>=dev-libs/wayland-1.15

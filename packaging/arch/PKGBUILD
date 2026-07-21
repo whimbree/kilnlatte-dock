@@ -10,8 +10,8 @@
 # Generate it from the repository root before running makepkg:
 #
 #   git archive --format=tar.gz --prefix=latte-dock-0.10.77/ \
-#     --output=packaging/arch/latte-dock-0.10.77-0e3af93b4659a53696177a11f7d3714caaa27d56.tar.gz \
-#     0e3af93b4659a53696177a11f7d3714caaa27d56
+#     --output=packaging/arch/latte-dock-0.10.77-80451925475d7d5b0fb6d74f6b43d782c81dc4b5.tar.gz \
+#     80451925475d7d5b0fb6d74f6b43d782c81dc4b5
 
 pkgname=latte-dock
 pkgver=0.10.77
@@ -72,10 +72,10 @@ makedepends=(
     'wayland-protocols'
 )
 
-_commit=0e3af93b4659a53696177a11f7d3714caaa27d56
+_commit=80451925475d7d5b0fb6d74f6b43d782c81dc4b5
 _source_dir="${pkgname}-${pkgver}"
 source=("${pkgname}-${pkgver}-${_commit}.tar.gz")
-sha256sums=('cf32687b24401e061886daad9cc3c9e49b6bf77b80a67b9c990681384c599e75')
+sha256sums=('4bfda179309464052ca4805c5361478507f274a38239471b65b7fbb2b53542e6')
 
 build() {
     # Arch owns optimization through makepkg.conf. The None configuration keeps

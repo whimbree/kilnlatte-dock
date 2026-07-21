@@ -5,7 +5,7 @@
 pkgname=latte-dock
 version=0.10.77
 revision=1
-_commit=f1184c3d33929a93c6902c074230d7a487401e51
+_commit=80451925475d7d5b0fb6d74f6b43d782c81dc4b5
 build_style=cmake
 configure_args="-DBUILD_TESTING=OFF -DKF6_HOST_TOOLING=/usr/lib/cmake
  -DKDE_INSTALL_QMLDIR=lib/qt6/qml
@@ -35,7 +35,7 @@ maintainer="Orphaned <orphan@voidlinux.org>"
 license="CC0-1.0 AND GPL-2.0-or-later AND LGPL-2.0-or-later AND (LGPL-2.1-only OR LGPL-3.0-only OR custom:KDE-Accepted-Lesser-General-Public-License)"
 homepage="https://github.com/whimbree/lattecotta-dock"
 distfiles="${homepage}/archive/${_commit}.tar.gz"
-checksum=f4165095b81d9f2a1b699f1a774f45ed46983e3c645eb37ede931096c45ddf72
+checksum=6aad9e9b9192df1be6dcbfa114f8c8b522e9dcaa1dd38a6cb4a0359c621aaa0c
 
 post_install() {
 	local appstream="${DESTDIR}/usr/share/metainfo/org.kde.latte-dock.appdata.xml"
