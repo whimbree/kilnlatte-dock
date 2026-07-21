@@ -150,9 +150,9 @@ maintained-continuation divergences are not approved by the plan.
   and is outside the settings-completion ownership.
 
 SC-T1 (the D29 middle-click evidence capture), SC-T2 (the D29 disposition), and
-SC-B1 are provisionally checked against this docs-only branch record. Their
-final post-rebase commit hash must replace the provisional trace after merge;
-no final hash is claimed in this branch.
+SC-B1 are provisionally checked by branch commit `856a5bac1`. This hash will be
+rewritten; its final post-rebase replacement must be recorded after merge. No
+final hash is claimed in this branch.
 
 ## 2026-07-20: D25 (task icons stay stale after icon-theme changes) fixed
 

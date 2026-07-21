@@ -450,13 +450,13 @@ in SC-R6.
       event recipient, model requests, and independent effects. The sequence was
       reproduced twice and temporary instrumentation was removed. Dependencies:
       existing fakepointer, `appletConfigData`, and `viewTasksData`; no new
-      settings scaffold. Commits: PROVISIONAL (this docs-only evidence record;
-      final post-rebase hash pending)
+      settings scaffold. Commits: 856a5bac1 (PROVISIONAL branch hash; final
+      post-rebase hash pending)
 - [x] **SC-T2 (the D29 disposition and sign-off gate):** Qt5 and both forks
       retain the launcher exception. D29 is accepted as Qt5-faithful behavior
       and a configuration-scope misunderstanding, with no divergence or fix.
-      Dependencies: SC-T1. Commits: PROVISIONAL (this docs-only disposition
-      record; final post-rebase hash pending)
+      Dependencies: SC-T1. Commits: 856a5bac1 (PROVISIONAL branch hash; final
+      post-rebase hash pending)
 - [ ] **SC-T3 (the D29 narrow dispatch readback):** expose only the
       latest middle-click row identity and kind, configured action, dispatched
       operation, and monotonic sequence needed to distinguish launcher
@@ -484,8 +484,8 @@ in SC-R6.
       gestures, event ownership, booleans/defaults, target lifecycle, requests,
       effects, and Qt5/fork parity across enabled, disabled, and no-target nested
       cases. No production behavior changed. Dependencies: existing fakepointer
-      and window/view readbacks; no new settings scaffold. Commits: PROVISIONAL
-      (this docs-only evidence record; final post-rebase hash pending)
+      and window/view readbacks; no new settings scaffold.
+      Commits: 856a5bac1 (PROVISIONAL branch hash; final post-rebase hash pending)
 - [ ] **SC-WT1 (the D58 tracker-enablement root fix and regression):** add only
       `closeActiveWindowEnabled` and `ScrollToggleMinimized` to the active-window
       tracker enablement expression, then regress close-only and minimize-toggle
