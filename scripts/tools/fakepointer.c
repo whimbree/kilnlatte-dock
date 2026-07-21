@@ -18,8 +18,9 @@
  *        fakepointer glide <x1> <y1> <x2> <y2> [x3 y3 ...]  (same smooth
  *          motion stream, no buttons - replicates a real fast hover sweep)
  *        fakepointer scroll <x> <y> <detents> <ms-gap>
- *        fakepointer wheel <x> <y> <angle-delta>  (one vertical event in Qt
- *          angleDelta units; 120 is one wheel click)
+ *        fakepointer wheel <x> <y> <angle-delta> [horizontal]  (one axis
+ *          event in Qt angleDelta units; vertical by default, 120 is one
+ *          wheel click)
  *        fakepointer key <keysym> [down|up|press]   (press = down then up, the
  *          default; down/up hold or release, e.g. a modifier. <keysym> is an
  *          XKB keysym NAME like Escape, Up, Return, space, or a numeric
@@ -164,12 +165,12 @@ int main(int argc, char **argv)
         }
     } else if (((isdrag || isglide) && (argc < 6 || (argc % 2) != 0))
         || (isscroll && argc != 6)
-        || (iswheel && argc != 5)
+        || (iswheel && argc != 5 && argc != 6)
         || (!isdrag && !isglide && !isscroll && !iswheel
             && (argc != 4 || (strcmp(argv[1], "move") && strcmp(argv[1], "click") && strcmp(argv[1], "middleclick") && strcmp(argv[1], "rightclick"))))) {
-        fprintf(stderr, "usage: %s move|click|middleclick|rightclick <x> <y>  |  %s drag|glide <x1> <y1> <x2> <y2> [x3 y3 ...]  |  %s scroll <x> <y> <detents> <ms-gap>  |  %s wheel <x> <y> <angle-delta>  |  %s key <keysym> [down|up|press]  |  %s dragkey <keysym> <x1> <y1> <x2> <y2> [x3 y3 ...]\n"
+        fprintf(stderr, "usage: %s move|click|middleclick|rightclick <x> <y>  |  %s drag|glide <x1> <y1> <x2> <y2> [x3 y3 ...]  |  %s scroll <x> <y> <detents> <ms-gap>  |  %s wheel <x> <y> <angle-delta> [horizontal]  |  %s key <keysym> [down|up|press]  |  %s dragkey <keysym> <x1> <y1> <x2> <y2> [x3 y3 ...]\n"
                         "  scroll: positive detents scroll up, negative down; one detent = one wheel click\n"
-                        "  wheel:  signed vertical Qt angleDelta for one event; useful for threshold checks\n"
+                        "  wheel:  signed Qt angleDelta for one axis event; vertical unless 'horizontal' is supplied\n"
                         "  key:    <keysym> is an XKB name (Escape, Up, Return, space) or a numeric literal; state defaults to press (down then up)\n"
                         "  dragkey: press, glide (button held), tap <keysym> at the last point, release - one held-drag session\n",
                 argv[0], argv[0], argv[0], argv[0], argv[0], argv[0]);
@@ -366,7 +367,7 @@ int main(int argc, char **argv)
         }
     } else if (isscroll) {
         //! wheel detents at (x,y). fake_input axis takes wl_pointer.axis
-        //! units: 15 per detent (Qt multiplies by 8 into angleDelta 120).
+        //! units: 10 per detent (KWin/Qt multiply by 12 into angleDelta 120).
         //! Sign: positive wayland axis = scroll DOWN, so a positive detent
         //! count (scroll up, volume up by convention) sends negative values.
         //! The per-detent gap approximates a human scroll rate so debounce
@@ -380,12 +381,14 @@ int main(int argc, char **argv)
 
         for (int i = 0; i < n; ++i) {
             org_kde_kwin_fake_input_axis(fake_input, 0 /* vertical */,
-                wl_fixed_from_double(15.0 * dir));
+                wl_fixed_from_double(10.0 * dir));
             wl_display_roundtrip(display);
             usleep((useconds_t)gapms * 1000);
         }
     } else if (iswheel) {
-        //! KWin/Qt multiply Wayland axis units by -8 into angleDelta.
+        //! KWin/Qt multiply Wayland axis units by -12 into angleDelta. A
+        //! vertical request therefore arrives as (0, delta), while a
+        //! horizontal request arrives as (delta, 0).
         char *end = NULL;
         const double angle_delta = strtod(argv[4], &end);
         if (end == argv[4] || *end != '\0' || !isfinite(angle_delta)) {
@@ -393,8 +396,17 @@ int main(int argc, char **argv)
             wl_display_disconnect(display);
             return 2;
         }
-        org_kde_kwin_fake_input_axis(fake_input, 0 /* vertical */,
-            wl_fixed_from_double(-angle_delta / 8.0));
+        if (argc == 6 && strcmp(argv[5], "horizontal") != 0) {
+            fprintf(stderr, "unknown wheel axis '%s' (want 'horizontal' or omit it for vertical)\n", argv[5]);
+            wl_display_disconnect(display);
+            return 2;
+        }
+        const uint32_t axis = (argc == 6) ? 1 /* horizontal */ : 0 /* vertical */;
+        //! Match scroll's authentication/motion settle so KWin can route the
+        //! one-shot axis event to pointer focus before the client disconnects.
+        usleep(100000);
+        org_kde_kwin_fake_input_axis(fake_input, axis,
+            wl_fixed_from_double(-angle_delta / 12.0));
         wl_display_roundtrip(display);
     }
 
