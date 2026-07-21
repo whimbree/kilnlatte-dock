@@ -15,6 +15,8 @@ source "${E2E_REPO:?run through scripts/run-e2e.sh}/tests/e2e/lib.sh"
 fixture="$E2E_REPO/tests/e2e/fixtures/sc-w1"
 desktop_id="org.kde.latte.sc-w1.desktop"
 launcher_url="applications:$desktop_id"
+rate_desktop_id="org.kde.latte.sc-w1-rate.desktop"
+rate_launcher_url="applications:$rate_desktop_id"
 window_title="latte-sc-w1-launcher"
 launcher_span=""
 backup="$(mktemp)"
@@ -45,16 +47,22 @@ PY
 export XDG_DATA_HOME="$E2E_RT/sc-w1-data"
 export SC_W1_LAUNCH_LOG="$E2E_RT/sc-w1-launches"
 export SC_W1_PID_LOG="$E2E_RT/sc-w1-pids"
+export SC_W1_RATE_LAUNCH_LOG="$E2E_RT/sc-w1-rate-launches"
+export SC_W1_RATE_PID_LOG="$E2E_RT/sc-w1-rate-pids"
 export SC_W1_QML="$(command -v qml)"
 mkdir -p "$XDG_DATA_HOME/applications"
-python3 - "$fixture/applications/$desktop_id" "$XDG_DATA_HOME/applications/$desktop_id" \
-    "$(command -v bash)" "$fixture/launcher.sh" <<'PY'
+stage_desktop() {
+    python3 - "$fixture/applications/$1" "$XDG_DATA_HOME/applications/$1" \
+        "$(command -v bash)" "$fixture/$2" <<'PY'
 import pathlib
 import sys
 
 text = pathlib.Path(sys.argv[1]).read_text()
 pathlib.Path(sys.argv[2]).write_text(text.replace("@BASH@", sys.argv[3]).replace("@LAUNCHER@", sys.argv[4]))
 PY
+}
+stage_desktop "$desktop_id" launcher.sh
+stage_desktop "$rate_desktop_id" rate-launcher.sh
 kbuildsycoca6 --noincremental >/dev/null 2>&1 || e2e_fail "fixture desktop-service cache failed"
 
 launch_count() {
@@ -122,10 +130,11 @@ stop_fixture_app() {
 }
 
 cleanup() {
-    local pid
-    if [[ -f "$SC_W1_PID_LOG" ]]; then
-        while read -r pid; do kill "$pid" 2>/dev/null || true; done < "$SC_W1_PID_LOG"
-    fi
+    local pid pid_log
+    for pid_log in "$SC_W1_PID_LOG" "$SC_W1_RATE_PID_LOG"; do
+        [[ -f "$pid_log" ]] || continue
+        while read -r pid; do kill "$pid" 2>/dev/null || true; done < "$pid_log"
+    done
     e2e_dock_stop >/dev/null 2>&1 || true
     cp "$backup" "$E2E_LAYOUT"
     rm -f "$backup"
@@ -224,16 +233,56 @@ expect_launch() {
     kill -0 "$pid" 2>/dev/null || e2e_fail "$label launch process $pid is not alive"
     [[ "$(window_count)" -eq 1 ]] || e2e_fail "$label did not create exactly one fixture window"
     [[ "$(active_window_title)" == "$window_title" ]] || e2e_fail "$label did not activate the fixture window"
-    sleep 0.6
-    [[ "$(launch_count)" -eq "$expected" ]] || e2e_fail "$label crossed the rate limit and launched twice"
     echo "ok: $label reached launcher activation (pid $pid, active window, active model row)"
+}
+
+rate_launch_count() {
+    [[ -f "$SC_W1_RATE_LAUNCH_LOG" ]] || { echo 0; return; }
+    wc -l < "$SC_W1_RATE_LAUNCH_LOG" | tr -d ' '
+}
+
+rate_process_count() {
+    local count=0 pid
+    [[ -f "$SC_W1_RATE_PID_LOG" ]] || { echo 0; return; }
+    while read -r pid; do
+        kill -0 "$pid" 2>/dev/null && count=$((count + 1))
+    done < "$SC_W1_RATE_PID_LOG"
+    echo "$count"
+}
+
+wait_for_rate_count() {
+    local expected="$1" count="" i
+    for ((i = 0; i < 40; i++)); do
+        count="$(rate_launch_count)"
+        (( count >= expected )) && break
+        sleep 0.25
+    done
+    [[ "$count" -eq "$expected" ]] || e2e_fail "rate fixture recorded $count launches, expected $expected"
+    [[ "$(rate_process_count)" -eq "$expected" ]] || e2e_fail "rate fixture process count disagrees with launch count $expected"
+    assert_pure_launcher
+}
+
+drive_rate_to_count() {
+    local expected="$1" detents="$2" gap="$3" count attempt poll
+    for attempt in 1 2 3; do
+        "$E2E_FAKEPOINTER" scroll "$wheel_x" "$wheel_y" "$detents" "$gap"
+        for ((poll = 0; poll < 12; poll++)); do
+            count="$(rate_launch_count)"
+            (( count >= expected )) && break
+            sleep 0.25
+        done
+        (( count > expected )) && e2e_fail "rate fixture recorded $count launches, expected $expected"
+        (( count == expected )) && break
+        settle_pointer
+    done
+    wait_for_rate_count "$expected"
 }
 
 configure_mode 1 false 0
 settle_pointer
 expect_no_launch "below-threshold +90 angleDelta" "$E2E_FAKEPOINTER" wheel "$wheel_x" "$wheel_y" 90
 expect_no_launch "ScrollTasks negative wheel" "$E2E_FAKEPOINTER" scroll "$wheel_x" "$wheel_y" -1 0
-expect_launch "ScrollTasks positive two-detent burst" "$E2E_FAKEPOINTER" scroll "$wheel_x" "$wheel_y" 2 50
+expect_launch "ScrollTasks positive wheel" "$E2E_FAKEPOINTER" scroll "$wheel_x" "$wheel_y" 1 0
 stop_fixture_app
 
 configure_mode 2 false 0
@@ -250,5 +299,16 @@ configure_mode 0 true 2
 settle_pointer
 expect_launch "ScrollNone with manual scrolling enabled on a one-item non-overflow row" \
     "$E2E_FAKEPOINTER" scroll "$wheel_x" "$wheel_y" 1 0
+stop_fixture_app
+
+launcher_url="$rate_launcher_url"
+launcher_span=""
+configure_mode 1 false 0
+settle_pointer
+drive_rate_to_count 1 2 50
+echo "ok: first detent launched one pure-launcher process; second at 50 ms was suppressed"
+sleep 0.6
+drive_rate_to_count 2 1 0
+echo "ok: post-cooldown detent launched a second process while the row stayed a pure launcher"
 
 echo "PASS: SC-W1 launcher wheel production path"
