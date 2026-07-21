@@ -31,6 +31,7 @@ write_appstream_metadata() {
     local root="$1" component_type="$2" component_id="$3" launchable="$4"
     local extends="${5:--}" library="${6:--}"
     local replaced_component_id="${7:-org.kde.latte-dock.desktop}"
+    local replacement_extra="${8:-}"
     {
         printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>'
         printf '<component type="%s">\n' "$component_type"
@@ -47,8 +48,9 @@ write_appstream_metadata() {
         printf '  </provides>\n'
         printf '  <launchable type="desktop-id">%s</launchable>\n' "$launchable"
         if [[ "$replaced_component_id" != - ]]; then
-            printf '  <replaces>\n    <id>%s</id>\n  </replaces>\n' \
-                "$replaced_component_id"
+            printf '  <replaces>\n    <id>%s</id>\n' "$replaced_component_id"
+            [[ -z "$replacement_extra" ]] || printf '    %s\n' "$replacement_extra"
+            printf '  </replaces>\n'
         fi
         printf '%s\n' '</component>'
     } >"$root/usr/share/metainfo/org.kde.latte-dock.appdata.xml"
@@ -385,6 +387,41 @@ write_appstream_metadata "$missing_appstream_migration" desktop-application \
 expect_failure "missing released AppStream ID migration" \
     "replaces must contain only the released org.kde.latte-dock.desktop component ID" \
     run_check "$missing_appstream_migration"
+
+wrong_appstream_migration="$work/appstream-wrong-released-id-migration"
+cp -a "$good" "$wrong_appstream_migration"
+write_appstream_metadata "$wrong_appstream_migration" desktop-application \
+    org.kde.latte-dock org.kde.latte-dock.desktop - - org.kde.latte.desktop
+expect_failure "wrong released AppStream ID migration" \
+    "replaces must contain only the released org.kde.latte-dock.desktop component ID" \
+    run_check "$wrong_appstream_migration"
+
+text_in_appstream_migration="$work/appstream-text-in-released-id-migration"
+cp -a "$good" "$text_in_appstream_migration"
+write_appstream_metadata "$text_in_appstream_migration" desktop-application \
+    org.kde.latte-dock org.kde.latte-dock.desktop - - \
+    org.kde.latte-dock.desktop unexpected
+expect_failure "text beside the released AppStream ID migration" \
+    "replaces must contain only the released org.kde.latte-dock.desktop component ID" \
+    run_check "$text_in_appstream_migration"
+
+element_in_appstream_migration="$work/appstream-element-in-released-id-migration"
+cp -a "$good" "$element_in_appstream_migration"
+write_appstream_metadata "$element_in_appstream_migration" desktop-application \
+    org.kde.latte-dock org.kde.latte-dock.desktop - - \
+    org.kde.latte-dock.desktop '<binary>latte-dock</binary>'
+expect_failure "extra element beside the released AppStream ID migration" \
+    "replaces must contain only the released org.kde.latte-dock.desktop component ID" \
+    run_check "$element_in_appstream_migration"
+
+nested_element_in_appstream_migration="$work/appstream-nested-element-in-released-id-migration"
+cp -a "$good" "$nested_element_in_appstream_migration"
+write_appstream_metadata "$nested_element_in_appstream_migration" desktop-application \
+    org.kde.latte-dock org.kde.latte-dock.desktop - - \
+    'org.kde.latte-dock.desktop<unexpected/>'
+expect_failure "nested element in the released AppStream ID migration" \
+    "replaces must contain only the released org.kde.latte-dock.desktop component ID" \
+    run_check "$nested_element_in_appstream_migration"
 
 expect_failure "live root without ownership manifest" \
     "--manifest is required with --root /" \
@@ -1257,4 +1294,4 @@ expect_failure "incomplete package" "missing tasks QML plugin" \
     env LATTE_QML_MODULE_PATH="$framework" LATTE_RUNTIME_DATA_PATH="$runtime_data" \
     bash "$gate" --root "$incomplete" --prefix /usr --check-only
 
-echo "installed-package-gate-selftest: PASS (86 focused controls)"
+echo "installed-package-gate-selftest: PASS (90 focused controls)"

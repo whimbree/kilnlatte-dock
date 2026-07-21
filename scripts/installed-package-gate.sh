@@ -365,7 +365,10 @@ my @launchables;
 my @provider_names;
 my @provider_binaries;
 my @provider_libraries;
+my @replacement_child_names;
 my @replaced_component_ids;
+my @replacement_id_child_counts;
+my @replacement_container_texts;
 my $component_type;
 my $extends_count = 0;
 my $provides_count = 0;
@@ -386,7 +389,10 @@ sub finish_node {
         push @component_ids, $text if $node->{name} eq 'id';
         $extends_count++ if $node->{name} eq 'extends';
         $provides_count++ if $node->{name} eq 'provides';
-        $replaces_count++ if $node->{name} eq 'replaces';
+        if ($node->{name} eq 'replaces') {
+            $replaces_count++;
+            push @replacement_container_texts, $text;
+        }
         if ($node->{name} eq 'launchable') {
             push @launchables, [$text, $node->{attributes}->{type} // ''];
         }
@@ -398,9 +404,12 @@ sub finish_node {
         push @provider_libraries, $text if $node->{name} eq 'library';
     }
     if (defined $parent && defined $grandparent
-            && $parent eq 'replaces' && $grandparent eq 'component'
-            && $node->{name} eq 'id') {
-        push @replaced_component_ids, $text;
+            && $parent eq 'replaces' && $grandparent eq 'component') {
+        push @replacement_child_names, $node->{name};
+        if ($node->{name} eq 'id') {
+            push @replaced_component_ids, $text;
+            push @replacement_id_child_counts, $node->{child_count};
+        }
     }
 }
 
@@ -446,7 +455,13 @@ while (pos($xml) < length($xml)) {
             $name eq 'component' or reject("root element is <$name>, expected <component>");
             $component_type = $attributes{type} // '';
         }
-        my $node = {name => $name, attributes => \%attributes, text => ''};
+        $stack[-1]->{child_count}++ if @stack;
+        my $node = {
+            name => $name,
+            attributes => \%attributes,
+            text => '',
+            child_count => 0,
+        };
         if ($self_closing) {
             finish_node($node,
                 @stack ? $stack[-1]->{name} : undef,
@@ -480,8 +495,14 @@ $component_type eq 'desktop-application'
     or reject('launchable must be exactly desktop-id org.kde.latte-dock.desktop');
 $extends_count == 0 or reject('standalone component must not declare extends');
 $replaces_count == 1
+    && @replacement_container_texts == 1
+    && $replacement_container_texts[0] eq ''
+    && @replacement_child_names == 1
+    && $replacement_child_names[0] eq 'id'
     && @replaced_component_ids == 1
     && $replaced_component_ids[0] eq 'org.kde.latte-dock.desktop'
+    && @replacement_id_child_counts == 1
+    && $replacement_id_child_counts[0] == 0
     or reject('replaces must contain only the released org.kde.latte-dock.desktop component ID');
 @provider_libraries == 0
     or reject("provider must not advertise library $provider_libraries[0]");
