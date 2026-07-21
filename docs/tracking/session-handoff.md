@@ -3,20 +3,22 @@
 Rolling handoff for the next session to pick up without re-deriving context.
 Last updated 2026-07-21.
 
-## 2026-07-21: SC-T5 revised locally after PR #101 review
+## 2026-07-21: SC-T5 exact-once runtime acceptance merged
 
-SC-T5 (the permanent runtime-effect acceptance for D29, task-icon middle click
-appears to execute left-click behavior) is rewritten on branch
-`test/tasks-middle-click-runtime` from exact `origin/main`
-`8bc5f6a4a91e0b87c8bbd68508438f27531e9bf8`. Test commit `9dc9f0e3f` contains
-the complete nested-only `023-task-middle-click-runtime.sh` recipe. The
-disposable fixture is a compiled Qt Widgets executable that sets desktop-file
-name `org.kde.latte.sc-t5` before creating its Wayland surface. KWin reports
-that exact resource class, while the task model reports
+PR #101 merged SC-T5 (the permanent runtime-effect acceptance for D29,
+task-icon middle click appears to execute left-click behavior) into
+`origin/main` at `91b24b694`. Final runtime-test commit `382268a92` supplies the
+complete nested-only `023-task-middle-click-runtime.sh` recipe, final D64
+(distro-gate fakepointer build omits the xkbcommon link dependency) record
+commit `611824a68` keeps the separate CI defect open, and `91b24b694` carries
+the reviewed evidence and tracking. The disposable fixture is a compiled Qt
+Widgets executable that sets desktop-file name `org.kde.latte.sc-t5` before
+creating its Wayland surface. KWin reports that exact resource class, while the
+task model reports
 `appId=org.kde.latte.sc-t5.desktop` and launcher URL
 `applications:org.kde.latte.sc-t5.desktop`. No product behavior or D-Bus
-surface changed. SC-T5 remains unchecked pending rereview and merge. D29
-remains ACCEPTED as Qt5-faithful configuration-scope behavior.
+surface changed. SC-T5 is complete. D29 remains ACCEPTED as Qt5-faithful
+configuration-scope behavior.
 
 The recipe seeds one pure launcher with `middleClickAction=2` (`NewInstance`)
 and no fixture window. Exactly one status-0 fakepointer middle click produced
@@ -28,13 +30,15 @@ from one pure launcher to one active, ungrouped, unminimized window row. The
 fixture process record matched its live `/proc/<pid>/stat` start time and
 `/proc/<pid>/exe` before counting.
 
-PR #101's independent review returned MERGE AFTER FIXES because phase two could
-locate a single row, settle the pointer, and then accept a changed or already
-grouped target before input. The revised target lookup requires exactly one
-fixture KWin window, one validated PID/start-time/executable tuple, and one
+PR #101's initial independent review returned MERGE AFTER FIXES because phase
+two could locate a single row, settle the pointer, and then accept a changed or
+already grouped target before input. The merged target lookup requires exactly
+one fixture KWin window, one validated PID/start-time/executable tuple, and one
 active, unminimized, ungrouped task row with `childCount=0`. The same complete
 state is queried again immediately after pointer settlement and captured before
-the single click. A grouped or extra-process state cannot satisfy the precondition.
+the single click. A grouped or extra-process state cannot satisfy the
+precondition. Independent rereview accepted the hardened exact-once contract
+before the rebase merge.
 
 The phase-two click produced
 `{"configuredAction":"newInstance","dispatchedOperation":"requestNewInstance","rowIdentity":"applications:org.kde.latte.sc-t5.desktop","rowKind":"task","sequence":2}`.
@@ -72,14 +76,16 @@ ShellCheck, desktop-file validation, and diff checks passed.
 The installed `~/.local/bin/fakepointer` predates the tracked `middleclick`
 verb, so verification used the worktree-built binary without modifying the
 live-session installation. This exposed D64 (distro-gate fakepointer build
-omits the xkbcommon link dependency), recorded separately at `56aaa2300`; B2a
-(the D64 distro-gate fakepointer xkbcommon link repair) remains open and
+omits the xkbcommon link dependency), recorded separately at final commit
+`611824a68`. D64 remains OPEN, B2a (the D64 distro-gate fakepointer xkbcommon
+link repair) remains unchecked and outside SC-T5 scope, and
 `ci/build-and-gate.sh` remains unchanged.
 
-PR #101 exists, but its remote head and prior full-gate stamp name obsolete
-pre-rewrite commit `fd0ad8117`. No full gate was run after the local rewrite.
-Remote update, a fresh gate, and independent rereview remain pending; no
-force-push or merge was performed.
+The final canonical full gate exited 0 and stamped the exact pre-rebase PR tree.
+GitHub's rebase merge produced final head `91b24b694` with the same tree
+`320a562378aa0687fe75dca0183ff8182aa9de66`, so the merged code and tracking are
+the full-gate equivalent. This docs-only finalization makes no new code-gate
+claim.
 
 ## 2026-07-21: SC-T3 (the D29 narrow middle-click dispatch readback) merged
 
@@ -110,9 +116,8 @@ method is `taskMiddleClickDispatchData(u containmentId) -> s`. It returns only
 `rowIdentity`, `rowKind`, `configuredAction`, `dispatchedOperation`, and
 `sequence`, or `{}` before the first event. There is no setter, history,
 arbitrary execution, action expansion, window title, or other application
-content. SC-T5 (the D29 permanent runtime-effect acceptance) remains separate,
-approved, and unchecked. It is now dependency-unblocked; runtime acceptance was
-not started.
+content. SC-T5 (the D29 permanent runtime-effect acceptance) was intentionally
+separate and had not started at that point.
 
 Post-review focused application/tasks-plugin/test builds passed.
 `tasksbackendtest`, sanitizer-backed `dbusreportstest`, and `sourceguardtest`
@@ -127,7 +132,8 @@ compile gate passed 130 files, qmllint matched its 5,832-warning baseline, all
 232 QML interaction checks passed, the coverage ratchet passed 96 entries and
 31 paired headers, and XML validation plus generated adaptor compilation
 passed. Regenerated tasks type metadata differs only by D60's two pre-existing
-composer-method omissions. SC-T5 runtime-effect acceptance was not run.
+composer-method omissions. SC-T5 runtime-effect acceptance was not part of the
+SC-T3 run.
 
 The first canonical gate exposed D63 (task settings-inventory anchors did not
 follow middle-click QML): SC-T3 shifted every `TaskMouseArea.qml` source anchor,
@@ -392,9 +398,9 @@ maintained-continuation divergences are not approved by the plan.
 PR #88 landed SC-F1 at final commit `472711d11`. PR #89 landed SC-W1 at final
 commits `d2fa8bbd1`, `3b6930851`, and `c61ce8502`. SC-F2 (the source-to-ledger
 coverage gate) remains incomplete. SC-T3 (the D29 narrow dispatch readback)
-subsequently merged through PR #99 and is complete; SC-T5 (the D29 permanent
-runtime-effect acceptance) remains approved and pending. These approvals do not
-widen any adjacent unit.
+subsequently merged through PR #99 and is complete; PR #101 subsequently merged
+SC-T5 (the D29 permanent runtime-effect acceptance) at final implementation
+commit `382268a92`. These completions do not widen any adjacent unit.
 
 - D29 (task-icon middle click appears to execute left-click behavior) is
   ACCEPTED as Qt5-faithful configuration-scope behavior. At `5c2223a3e`, a
@@ -405,8 +411,8 @@ widen any adjacent unit.
   two-child group. The sequence was reproduced twice; Qt5 and both forks retain
   the launcher exception; temporary instrumentation was removed. SC-T3 (the D29
   narrow dispatch readback) is complete through PR #99. SC-T5 (the D29 permanent
-  runtime-effect acceptance) remains approved, dependency-unblocked, and
-  pending. SC-T4 (the D29 root fix) is not applicable.
+  runtime-effect acceptance) is complete through PR #101 at `382268a92`. SC-T4
+  (the D29 root fix) is not applicable.
 - D30 (Behavior mouse actions expose fixed booleans instead of full choices)
   remains OPEN only at SC-B2 (the product decision and sign-off gate). SC-B1
   (the D30 current-contract investigation) confirmed inherited booleans for
