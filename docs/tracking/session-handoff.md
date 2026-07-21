@@ -3,6 +3,44 @@
 Rolling handoff for the next session to pick up without re-deriving context.
 Last updated 2026-07-21.
 
+## 2026-07-21: D58 tracker requester fix verified locally
+
+D58 (close-only and minimize-toggle settings do not enable window tracking) is
+FIXED provisionally on local branch `fix/settings-tracker-enablement` at
+`421853cee`, based exactly on `b7a07fd08aa362ba581ad910683e2ca90953ae71`.
+This local state has not received independent review and has not been pushed,
+opened as a PR, or merged. SC-WT1 (the D58 tracker-enablement root fix and
+regression) therefore remains unchecked pending PR landing.
+
+The root was the requester OR-set in
+`containment/package/contents/ui/BindingsExternal.qml`: it enabled the active-
+window tracker for `dragActiveWindowEnabled` but not for
+`closeActiveWindowEnabled` or `ScrollToggleMinimized`. The local fix adds only
+those two existing-contract dependencies. It adds no Wayland capability check,
+typed refusal, action-choice UI, D30 product decision, or adjacent cleanup. The
+source guard pins all prior visibility, applet, move/maximize, dynamic-
+background, and floating-gap requesters.
+
+The regression went RED before the QML change in both `sourceguardtest` and the
+nested close-only `trackerData` assertion. It is GREEN in three complete nested
+runs through the real `EnvironmentActions.qml` path. Every run asserted the
+neutral negative controls (`tracker.enabled=false`, middle click did not close,
+negative wheel did not minimize), close-only and minimize-toggle enablement
+(`tracker.enabled=true`), and harmless no-target input with no tracked window.
+Independent KWin state then observed the close target disappear and the
+minimize target become minimized. The nested first-middle-click delivery race
+required one retry in the first green run and two retries in each following
+run; all negative-wheel effects arrived on the first attempt.
+
+QML compile passed all 130 compiled files, and the qmllint ratchet matched its
+234-file baseline with 5,832 curated warnings. The focused
+`lastactivewindowtest`, `sourceguardtest`, `qmlcontracts`,
+`windowtrackingpredicatestest`, and `wheelaccumulatortest` set passed 5/5.
+No full gate was run, as directed. Pre-PR work is independent diff review,
+rebase onto the then-current `origin/main`, replacement of local tracking hashes
+with rebased hashes, the required gate on that rebased head, push, PR creation,
+and merge only after a MERGE review verdict.
+
 ## 2026-07-21: D59 AppStream source and native recipes complete
 
 D59 (invalid standalone AppStream identity and stale library provider) was
