@@ -477,8 +477,8 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   production reporter forwarding is pinned at `c0ba3f66f`.
 
 ### D63 - Task settings-inventory anchors did not follow middle-click QML
-- STATUS: FIXED on local `feat/tasks-middle-click-readback` branch; final hash
-  pending the tracking follow-up.
+- STATUS: FIXED on local `feat/tasks-middle-click-readback` branch
+  (`7f3d42a2e`); not merged.
 - FOUND: canonical full gate for SC-T3 (the D29 narrow middle-click dispatch
   readback) at `3f4ec2355`.
 - ROOT: the new reporter properties and helper functions shifted every
@@ -489,7 +489,8 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 - FIX: all nine task-row anchors and the drag-and-drop exemption now point to
   their exact accepted-buttons, handler, wheel, timer, and drag-handler lines.
 - EVIDENCE: focused `settingsinventorytest` passes at 270 affordances and 21
-  exemptions. Full-gate evidence is recorded after the final tracking commit.
+  exemptions. The canonical full gate reruns this test at the final branch head
+  before push.
 
 ## Recorded elsewhere - indexed here so the flat scan is complete
 
