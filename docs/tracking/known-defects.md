@@ -330,7 +330,9 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 
 ### D58 - Close-only and minimize-toggle settings do not enable window tracking
 - STATUS: FIXED provisionally on local branch `fix/settings-tracker-enablement`
-  at `421853cee`; not reviewed, pushed, or merged.
+  at `421853cee`, with review hardening at `6cb63e7ee` and `808bdea`.
+  The MERGE AFTER FIXES findings are addressed locally; no rereview, push, PR,
+  or merge has occurred.
 - FOUND: 2026-07-20, SC-B1 (the D30 current-contract investigation).
 - SYMPTOM: close-only and `ScrollToggleMinimized` configurations report
   `tracker.enabled=false`, leaving the configured close or minimize gesture with
@@ -346,6 +348,11 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   normal KWin window, close-only and minimize-toggle with
   `tracker.enabled=true`, harmless no-target input, independent KWin window
   removal for close, and independent KWin minimized state for negative wheel.
+- REVIEW HARDENING: KWin and input failures now fail loudly, successful cleanup
+  proves zero fixture residue and byte-identical config restoration before PASS,
+  and the source guard compares the complete normalized requester expression.
+  A false injector and an OR-to-AND mutation were both rejected; three hardened
+  nested repetitions passed after the temporary probes were removed.
 - LOCAL FIX: `BindingsExternal.qml` adds only the two missing existing-contract
   dependencies. The source guard preserves visibility, applet, move/maximize,
   dynamic-background, and floating-gap requesters. Wayland capability checks
