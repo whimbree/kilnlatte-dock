@@ -478,10 +478,11 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 - STATUS: FIXED in open PR #99 (`7f3d42a2e`); not merged.
 - FOUND: canonical full gate for SC-T3 (the D29 narrow middle-click dispatch
   readback) at `3f4ec2355`.
-- ROOT: the new reporter properties and helper functions shifted every
-  `TaskMouseArea.qml` source anchor by 25 lines, with one additional line after
-  launcher dispatch recording. The inventory retained its pre-SC-T3 line
-  numbers; most still landed on unrelated nonempty lines, while hover-exit
+- ROOT: `TaskMouseArea.qml` accepted-buttons moved from line 19 to 20 because it
+  precedes the inserted reporter helpers. Subsequent pointer-handler anchors
+  shifted by 25 lines, while wheel and timer anchors shifted by 26 because they
+  also follow launcher dispatch recording. The inventory retained its pre-SC-T3
+  line numbers; most still landed on unrelated nonempty lines, while hover-exit
   landed on line 100's blank separator and made `settingsinventorytest` fail.
 - FIX: all nine task-row anchors and the drag-and-drop exemption now point to
   their exact accepted-buttons, handler, wheel, timer, and drag-handler lines.
