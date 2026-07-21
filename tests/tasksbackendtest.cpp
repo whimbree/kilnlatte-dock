@@ -48,6 +48,10 @@ private Q_SLOTS:
     void taskManagerItemRoundTrips();
     void tryDecodeApplicationsUrlPassesThroughUnknown();
     void windowViewAvailableIsQueryable();
+    void middleClickDispatchStartsEmpty();
+    void middleClickDispatchDistinguishesLauncherAndTask();
+    void middleClickDispatchSequenceIsProcessMonotonic();
+    void middleClickDispatchRefusesMalformedInput();
 
 private:
     QString writeFile(const QString &name, const QString &body);
@@ -213,6 +217,95 @@ void TasksBackendTest::windowViewAvailableIsQueryable()
     const QVariant v = backend.property("windowViewAvailable");
     QVERIFY(v.isValid());
     QVERIFY(v.typeId() == QMetaType::Bool);
+}
+
+void TasksBackendTest::middleClickDispatchStartsEmpty()
+{
+    Backend backend;
+    QVERIFY(backend.latestMiddleClickDispatch().isEmpty());
+    QVERIFY(backend.property("latestMiddleClickDispatch").toMap().isEmpty());
+}
+
+void TasksBackendTest::middleClickDispatchDistinguishesLauncherAndTask()
+{
+    Backend backend;
+    QSignalSpy spy(&backend, &Backend::middleClickDispatchChanged);
+
+    QVERIFY(backend.recordMiddleClickDispatch(QStringLiteral("applications:org.kde.dolphin.desktop"),
+                                              true,
+                                              Latte::Tasks::Types::NewInstance,
+                                              QStringLiteral("activate")));
+
+    QVariantMap event = backend.latestMiddleClickDispatch();
+    QCOMPARE(event.value(QStringLiteral("rowIdentity")).toString(),
+             QStringLiteral("applications:org.kde.dolphin.desktop"));
+    QCOMPARE(event.value(QStringLiteral("rowKind")).toInt(),
+             static_cast<int>(Latte::Tasks::MiddleClickRowKind::Launcher));
+    QCOMPARE(event.value(QStringLiteral("configuredAction")).toInt(),
+             static_cast<int>(Latte::Tasks::Types::NewInstance));
+    QCOMPARE(event.value(QStringLiteral("dispatchedOperation")).toInt(),
+             static_cast<int>(Latte::Tasks::MiddleClickOperation::RequestActivate));
+    QVERIFY(event.value(QStringLiteral("sequence")).toLongLong() > 0);
+
+    QVERIFY(backend.recordMiddleClickDispatch(QStringLiteral("applications:org.kde.dolphin.desktop"),
+                                              false,
+                                              Latte::Tasks::Types::NewInstance,
+                                              QStringLiteral("newInstance")));
+
+    event = backend.latestMiddleClickDispatch();
+    QCOMPARE(event.value(QStringLiteral("rowKind")).toInt(),
+             static_cast<int>(Latte::Tasks::MiddleClickRowKind::Task));
+    QCOMPARE(event.value(QStringLiteral("dispatchedOperation")).toInt(),
+             static_cast<int>(Latte::Tasks::MiddleClickOperation::RequestNewInstance));
+    QCOMPARE(spy.count(), 2);
+}
+
+void TasksBackendTest::middleClickDispatchSequenceIsProcessMonotonic()
+{
+    Backend first;
+    Backend second;
+
+    QVERIFY(first.recordMiddleClickDispatch(QStringLiteral("applications:first.desktop"),
+                                            true,
+                                            Latte::Tasks::Types::NewInstance,
+                                            QStringLiteral("activate")));
+    const qint64 firstSequence = first.latestMiddleClickDispatch().value(QStringLiteral("sequence")).toLongLong();
+
+    QVERIFY(first.recordMiddleClickDispatch(QStringLiteral("applications:first.desktop"),
+                                            false,
+                                            Latte::Tasks::Types::NewInstance,
+                                            QStringLiteral("newInstance")));
+    const qint64 secondSequence = first.latestMiddleClickDispatch().value(QStringLiteral("sequence")).toLongLong();
+
+    QVERIFY(second.recordMiddleClickDispatch(QStringLiteral("applications:second.desktop"),
+                                             true,
+                                             Latte::Tasks::Types::Close,
+                                             QStringLiteral("activate")));
+    const qint64 thirdSequence = second.latestMiddleClickDispatch().value(QStringLiteral("sequence")).toLongLong();
+
+    QCOMPARE(secondSequence, firstSequence + 1);
+    QCOMPARE(thirdSequence, secondSequence + 1);
+}
+
+void TasksBackendTest::middleClickDispatchRefusesMalformedInput()
+{
+    Backend backend;
+
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("unknown configured action")));
+    QVERIFY(!backend.recordMiddleClickDispatch(QStringLiteral("applications:test.desktop"), true, 99,
+                                               QStringLiteral("activate")));
+
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("unknown operation")));
+    QVERIFY(!backend.recordMiddleClickDispatch(QStringLiteral("applications:test.desktop"), false,
+                                               Latte::Tasks::Types::NewInstance,
+                                               QStringLiteral("teleport")));
+
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("row kind and operation disagree")));
+    QVERIFY(!backend.recordMiddleClickDispatch(QStringLiteral("applications:test.desktop"), false,
+                                               Latte::Tasks::Types::NewInstance,
+                                               QStringLiteral("activate")));
+
+    QVERIFY(backend.latestMiddleClickDispatch().isEmpty());
 }
 
 QTEST_MAIN(TasksBackendTest)

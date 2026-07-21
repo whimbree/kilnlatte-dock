@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2012-2016 Eike Hein <hein@kde.org>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
@@ -43,6 +44,9 @@
 #include <QTimer>
 #include <QVersionNumber>
 
+#include <limits>
+#include <optional>
+
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QDBusMessage>
@@ -62,6 +66,65 @@ using namespace KAStats;
 using namespace KAStats::Terms;
 
 static constexpr int NoApplications = 2; // kactivitymanager StatsPlugin WhatToRemember.
+
+namespace {
+
+// Every Backend instance is driven on the GUI thread. One process-wide counter
+// lets the D-Bus collector order events from multiple tasks applets without
+// retaining a history or relying on wall-clock time.
+qint64 s_middleClickDispatchSequence{0};
+
+std::optional<Latte::Tasks::Types::TaskAction> taskActionFromConfigValue(int value)
+{
+    using Action = Latte::Tasks::Types::TaskAction;
+
+    switch (value) {
+    case Action::NoneAction:
+    case Action::Close:
+    case Action::NewInstance:
+    case Action::ToggleMinimized:
+    case Action::CycleThroughTasks:
+    case Action::ToggleGrouping:
+    case Action::PresentWindows:
+    case Action::PreviewWindows:
+    case Action::HighlightWindows:
+    case Action::PreviewAndHighlightWindows:
+        return static_cast<Action>(value);
+    }
+
+    return std::nullopt;
+}
+
+std::optional<Latte::Tasks::MiddleClickOperation> middleClickOperationFromToken(const QString &token)
+{
+    using Operation = Latte::Tasks::MiddleClickOperation;
+
+    if (token.isEmpty()) {
+        return Operation::None;
+    }
+    if (token == QLatin1String("activate")) {
+        return Operation::RequestActivate;
+    }
+    if (token == QLatin1String("close")) {
+        return Operation::RequestClose;
+    }
+    if (token == QLatin1String("newInstance")) {
+        return Operation::RequestNewInstance;
+    }
+    if (token == QLatin1String("toggleMinimized")) {
+        return Operation::RequestToggleMinimized;
+    }
+    if (token == QLatin1String("cycleOrActivate")) {
+        return Operation::CycleOrActivate;
+    }
+    if (token == QLatin1String("toggleGrouping")) {
+        return Operation::RequestToggleGrouping;
+    }
+
+    return std::nullopt;
+}
+
+}
 
 Backend::Backend(QObject *parent)
     : QObject(parent)
@@ -101,6 +164,67 @@ Backend::Backend(QObject *parent)
 
 Backend::~Backend()
 {
+}
+
+QVariantMap Backend::latestMiddleClickDispatch() const
+{
+    if (!m_latestMiddleClickDispatch) {
+        return {};
+    }
+
+    const auto &record = *m_latestMiddleClickDispatch;
+    QVariantMap data;
+    data.insert(QStringLiteral("rowIdentity"), record.rowIdentity);
+    data.insert(QStringLiteral("rowKind"), static_cast<int>(record.rowKind));
+    data.insert(QStringLiteral("configuredAction"), static_cast<int>(record.configuredAction));
+    data.insert(QStringLiteral("dispatchedOperation"), static_cast<int>(record.dispatchedOperation));
+    data.insert(QStringLiteral("sequence"), record.sequence);
+    return data;
+}
+
+bool Backend::recordMiddleClickDispatch(const QString &rowIdentity,
+                                        bool isLauncher,
+                                        int configuredAction,
+                                        const QString &operation)
+{
+    if (rowIdentity.isEmpty()) {
+        qWarning() << "tasks backend: refusing middle-click dispatch with no stable row identity";
+        return false;
+    }
+
+    const auto action = taskActionFromConfigValue(configuredAction);
+    if (!action) {
+        qWarning() << "tasks backend: refusing middle-click dispatch with unknown configured action" << configuredAction;
+        return false;
+    }
+
+    const auto parsedOperation = middleClickOperationFromToken(operation);
+    if (!parsedOperation) {
+        qWarning() << "tasks backend: refusing middle-click dispatch with unknown operation" << operation;
+        return false;
+    }
+
+    if (isLauncher != (*parsedOperation == Latte::Tasks::MiddleClickOperation::RequestActivate)) {
+        qWarning() << "tasks backend: refusing middle-click dispatch whose row kind and operation disagree";
+        return false;
+    }
+
+    if (s_middleClickDispatchSequence == std::numeric_limits<qint64>::max()) {
+        qCritical() << "tasks backend: middle-click dispatch sequence exhausted";
+        return false;
+    }
+
+    Latte::Tasks::MiddleClickDispatchRecord record;
+    record.rowIdentity = rowIdentity;
+    record.rowKind = isLauncher ? Latte::Tasks::MiddleClickRowKind::Launcher
+                                : Latte::Tasks::MiddleClickRowKind::Task;
+    record.configuredAction = *action;
+    record.dispatchedOperation = *parsedOperation;
+    record.sequence = ++s_middleClickDispatchSequence;
+
+    m_latestMiddleClickDispatch = std::move(record);
+    Q_EMIT middleClickDispatchChanged();
+    return true;
 }
 
 QUrl Backend::tryDecodeApplicationsUrl(const QUrl &launcherUrl)

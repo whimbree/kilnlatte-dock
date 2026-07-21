@@ -106,6 +106,10 @@
         <arg name="data" type="s" direction="out"/>
         <arg name="containmentId" type="u" direction="in"/>
     </method>
+    <method name="taskMiddleClickDispatchData">
+        <arg name="data" type="s" direction="out"/>
+        <arg name="containmentId" type="u" direction="in"/>
+    </method>
     <!-- D21: the JSON payload adds the resolved applyColor/textColor/
          backgroundColor ("#rrggbb", "" when unresolved) and their
          applyColorBrightness/backgroundColorBrightness (0..255), so an applet

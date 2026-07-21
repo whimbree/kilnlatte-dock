@@ -28,11 +28,13 @@ Module {
         Property { name: "taskManagerItem"; type: "QQuickItem"; isPointer: true }
         Property { name: "highlightWindows"; type: "bool" }
         Property { name: "windowViewAvailable"; type: "bool"; isReadonly: true }
+        Property { name: "latestMiddleClickDispatch"; type: "QVariantMap"; isReadonly: true }
         Signal {
             name: "addLauncher"
             Parameter { name: "url"; type: "QUrl" }
         }
         Signal { name: "showAllPlaces" }
+        Signal { name: "middleClickDispatchChanged" }
         Method {
             name: "jumpListActions"
             type: "QVariantList"
@@ -96,6 +98,14 @@ Module {
         Method {
             name: "ungrabMouse"
             Parameter { name: "item"; type: "QQuickItem"; isPointer: true }
+        }
+        Method {
+            name: "recordMiddleClickDispatch"
+            type: "bool"
+            Parameter { name: "rowIdentity"; type: "string" }
+            Parameter { name: "isLauncher"; type: "bool" }
+            Parameter { name: "configuredAction"; type: "int" }
+            Parameter { name: "operation"; type: "string" }
         }
         Method {
             name: "activateWindowView"

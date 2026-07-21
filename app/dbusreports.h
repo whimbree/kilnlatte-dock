@@ -10,6 +10,7 @@
 // local
 #include <coretypes.h>
 #include "apptypes.h"
+#include "../plasmoid/plugin/middleclickdispatch.h"
 //! the containment plugin's enum home, included relatively: the theme and
 //! window color modes colorizerData() names live there (a header-only
 //! Q_GADGET, no moc linkage), and naming the REAL enums keeps -Wswitch
@@ -418,6 +419,171 @@ inline std::optional<Types::Visibility> settableVisibilityModeFromName(const QSt
     return mode;
 }
 
+inline QString middleClickRowKindName(Tasks::MiddleClickRowKind kind)
+{
+    switch (kind) {
+    case Tasks::MiddleClickRowKind::Launcher:
+        return QStringLiteral("launcher");
+    case Tasks::MiddleClickRowKind::Task:
+        return QStringLiteral("task");
+    }
+
+    Q_UNREACHABLE();
+}
+
+inline QString taskActionName(Tasks::Types::TaskAction action)
+{
+    switch (action) {
+    case Tasks::Types::NoneAction:
+        return QStringLiteral("none");
+    case Tasks::Types::Close:
+        return QStringLiteral("close");
+    case Tasks::Types::NewInstance:
+        return QStringLiteral("newInstance");
+    case Tasks::Types::ToggleMinimized:
+        return QStringLiteral("toggleMinimized");
+    case Tasks::Types::CycleThroughTasks:
+        return QStringLiteral("cycleThroughTasks");
+    case Tasks::Types::ToggleGrouping:
+        return QStringLiteral("toggleGrouping");
+    case Tasks::Types::PresentWindows:
+        return QStringLiteral("presentWindows");
+    case Tasks::Types::PreviewWindows:
+        return QStringLiteral("previewWindows");
+    case Tasks::Types::HighlightWindows:
+        return QStringLiteral("highlightWindows");
+    case Tasks::Types::PreviewAndHighlightWindows:
+        return QStringLiteral("previewAndHighlightWindows");
+    }
+
+    Q_UNREACHABLE();
+}
+
+inline QString middleClickOperationName(Tasks::MiddleClickOperation operation)
+{
+    switch (operation) {
+    case Tasks::MiddleClickOperation::None:
+        return QStringLiteral("none");
+    case Tasks::MiddleClickOperation::RequestActivate:
+        return QStringLiteral("requestActivate");
+    case Tasks::MiddleClickOperation::RequestClose:
+        return QStringLiteral("requestClose");
+    case Tasks::MiddleClickOperation::RequestNewInstance:
+        return QStringLiteral("requestNewInstance");
+    case Tasks::MiddleClickOperation::RequestToggleMinimized:
+        return QStringLiteral("requestToggleMinimized");
+    case Tasks::MiddleClickOperation::CycleOrActivate:
+        return QStringLiteral("cycleOrActivate");
+    case Tasks::MiddleClickOperation::RequestToggleGrouping:
+        return QStringLiteral("requestToggleGrouping");
+    }
+
+    Q_UNREACHABLE();
+}
+
+inline std::optional<Tasks::MiddleClickRowKind> middleClickRowKindFromValue(int value)
+{
+    switch (value) {
+    case static_cast<int>(Tasks::MiddleClickRowKind::Launcher):
+        return Tasks::MiddleClickRowKind::Launcher;
+    case static_cast<int>(Tasks::MiddleClickRowKind::Task):
+        return Tasks::MiddleClickRowKind::Task;
+    }
+
+    return std::nullopt;
+}
+
+inline std::optional<Tasks::Types::TaskAction> taskActionFromValue(int value)
+{
+    switch (value) {
+    case Tasks::Types::NoneAction:
+    case Tasks::Types::Close:
+    case Tasks::Types::NewInstance:
+    case Tasks::Types::ToggleMinimized:
+    case Tasks::Types::CycleThroughTasks:
+    case Tasks::Types::ToggleGrouping:
+    case Tasks::Types::PresentWindows:
+    case Tasks::Types::PreviewWindows:
+    case Tasks::Types::HighlightWindows:
+    case Tasks::Types::PreviewAndHighlightWindows:
+        return static_cast<Tasks::Types::TaskAction>(value);
+    }
+
+    return std::nullopt;
+}
+
+inline std::optional<Tasks::MiddleClickOperation> middleClickOperationFromValue(int value)
+{
+    switch (value) {
+    case static_cast<int>(Tasks::MiddleClickOperation::None):
+    case static_cast<int>(Tasks::MiddleClickOperation::RequestActivate):
+    case static_cast<int>(Tasks::MiddleClickOperation::RequestClose):
+    case static_cast<int>(Tasks::MiddleClickOperation::RequestNewInstance):
+    case static_cast<int>(Tasks::MiddleClickOperation::RequestToggleMinimized):
+    case static_cast<int>(Tasks::MiddleClickOperation::CycleOrActivate):
+    case static_cast<int>(Tasks::MiddleClickOperation::RequestToggleGrouping):
+        return static_cast<Tasks::MiddleClickOperation>(value);
+    }
+
+    return std::nullopt;
+}
+
+//! Validate the tasks-backend -> app report boundary without coercing malformed
+//! values into plausible defaults. An empty map is the legitimate no-event
+//! state; callers distinguish it before using this parser.
+inline std::optional<Tasks::MiddleClickDispatchRecord> middleClickDispatchRecordFromMap(const QVariantMap &data)
+{
+    const QVariant rowIdentity = data.value(QStringLiteral("rowIdentity"));
+    const QVariant rowKindValue = data.value(QStringLiteral("rowKind"));
+    const QVariant configuredActionValue = data.value(QStringLiteral("configuredAction"));
+    const QVariant operationValue = data.value(QStringLiteral("dispatchedOperation"));
+    const QVariant sequenceValue = data.value(QStringLiteral("sequence"));
+
+    if (rowIdentity.typeId() != QMetaType::QString || rowIdentity.toString().isEmpty()
+        || rowKindValue.typeId() != QMetaType::Int
+        || configuredActionValue.typeId() != QMetaType::Int
+        || operationValue.typeId() != QMetaType::Int
+        || sequenceValue.typeId() != QMetaType::LongLong) {
+        return std::nullopt;
+    }
+
+    const auto rowKind = middleClickRowKindFromValue(rowKindValue.toInt());
+    const auto configuredAction = taskActionFromValue(configuredActionValue.toInt());
+    const auto operation = middleClickOperationFromValue(operationValue.toInt());
+    const qint64 sequence = sequenceValue.toLongLong();
+
+    if (!rowKind || !configuredAction || !operation || sequence <= 0
+        || ((*rowKind == Tasks::MiddleClickRowKind::Launcher)
+            != (*operation == Tasks::MiddleClickOperation::RequestActivate))) {
+        return std::nullopt;
+    }
+
+    Tasks::MiddleClickDispatchRecord record;
+    record.rowIdentity = rowIdentity.toString();
+    record.rowKind = *rowKind;
+    record.configuredAction = *configuredAction;
+    record.dispatchedOperation = *operation;
+    record.sequence = sequence;
+    return record;
+}
+
+inline QJsonObject serializeMiddleClickDispatchRecord(const Tasks::MiddleClickDispatchRecord &record)
+{
+    QJsonObject json;
+    json[QStringLiteral("rowIdentity")] = record.rowIdentity;
+    json[QStringLiteral("rowKind")] = middleClickRowKindName(record.rowKind);
+    json[QStringLiteral("configuredAction")] = taskActionName(record.configuredAction);
+    json[QStringLiteral("dispatchedOperation")] = middleClickOperationName(record.dispatchedOperation);
+    json[QStringLiteral("sequence")] = record.sequence;
+    return json;
+}
+
+inline QString serializeMiddleClickDispatchData(const std::optional<Tasks::MiddleClickDispatchRecord> &record)
+{
+    const QJsonObject json = record ? serializeMiddleClickDispatchRecord(*record) : QJsonObject{};
+    return QString::fromUtf8(QJsonDocument(json).toJson(QJsonDocument::Compact));
+}
+
 inline QJsonArray serializeRect(const QRect &rect)
 {
     return QJsonArray{rect.x(), rect.y(), rect.width(), rect.height()};
@@ -800,6 +966,11 @@ QString collectTrackerData(const Latte::View *view);
 //! serialize one live view's latte-tasks items for the viewTasksData()
 //! D-Bus read
 QString collectTasksData(const Latte::View *view);
+
+//! Serialize the newest TaskMouseArea middle-click dispatch across a view's
+//! tasks applets. A null view is an unknown containment boundary and reports
+//! "{}" with a warning; a view with no recorded event reports "{}" quietly.
+QString collectMiddleClickDispatchData(const Latte::View *view, uint containmentId);
 
 //! serialize one live view's colorizer facts for the colorizerData()
 //! D-Bus read

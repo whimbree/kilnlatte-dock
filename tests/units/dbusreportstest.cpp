@@ -60,6 +60,11 @@ private Q_SLOTS:
     void taskRecordKeySet();
     void taskRecordsSerializeAsCompactJsonArray();
     void windowTaskOrderReadbackTracksAppIdAcrossReorder();
+    void middleClickDispatchSerializesLauncherAndTaskOperations();
+    void middleClickDispatchNoEventSerializesAsEmptyObject();
+    void middleClickDispatchMapParsingAcceptsBackendShape();
+    void middleClickDispatchMapParsingRefusesMalformedState_data();
+    void middleClickDispatchMapParsingRefusesMalformedState();
 
     void themeColorsModeNames_data();
     void themeColorsModeNames();
@@ -727,6 +732,107 @@ void DbusReportsTest::windowTaskOrderReadbackTracksAppIdAcrossReorder()
     QCOMPARE(indexOfAppId(after, QStringLiteral("gamma")), 1);
 
     QVERIFY(before != after);
+}
+
+void DbusReportsTest::middleClickDispatchSerializesLauncherAndTaskOperations()
+{
+    Tasks::MiddleClickDispatchRecord launcher;
+    launcher.rowIdentity = QStringLiteral("applications:org.kde.dolphin.desktop");
+    launcher.rowKind = Tasks::MiddleClickRowKind::Launcher;
+    launcher.configuredAction = Tasks::Types::NewInstance;
+    launcher.dispatchedOperation = Tasks::MiddleClickOperation::RequestActivate;
+    launcher.sequence = 41;
+
+    QJsonObject json = serializeMiddleClickDispatchRecord(launcher);
+    QCOMPARE(sortedKeys(json),
+             (QStringList{QStringLiteral("configuredAction"), QStringLiteral("dispatchedOperation"),
+                          QStringLiteral("rowIdentity"), QStringLiteral("rowKind"),
+                          QStringLiteral("sequence")}));
+    QCOMPARE(json.value(QStringLiteral("rowIdentity")).toString(), launcher.rowIdentity);
+    QCOMPARE(json.value(QStringLiteral("rowKind")).toString(), QStringLiteral("launcher"));
+    QCOMPARE(json.value(QStringLiteral("configuredAction")).toString(), QStringLiteral("newInstance"));
+    QCOMPARE(json.value(QStringLiteral("dispatchedOperation")).toString(), QStringLiteral("requestActivate"));
+    QCOMPARE(json.value(QStringLiteral("sequence")).toInteger(), 41);
+
+    Tasks::MiddleClickDispatchRecord task = launcher;
+    task.rowKind = Tasks::MiddleClickRowKind::Task;
+    task.dispatchedOperation = Tasks::MiddleClickOperation::RequestNewInstance;
+    task.sequence = 42;
+
+    json = QJsonDocument::fromJson(serializeMiddleClickDispatchData(task).toUtf8()).object();
+    QCOMPARE(json.value(QStringLiteral("rowKind")).toString(), QStringLiteral("task"));
+    QCOMPARE(json.value(QStringLiteral("configuredAction")).toString(), QStringLiteral("newInstance"));
+    QCOMPARE(json.value(QStringLiteral("dispatchedOperation")).toString(), QStringLiteral("requestNewInstance"));
+    QCOMPARE(json.value(QStringLiteral("sequence")).toInteger(), 42);
+}
+
+void DbusReportsTest::middleClickDispatchNoEventSerializesAsEmptyObject()
+{
+    QCOMPARE(serializeMiddleClickDispatchData(std::nullopt), QStringLiteral("{}"));
+}
+
+void DbusReportsTest::middleClickDispatchMapParsingAcceptsBackendShape()
+{
+    const QVariantMap data{
+        {QStringLiteral("rowIdentity"), QStringLiteral("applications:org.kde.dolphin.desktop")},
+        {QStringLiteral("rowKind"), static_cast<int>(Tasks::MiddleClickRowKind::Task)},
+        {QStringLiteral("configuredAction"), static_cast<int>(Tasks::Types::NewInstance)},
+        {QStringLiteral("dispatchedOperation"), static_cast<int>(Tasks::MiddleClickOperation::RequestNewInstance)},
+        {QStringLiteral("sequence"), QVariant::fromValue<qint64>(17)}};
+
+    const auto record = middleClickDispatchRecordFromMap(data);
+    QVERIFY(record.has_value());
+    QCOMPARE(record->rowIdentity, QStringLiteral("applications:org.kde.dolphin.desktop"));
+    QCOMPARE(static_cast<int>(record->rowKind), static_cast<int>(Tasks::MiddleClickRowKind::Task));
+    QCOMPARE(static_cast<int>(record->configuredAction), static_cast<int>(Tasks::Types::NewInstance));
+    QCOMPARE(static_cast<int>(record->dispatchedOperation), static_cast<int>(Tasks::MiddleClickOperation::RequestNewInstance));
+    QCOMPARE(record->sequence, 17);
+}
+
+void DbusReportsTest::middleClickDispatchMapParsingRefusesMalformedState_data()
+{
+    QTest::addColumn<QVariantMap>("data");
+
+    const QVariantMap valid{
+        {QStringLiteral("rowIdentity"), QStringLiteral("applications:test.desktop")},
+        {QStringLiteral("rowKind"), static_cast<int>(Tasks::MiddleClickRowKind::Launcher)},
+        {QStringLiteral("configuredAction"), static_cast<int>(Tasks::Types::NewInstance)},
+        {QStringLiteral("dispatchedOperation"), static_cast<int>(Tasks::MiddleClickOperation::RequestActivate)},
+        {QStringLiteral("sequence"), QVariant::fromValue<qint64>(1)}};
+
+    QVariantMap malformed = valid;
+    malformed.remove(QStringLiteral("rowIdentity"));
+    QTest::newRow("missing identity") << malformed;
+
+    malformed = valid;
+    malformed.insert(QStringLiteral("rowKind"), 99);
+    QTest::newRow("unknown row kind") << malformed;
+
+    malformed = valid;
+    malformed.insert(QStringLiteral("configuredAction"), 99);
+    QTest::newRow("unknown action") << malformed;
+
+    malformed = valid;
+    malformed.insert(QStringLiteral("dispatchedOperation"), 99);
+    QTest::newRow("unknown operation") << malformed;
+
+    malformed = valid;
+    malformed.insert(QStringLiteral("rowKind"), static_cast<int>(Tasks::MiddleClickRowKind::Task));
+    QTest::newRow("task row with launcher operation") << malformed;
+
+    malformed = valid;
+    malformed.insert(QStringLiteral("sequence"), QVariant::fromValue<qint64>(0));
+    QTest::newRow("nonpositive sequence") << malformed;
+
+    malformed = valid;
+    malformed.insert(QStringLiteral("sequence"), QStringLiteral("1"));
+    QTest::newRow("coercible sequence type") << malformed;
+}
+
+void DbusReportsTest::middleClickDispatchMapParsingRefusesMalformedState()
+{
+    QFETCH(QVariantMap, data);
+    QVERIFY(!middleClickDispatchRecordFromMap(data).has_value());
 }
 
 void DbusReportsTest::themeColorsModeNames_data()

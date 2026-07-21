@@ -223,6 +223,13 @@ public:
     //! (legitimate state, not warned).
     QString viewTasksData(const uint &containmentId);
 
+    //! Read-only D-Bus state: the newest task-icon middle-click dispatch for
+    //! one view as compact JSON. The record carries only stable application
+    //! identity, launcher/task row kind, configured action, selected operation,
+    //! and a process-monotonic sequence. "{}" means no event has been recorded
+    //! or the containment id has no view (the latter is warned).
+    QString taskMiddleClickDispatchData(const uint &containmentId);
+
     //! D-Bus state readback (observability-first): one view's colorizer
     //! facts (configured color modes, the decision in force, the measured
     //! background bucket, the published scheme basename) as one compact

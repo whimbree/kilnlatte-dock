@@ -1,6 +1,7 @@
 /*
     SPDX-FileCopyrightText: 2016 Smith AR <audoban@openmailbox.org>
     SPDX-FileCopyrightText: 2016 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -322,6 +323,13 @@ AbilityItem.BasicItem {
 
     TaskMouseArea {
         id: taskMouseArea
+
+        // qmllint disable unqualified
+        dispatchReporter: root.middleClickDispatchReporter
+        dispatchModel: taskItem.m
+        dispatchIsLauncher: taskItem.isLauncher
+        configuredMiddleClickAction: root.middleClickAction
+        // qmllint enable unqualified
     }
 
     Timer {
@@ -1023,4 +1031,3 @@ AbilityItem.BasicItem {
         }
     }
 }// main Item
-

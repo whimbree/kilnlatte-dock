@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2020 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -22,6 +23,11 @@ MouseArea {
 
     property bool pressed: false
 
+    required property QtObject dispatchReporter
+    required property var dispatchModel
+    required property bool dispatchIsLauncher
+    required property int configuredMiddleClickAction
+
     readonly property alias hoveredTimer: _hoveredTimer
 
     //! Runs the window operation the middle-click / modifier-click combos map
@@ -29,8 +35,27 @@ MouseArea {
     //! the single source of truth in code/TaskActions.js so the config combos
     //! can never offer a value with no handler branch; this switch is the
     //! executor for the tokens it returns.
-    function executeStandardAction(action) {
-        switch (TaskActions.standardCommandFor(action)) {
+    function stableRowIdentity() {
+        var launcherIdentity = taskMouseArea.dispatchModel.LauncherUrlWithoutIcon
+                ? String(taskMouseArea.dispatchModel.LauncherUrlWithoutIcon) : "";
+        return launcherIdentity.length > 0 ? launcherIdentity : String(taskMouseArea.dispatchModel.AppId || "");
+    }
+
+    function recordMiddleClickDispatch(operation) {
+        taskMouseArea.dispatchReporter.recordMiddleClickDispatch(taskMouseArea.stableRowIdentity(),
+                                                                 taskMouseArea.dispatchIsLauncher,
+                                                                 taskMouseArea.configuredMiddleClickAction,
+                                                                 operation);
+    }
+
+    function executeStandardAction(action, recordsMiddleClick) {
+        var command = TaskActions.standardCommandFor(action);
+
+        if (recordsMiddleClick) {
+            taskMouseArea.recordMiddleClickDispatch(command);
+        }
+
+        switch (command) {
         case "close":
             tasksModel.requestClose(modelIndex());
             break;
@@ -181,14 +206,15 @@ MouseArea {
 
             if (modifierAccepted(mouse) && !root.disableAllWindowsFunctionality){
                 if( !taskItem.isLauncher ){
-                    executeStandardAction(root.modifierClickAction);
+                    executeStandardAction(root.modifierClickAction, false);
                 } else {
                     activateTask();
                 }
             } else if (mouse.button == Qt.MiddleButton && !root.disableAllWindowsFunctionality){
                 if( !taskItem.isLauncher ){
-                    executeStandardAction(root.middleClickAction);
+                    executeStandardAction(root.middleClickAction, true);
                 } else {
+                    taskMouseArea.recordMiddleClickDispatch("activate");
                     activateTask();
                 }
             } else if (mouse.button == Qt.LeftButton){

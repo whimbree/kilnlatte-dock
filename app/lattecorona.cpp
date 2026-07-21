@@ -1446,6 +1446,11 @@ QString Corona::viewTasksData(const uint &containmentId)
     return DbusReports::collectTasksData(view);
 }
 
+QString Corona::taskMiddleClickDispatchData(const uint &containmentId)
+{
+    return DbusReports::collectMiddleClickDispatchData(m_layoutsManager->synchronizer()->viewForContainment(containmentId), containmentId);
+}
+
 QString Corona::colorizerData(const uint &containmentId)
 {
     auto view = m_layoutsManager->synchronizer()->viewForContainment(containmentId);

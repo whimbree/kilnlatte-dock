@@ -83,6 +83,14 @@ call viewTasksData u 1                 # s: JSON array per task entry (tasks vie
 #   index+appId are the window-task ORDER readback (G4): index is the
 #   model row (moves on reorder), appId the stable per-window identity;
 #   track a window by appId, read its index before/after a task drag
+call taskMiddleClickDispatchData u 1   # s: JSON object - latest task-icon middle-click dispatch
+#   rowIdentity, rowKind (launcher|task), configuredAction,
+#   dispatchedOperation, sequence. The D29 pair (task-icon middle click appears
+#   to execute left-click behavior) is:
+#   launcher + newInstance + requestActivate, then
+#   task + newInstance + requestNewInstance. sequence increases process-wide;
+#   "{}" means no middle click has been recorded since this dock started.
+#   Read-only latest event: no setter, no history, no titles or window content.
 call trackerData u 1                   # s: JSON object - the windows-tracker facts
 #   enabled, activeWindowTouching, activeWindowTouchingEdge,
 #   activeWindowMaximized, existsWindowTouching,
@@ -221,6 +229,9 @@ is why nested runs wrap the dock in `dbus-run-session`.
 ## Refusal semantics (what "wrong input" does)
 
 - Unknown containment id: empty JSON (`"[]"`/`"{}"`) + qWarning.
+- `taskMiddleClickDispatchData` before any middle-click event: `"{}"` without
+  a warning. Malformed or unknown internal dispatch state is refused as `"{}"`
+  with a qWarning instead of being coerced into a plausible event.
 - `setViewVisibilityMode` with a name viewsData never reports:
   refused with a qWarning naming the expectation; nothing changes.
 - `activateTaskAt` that cannot resolve an entry: qWarning

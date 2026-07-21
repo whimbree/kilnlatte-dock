@@ -130,6 +130,22 @@ Landed before or during the 2026-07-16 stabilization session:
   dbusreportstest windowTaskOrderReadbackTracksAppIdAcrossReorder).
   Launchers reorder through the identical path and additionally persist
   their order to the tasks-applet `launchers` config key.
+- `taskMiddleClickDispatchData(u containmentId) -> s` (JSON object, added
+  2026-07-21 for SC-T3, the narrow dispatch readback for D29 (task-icon middle
+  click appears to execute left-click behavior)).
+  The newest task-icon middle-click decision across the view's tasks applets:
+  `rowIdentity` (launcher URL without icon payload, with appId fallback),
+  `rowKind` (`launcher|task`), `configuredAction`, `dispatchedOperation`, and
+  process-monotonic `sequence`. The observed launcher/task pair reads
+  `configuredAction:"newInstance"` in both cases, with
+  `launcher`/`requestActivate` for the pure launcher and
+  `task`/`requestNewInstance` for the resulting window row. `{}` is the
+  legitimate no-event state before the first middle click. The sequence resets
+  when the dock process restarts and provides ordering without retaining event
+  history. `TaskMouseArea.onReleased` records at the production branch that
+  selects the operation; the report does not infer dispatch from downstream
+  model effects. No setter, execution hook, window title, or application
+  content is exposed.
 - `trackerData(u containmentId) -> s` (JSON): the windows-tracker
   facts per view - activeWindowTouching, activeWindowMaximized,
   existsWindowTouching, existsWindowMaximized, lastActiveWindow

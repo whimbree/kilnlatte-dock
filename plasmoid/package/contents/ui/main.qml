@@ -1,6 +1,7 @@
 /*
     SPDX-FileCopyrightText: 2016 Smith AR <audoban@openmailbox.org>
     SPDX-FileCopyrightText: 2016 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -199,6 +200,11 @@ PlasmoidItem {
     //! properties in QML scope resolution, so every internal tasksModel
     //! reference keeps resolving to the id.
     readonly property alias tasksModel: tasksModel
+
+    //! The latest middle-click decision at TaskMouseArea's dispatch branch.
+    //! dbusreports.cpp reads the typed backend snapshot through this alias.
+    readonly property alias latestMiddleClickDispatch: backend.latestMiddleClickDispatch
+    readonly property alias middleClickDispatchReporter: backend
 
     //END Latte Dock Panel properties
 

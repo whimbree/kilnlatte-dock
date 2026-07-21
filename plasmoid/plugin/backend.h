@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2013-2016 Eike Hein <hein@kde.org>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
@@ -16,12 +17,17 @@
 
 #pragma once
 
+#include "middleclickdispatch.h"
+
 #include <KConfigWatcher>
 
 #include <QObject>
 #include <QRect>
 #include <QUrl>
 #include <QVariant>
+#include <QVariantMap>
+
+#include <optional>
 
 #include <netwm.h>
 #include <qwindowdefs.h>
@@ -47,6 +53,7 @@ class Backend : public QObject
     Q_PROPERTY(QQuickItem *taskManagerItem READ taskManagerItem WRITE setTaskManagerItem NOTIFY taskManagerItemChanged)
     Q_PROPERTY(bool highlightWindows READ highlightWindows WRITE setHighlightWindows NOTIFY highlightWindowsChanged)
     Q_PROPERTY(bool windowViewAvailable READ windowViewAvailable NOTIFY windowViewAvailableChanged)
+    Q_PROPERTY(QVariantMap latestMiddleClickDispatch READ latestMiddleClickDispatch NOTIFY middleClickDispatchChanged)
 
 public:
     enum MiddleClickAction {
@@ -88,6 +95,13 @@ public:
 
     bool windowViewAvailable() const;
 
+    QVariantMap latestMiddleClickDispatch() const;
+
+    Q_INVOKABLE bool recordMiddleClickDispatch(const QString &rowIdentity,
+                                               bool isLauncher,
+                                               int configuredAction,
+                                               const QString &operation);
+
     Q_INVOKABLE void activateWindowView(const QVariant &winIds);
     Q_INVOKABLE void windowsHovered(const QVariant &winIds, bool hovered);
     Q_INVOKABLE void cancelHighlightWindows();
@@ -105,6 +119,7 @@ Q_SIGNALS:
     void taskManagerItemChanged();
     void highlightWindowsChanged();
     void windowViewAvailableChanged();
+    void middleClickDispatchChanged();
 
 private Q_SLOTS:
     void handleRecentDocumentAction() const;
@@ -124,4 +139,6 @@ private:
 
     QDBusServiceWatcher *m_windowViewWatcher = nullptr;
     bool m_windowViewAvailable = false;
+
+    std::optional<Latte::Tasks::MiddleClickDispatchRecord> m_latestMiddleClickDispatch;
 };

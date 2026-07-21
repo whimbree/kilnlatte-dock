@@ -394,6 +394,65 @@ QString collectTasksData(const Latte::View *view)
     return serializeTaskRecords(records);
 }
 
+QString collectMiddleClickDispatchData(const Latte::View *view, uint containmentId)
+{
+    if (!view) {
+        qWarning() << "dbusreports: taskMiddleClickDispatchData queried for containment"
+                   << containmentId << "which has no view";
+        return QStringLiteral("{}");
+    }
+
+    Q_ASSERT(view->containment());
+    std::optional<Tasks::MiddleClickDispatchRecord> latest;
+
+    for (auto *applet : view->containment()->applets()) {
+        if (applet->pluginMetaData().pluginId() != QLatin1String("org.kde.latte.plasmoid")) {
+            continue;
+        }
+
+        auto plasmoidRoot = PlasmaQuick::AppletQuickItem::itemForApplet(applet);
+        if (!plasmoidRoot) {
+            qWarning() << "dbusreports: tasks plasmoid" << applet->id()
+                       << "has no quick item yet; taskMiddleClickDispatchData cannot be read";
+            continue;
+        }
+
+        const QVariant value = readLiveProperty(plasmoidRoot, "latestMiddleClickDispatch");
+        if (!value.isValid()) {
+            continue;
+        }
+        if (value.typeId() != QMetaType::QVariantMap) {
+            qWarning() << "dbusreports: tasks plasmoid" << applet->id()
+                       << "exposes malformed latestMiddleClickDispatch state";
+            continue;
+        }
+
+        const QVariantMap data = value.toMap();
+        if (data.isEmpty()) {
+            continue;
+        }
+
+        const auto record = middleClickDispatchRecordFromMap(data);
+        if (!record) {
+            qWarning() << "dbusreports: tasks plasmoid" << applet->id()
+                       << "exposes malformed or unknown latestMiddleClickDispatch state";
+            continue;
+        }
+
+        if (latest && latest->sequence == record->sequence) {
+            qWarning() << "dbusreports: tasks plasmoids expose duplicate middle-click dispatch sequence"
+                       << record->sequence;
+            continue;
+        }
+
+        if (!latest || record->sequence > latest->sequence) {
+            latest = record;
+        }
+    }
+
+    return serializeMiddleClickDispatchData(latest);
+}
+
 QString collectColorizerData(const Latte::View *view)
 {
     Q_ASSERT(view);
