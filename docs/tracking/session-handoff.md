@@ -6,11 +6,12 @@ Last updated 2026-07-21.
 ## 2026-07-21: SC-T3 (the D29 narrow middle-click dispatch readback) authored locally
 
 SC-T3 (the D29 narrow middle-click dispatch readback) is authored on local
-branch `feat/tasks-middle-click-readback` at implementation commits `73566f503`
-and `9ea89dc2a`. Independent pre-PR review returned MERGE AFTER FIXES; the fixes
-have not been rereviewed, pushed, or merged, and the settings-plan checkbox
-remains open with both hashes marked provisional. D60 (tasks QML type metadata
-omits two accessibility composer methods) is recorded at `cfe9ec9c5`.
+branch `feat/tasks-middle-click-readback` at implementation and review-hardening
+commits `73566f503`, `ebdc7d9dc`, `e56db9e28`, and `f08a49989`. Independent
+review findings are addressed; the final MERGE rereview verdict, push, and
+merge remain pending, and the settings-plan checkbox stays open with all four
+hashes marked provisional. D60 (tasks QML type metadata omits two accessibility
+composer methods) remains separately recorded at `cfe9ec9c5`.
 
 `TaskMouseArea.onReleased` records at the production launcher/task dispatch
 branch without changing its operation. The tasks backend retains one typed
@@ -34,13 +35,15 @@ passed. Coverage includes all six offered task action-operation pairs and
 launcher exceptions, malformed pair refusal, multiple applets, newest
 selection, exact JSON, mixed no-event candidates, requested-containment scope,
 malformed-plus-valid aggregate refusal, global 5/10/5 duplicate refusal, the
-production QML recording branch/order and identity fallback, reporter aliases,
-and containment lifecycle. The QML compile gate passed 130 files, qmllint
-matched its 5,832-warning baseline, all 232 QML interaction checks passed, the
-coverage ratchet passed 96 entries and 31 paired headers, and XML validation
-plus generated adaptor compilation passed. Regenerated tasks type metadata
-differs only by D60's two pre-existing composer-method omissions. No full gate
-or SC-T5 runtime-effect acceptance was run.
+production QML recording branch/order, exact reporter forwarding and identity
+fallback, reporter aliases, and the collector's plugin, quick-item, warning,
+candidate, selector, refusal, and undo-window lifecycle semantics. The QML
+compile gate passed 130 files, qmllint matched its 5,832-warning baseline, all
+232 QML interaction checks passed, the coverage ratchet passed 96 entries and
+31 paired headers, and XML validation plus generated adaptor compilation
+passed. Regenerated tasks type metadata differs only by D60's two pre-existing
+composer-method omissions. No full gate or SC-T5 runtime-effect acceptance was
+run.
 
 The QML type-dump comparison found D60. It is pre-existing and unrelated to
 SC-T3; the new Backend property, signal, and method match regenerated metadata.
