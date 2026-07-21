@@ -334,10 +334,9 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   is unchecked and requires explicit approval after SC-CW1 merges.
 
 ### D58 - Close-only and minimize-toggle settings do not enable window tracking
-- STATUS: FIXED provisionally on local branch `fix/settings-tracker-enablement`
-  at `421853cee`, with review hardening at `6cb63e7ee` and `808bdea`.
-  The MERGE AFTER FIXES findings are addressed locally; no rereview, push, PR,
-  or merge has occurred.
+- STATUS: FIXED. PR #94 landed the root fix at `15f026887`, initial tracking at
+  `91cfb2bac`, e2e harness hardening at `14da9e7ce`, the complete
+  requester source guard at `0a796e1ec`, and review tracking at `8c6b1c826`.
 - FOUND: 2026-07-20, SC-B1 (the D30 current-contract investigation).
 - SYMPTOM: close-only and `ScrollToggleMinimized` configurations report
   `tracker.enabled=false`, leaving the configured close or minimize gesture with
@@ -348,7 +347,8 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 - EVIDENCE: the SC-B1 current-contract matrix independently observed the missing
   effects. SC-WT1 (the D58 tracker-enablement root fix and regression) then went
   RED both in the source guard and at the close-only nested tracker readback.
-  Local commit `421853cee` passed three complete nested production-path runs.
+  Root commit `15f026887` and hardened regression `14da9e7ce` passed three
+  complete nested production-path runs.
   Every run observed disabled close/minimize with `tracker.enabled=false` and a
   normal KWin window, close-only and minimize-toggle with
   `tracker.enabled=true`, harmless no-target input, independent KWin window
@@ -358,7 +358,7 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   and the source guard compares the complete normalized requester expression.
   A false injector and an OR-to-AND mutation were both rejected; three hardened
   nested repetitions passed after the temporary probes were removed.
-- LOCAL FIX: `BindingsExternal.qml` adds only the two missing existing-contract
+- FIX: `BindingsExternal.qml` adds only the two missing existing-contract
   dependencies. The source guard preserves visibility, applet, move/maximize,
   dynamic-background, and floating-gap requesters. Wayland capability checks
   and typed-refusal API work remain separate plan findings, not part of D58.

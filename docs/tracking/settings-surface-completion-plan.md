@@ -276,14 +276,12 @@ SC-CW2 (the D57 signed decrease-threshold fix and regression promotion) remains 
 
 ### D58 (close-only and minimize-toggle settings do not enable window tracking)
 
-Status is OPEN and confirmed by the SC-B1 nested evidence. The active-window
-tracker enablement expression includes `dragActiveWindowEnabled` but omits both
-`closeActiveWindowEnabled` and `scrollAction === ScrollToggleMinimized`. A
-close-only or minimize-toggle fixture therefore reports `tracker.enabled=false`
-and the configured gesture has no target or effect. SC-WT1 is approved to add
-only those two existing-contract enablement dependencies and regress enabled,
-disabled, and no-target effects. Capability checks and typed refusal remain
-separate findings.
+Status is FIXED by PR #94. Root commit `15f026887` adds only the missing
+`closeActiveWindowEnabled` and `scrollAction === ScrollToggleMinimized`
+dependencies to the active-window tracker requester set. Regression hardening
+at `14da9e7ce` rejects input, query, cleanup, restoration, and residue failures;
+the complete requester-expression guard at `0a796e1ec` preserves every existing
+requester arm. Capability checks and typed refusal remain separate findings.
 
 ### Existing defect boundaries
 
@@ -494,14 +492,13 @@ in SC-R6.
       cases. No production behavior changed. Dependencies: existing fakepointer
       and window/view readbacks; no new settings scaffold.
       Commits: 327e2e9af
-- [ ] **SC-WT1 (the D58 tracker-enablement root fix and regression):** add only
+- [x] **SC-WT1 (the D58 tracker-enablement root fix and regression):** add only
       `closeActiveWindowEnabled` and `ScrollToggleMinimized` to the active-window
       tracker enablement expression, then regress close-only and minimize-toggle
       enabled, disabled, and no-target effects. Capability checks and typed
       refusal are excluded. Dependencies: SC-B1 and existing tracker/window
-      readbacks. Approved. MERGE AFTER FIXES findings are addressed locally,
-      but not rereviewed, pushed, or merged; the checkbox stays open until landing.
-      Commits: 421853cee, 6cb63e7ee, 808bdea (local branch; not merged)
+      readbacks. Commits: 15f026887, 91cfb2bac, 14da9e7ce, 0a796e1ec,
+      8c6b1c826
 - [ ] **SC-B2 (the D30 product decision and sign-off gate):** select retain and
       clarify, or a bounded action-choice divergence. Record exact gestures and
       choices only here after SC-B1. Evidence favors retain-and-clarify, but the
