@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Bree Spektor
+# SPDX-FileCopyrightText: 2026 Latte Dock contributors
+# SPDX-License-Identifier: GPL-2.0-or-later
+[Desktop Entry]
+Type=Application
+Name=Middle Click Runtime Fixture
+Exec=@BINARY@
+Icon=application-x-executable
+Terminal=false
+StartupNotify=false
+StartupWMClass=org.kde.latte.sc-t5
