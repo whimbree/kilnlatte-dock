@@ -61,6 +61,37 @@ valid_recipe_expectation() {
     return 1
 }
 
+extract_recipe_expectation() {
+    local recipe="$1" declaration value
+    local -a declarations=()
+    mapfile -t declarations < <(sed -n '/^[[:space:]]*#[[:space:]]*e2e-expect/p' "$recipe")
+    recipe_expectation=""
+    recipe_expectation_error=""
+    if (( ${#declarations[@]} == 0 )); then
+        return 0
+    fi
+    if (( ${#declarations[@]} != 1 )); then
+        recipe_expectation_error="found ${#declarations[@]} e2e-expect declarations; use exactly one nonempty marker"
+        return 1
+    fi
+    declaration="${declarations[0]}"
+    if [[ "$declaration" != "# e2e-expect:"* ]]; then
+        recipe_expectation_error="malformed e2e-expect declaration '$declaration'; expected '# e2e-expect: fail' or '# e2e-expect: status N'"
+        return 1
+    fi
+    value="${declaration#\# e2e-expect:}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    if [[ -z "$value" ]]; then
+        recipe_expectation_error="blank e2e-expect declaration; remove it for unmarked behavior"
+        return 1
+    fi
+    if ! valid_recipe_expectation "$value"; then
+        recipe_expectation_error="invalid e2e-expect value '$value'; allowed values are fail or status 1..255"
+        return 1
+    fi
+    recipe_expectation="$value"
+}
+
 classify_recipe_result() {
     local expectation="$1" status="$2" name="$3" expected_status
     if [[ -z "$expectation" ]]; then
@@ -94,8 +125,25 @@ classify_recipe_result() {
     fi
 }
 
+capture_recipe_status() {
+    if "$@"; then
+        recipe_status=0
+    else
+        recipe_status=$?
+    fi
+}
+
+record_recipe_result() {
+    case "$recipe_result" in
+        PASS) passed=$((passed+1));;
+        XFAIL) xfailed=$((xfailed+1));;
+        FAIL|XPASS) failed=$((failed+1));;
+    esac
+}
+
 run_expectation_selftest() {
-    local failures=0
+    local failures=0 passed=0 failed=0 xfailed=0 probe
+    probe="$(mktemp)" || return 1
     check_result() {
         local label="$1" expectation="$2" status="$3" expected="$4"
         classify_recipe_result "$expectation" "$status" selftest
@@ -103,6 +151,20 @@ run_expectation_selftest() {
             echo "  ok   $label -> $expected"
         else
             echo "  FAIL $label -> $recipe_result, expected $expected" >&2
+            failures=$((failures + 1))
+        fi
+        record_recipe_result
+    }
+    check_marker() {
+        local label="$1" text="$2" expected="$3" error_fragment="$4"
+        printf '%s' "$text" > "$probe"
+        if extract_recipe_expectation "$probe"; then
+            if [[ -n "$error_fragment" || "$recipe_expectation" != "$expected" ]]; then
+                echo "  FAIL $label marker accepted as '$recipe_expectation'" >&2
+                failures=$((failures + 1))
+            fi
+        elif [[ -z "$error_fragment" || "$recipe_expectation_error" != *"$error_fragment"* ]]; then
+            echo "  FAIL $label marker error: $recipe_expectation_error" >&2
             failures=$((failures + 1))
         fi
     }
@@ -114,13 +176,24 @@ run_expectation_selftest() {
     check_result exact-xfail "status 42" 42 XFAIL
     check_result exact-xpass "status 42" 0 XPASS
     check_result status-mismatch "status 42" 1 FAIL
-    valid_recipe_expectation "status 42" || failures=$((failures + 1))
-    for invalid in "unknown" "status 0" "status 256" "status nope"; do
-        if valid_recipe_expectation "$invalid"; then
-            echo "  FAIL accepted invalid expectation '$invalid'" >&2
-            failures=$((failures + 1))
-        fi
-    done
+    [[ "$passed $failed $xfailed" == "1 4 2" ]] || failures=$((failures + 1))
+
+    check_marker no-marker $'#!/usr/bin/env bash\n' "" ""
+    check_marker legacy $'# e2e-expect: fail\n' fail ""
+    check_marker exact $'# e2e-expect: status 42\n' "status 42" ""
+    check_marker blank $'# e2e-expect:   \n' "" blank
+    check_marker duplicate $'# e2e-expect: fail\n# e2e-expect: fail\n' "" '2 e2e-expect declarations'
+    check_marker conflict $'# e2e-expect: fail\n# e2e-expect: status 42\n' "" '2 e2e-expect declarations'
+    check_marker malformed $'# e2e-expect status 42\n' "" malformed
+    check_marker unknown $'# e2e-expect: unknown\n' "" invalid
+    check_marker zero $'# e2e-expect: status 0\n' "" invalid
+    check_marker range $'# e2e-expect: status 256\n' "" invalid
+
+    capture_recipe_status bash -c 'exit 42'
+    [[ "$recipe_status" == 42 ]] || failures=$((failures + 1))
+    capture_recipe_status bash -c 'exit 0'
+    [[ "$recipe_status" == 0 ]] || failures=$((failures + 1))
+    rm -f "$probe"
     (( failures == 0 )) || return 1
     echo "run-e2e: PASS expectation classifier self-test"
 }
@@ -175,7 +248,6 @@ recipe_mode() { sed -n 's/^# e2e-mode: *//p' "$1" | head -1; }
 # A known-open bug recipe carries "# e2e-expect: fail" for the legacy any-failure
 # contract or "# e2e-expect: status N" when only one reserved status proves the
 # known signature. Status 0 remains XPASS until the marker is removed.
-recipe_expect() { sed -n 's/^# e2e-expect: *//p' "$1" | head -1; }
 
 # ---- nested vehicle --------------------------------------------------------
 
@@ -298,11 +370,11 @@ for recipe in "${recipes[@]}"; do
         ""|nested-only|live-only) ;;
         *) echo "run-e2e: FAIL unknown e2e-mode marker '$constraint' in $name (allowed: nested-only, live-only, or none)"; failed=$((failed+1)); continue;;
     esac
-    expect="$(recipe_expect "$recipe")"
-    if ! valid_recipe_expectation "$expect"; then
-        echo "run-e2e: FAIL unknown e2e-expect marker '$expect' in $name (allowed: fail, status 1..255, or none)"
+    if ! extract_recipe_expectation "$recipe"; then
+        echo "run-e2e: FAIL $recipe_expectation_error in $name"
         failed=$((failed+1)); continue
     fi
+    expect="$recipe_expectation"
     if [[ ( "$constraint" == "nested-only" && "$MODE" != nested ) \
        || ( "$constraint" == "live-only"   && "$MODE" != live   ) ]]; then
         echo "run-e2e: SKIP $name ($constraint)"; skipped=$((skipped+1)); continue
@@ -323,15 +395,11 @@ for recipe in "${recipes[@]}"; do
 
     echo "run-e2e: ---- $name"
     ran=$((ran+1))
-    "$recipe"
-    status=$?
+    capture_recipe_status "$recipe"
+    status="$recipe_status"
     classify_recipe_result "$expect" "$status" "$name"
     echo "$recipe_result_message"
-    case "$recipe_result" in
-        PASS) passed=$((passed+1));;
-        XFAIL) xfailed=$((xfailed+1));;
-        FAIL|XPASS) failed=$((failed+1));;
-    esac
+    record_recipe_result
     if (( status != 0 )); then
         if [[ "$MODE" == nested ]]; then
             cp "$E2E_DOCK_LOG" "$E2E_ARTIFACTS/$name.dock.log" 2>/dev/null || true
