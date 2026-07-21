@@ -490,7 +490,9 @@ in SC-R6.
       tracker enablement expression, then regress close-only and minimize-toggle
       enabled, disabled, and no-target effects. Capability checks and typed
       refusal are excluded. Dependencies: SC-B1 and existing tracker/window
-      readbacks. Approved. Commits:
+      readbacks. Approved. Implemented and verified locally, but not reviewed,
+      pushed, or merged; the checkbox stays open until PR landing.
+      Commits: 421853cee (local branch; not merged)
 - [ ] **SC-B2 (the D30 product decision and sign-off gate):** select retain and
       clarify, or a bounded action-choice divergence. Record exact gestures and
       choices only here after SC-B1. Evidence favors retain-and-clarify, but the

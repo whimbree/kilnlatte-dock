@@ -329,7 +329,8 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   is an evidence unit only; no fix is approved before reproduction.
 
 ### D58 - Close-only and minimize-toggle settings do not enable window tracking
-- STATUS: OPEN (confirmed by SC-B1 nested evidence 2026-07-20).
+- STATUS: FIXED provisionally on local branch `fix/settings-tracker-enablement`
+  at `421853cee`; not reviewed, pushed, or merged.
 - FOUND: 2026-07-20, SC-B1 (the D30 current-contract investigation).
 - SYMPTOM: close-only and `ScrollToggleMinimized` configurations report
   `tracker.enabled=false`, leaving the configured close or minimize gesture with
@@ -337,14 +338,18 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 - ROOT CAUSE: the `BindingsExternal.qml` active-window tracker expression enables
   tracking for `dragActiveWindowEnabled`, but omits
   `closeActiveWindowEnabled` and `scrollAction === ScrollToggleMinimized`.
-- EVIDENCE: the nested current-contract matrix covered enabled, disabled, and
-  no-target cases and independently observed the missing effects. The same run
-  proved the move/maximize/close, desktop/task wheel, activity-refusal, and
-  target-history paths when tracking was enabled by another requester.
-- FIX DIRECTION: SC-WT1 (the D58 tracker-enablement root fix and regression) is
-  approved to add only the two missing existing-contract dependencies and
-  regress close-only and minimize-toggle effects. Wayland capability checks and
-  typed-refusal API work remain separate plan findings, not part of D58.
+- EVIDENCE: the SC-B1 current-contract matrix independently observed the missing
+  effects. SC-WT1 (the D58 tracker-enablement root fix and regression) then went
+  RED both in the source guard and at the close-only nested tracker readback.
+  Local commit `421853cee` passed three complete nested production-path runs.
+  Every run observed disabled close/minimize with `tracker.enabled=false` and a
+  normal KWin window, close-only and minimize-toggle with
+  `tracker.enabled=true`, harmless no-target input, independent KWin window
+  removal for close, and independent KWin minimized state for negative wheel.
+- LOCAL FIX: `BindingsExternal.qml` adds only the two missing existing-contract
+  dependencies. The source guard preserves visibility, applet, move/maximize,
+  dynamic-background, and floating-gap requesters. Wayland capability checks
+  and typed-refusal API work remain separate plan findings, not part of D58.
 
 ### D59 - Invalid standalone AppStream identity and stale library provider
 - STATUS: FIXED. PR #91 landed the source correction at final commits
