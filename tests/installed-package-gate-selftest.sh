@@ -194,13 +194,23 @@ void_recipe="$void_packages/srcpkgs/latte-dock"
 void_archive="$void_packages/hostdir/sources/latte-dock-0.10.77/$expected_source_commit.tar.gz"
 [[ "$void_stage_output" == *"source_commit=$expected_source_commit"* ]]
 [[ ! -e "$void_recipe/patches" ]]
+staged_void_commits=()
+while IFS= read -r line; do
+    case "$line" in
+        _commit=*) staged_void_commits+=("${line#_commit=}") ;;
+    esac
+done <"$void_recipe/template"
+[[ "${#staged_void_commits[@]}" -eq 1 ]] \
+    || { echo "FAIL: staged Void template has ${#staged_void_commits[@]} _commit assignments, expected exactly one" >&2; exit 1; }
+[[ "${staged_void_commits[0]}" == "$expected_source_commit" ]] \
+    || { echo "FAIL: staged Void template pins _commit=${staged_void_commits[0]}, expected _commit=$expected_source_commit" >&2; exit 1; }
 void_metadata="$(tar -xOf "$void_archive" \
     "lattecotta-dock-$expected_source_commit/app/org.kde.latte-dock.appdata.xml.cmake")"
 [[ "$void_metadata" == *'<component type="desktop-application">'* \
         && "$void_metadata" == *'<id>org.kde.latte-dock</id>'* \
         && "$void_metadata" != *'<extends>'* \
         && "$void_metadata" != *'liblatte2plugin.so'* ]]
-echo "PASS: Void current-HEAD staging omits the old patch and archives corrected metadata"
+echo "PASS: Void current-HEAD staging pins the recipe, omits the old patch, and archives corrected metadata"
 
 missing_awk_path="$work/missing-awk-path"
 mkdir -p "$missing_awk_path"
