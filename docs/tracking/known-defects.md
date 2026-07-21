@@ -264,10 +264,11 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   does not replace pure-launcher activation.
 - DISPOSITION: preserve the behavior with no fix or divergence. PR #99 landed
   SC-T3 (the D29 narrow dispatch readback), which distinguishes
-  `requestActivate` from `requestNewInstance`. SC-T5 (the D29 permanent
-  runtime-effect acceptance) is dependency-unblocked and remains approved but
-  unchecked. SC-T4 (the D29 root fix) is not applicable. Temporary
-  instrumentation was removed.
+  `requestActivate` from `requestNewInstance`. PR #101 landed SC-T5 (the D29
+  permanent runtime-effect acceptance) at `382268a92`, pinning exact-once
+  dispatch, the zero-to-one active-window and one-to-two grouped-child effects,
+  and an action-None negative control. SC-T4 (the D29 root fix) is not
+  applicable. Temporary instrumentation was removed.
 
 ### D30 - Behavior mouse actions expose fixed booleans instead of full choices
 - STATUS: OPEN. SC-B1 (the D30 current-contract investigation) confirmed the
@@ -496,7 +497,8 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   tracking commit `f2c2ba089` after GitHub's rebase merge.
 
 ### D64 - Distro-gate fakepointer build omits the xkbcommon link dependency
-- STATUS: OPEN (confirmed by the exact helper link command 2026-07-21).
+- STATUS: OPEN (confirmed by the exact helper link command 2026-07-21). The
+  defect record landed at `611824a68`; no repair landed with it.
 - FOUND: SC-T5 (the permanent runtime-effect acceptance for D29, task-icon
   middle click appears to execute left-click behavior) local fakepointer build.
 - ROOT: `ci/build-and-gate.sh` compiles `scripts/tools/fakepointer.c` with only

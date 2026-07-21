@@ -509,7 +509,9 @@ pass on every distro regardless of tier.
       dependency set, then run the helper build through the focused container
       self-test. The exact current helper command fails with
       `undefined reference to xkb_keysym_from_name`; the documented
-      Wayland-plus-xkbcommon command links successfully. Dependencies: B2.
+      Wayland-plus-xkbcommon command links successfully. This CI repair remains
+      unchecked and outside the completed SC-T5 scope; PR #101 neither
+      implements nor approves it. Dependencies: B2.
       Commits:
 - [x] B3 Run sceneprobe in-container in invariant+tolerance mode; confirm
       scenes render (not blank, right regions). ARCH DONE: all 13 scenes

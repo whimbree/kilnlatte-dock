@@ -214,8 +214,10 @@ Existing D-Bus state proved the independent effects but could not distinguish
 `requestActivate` from `requestNewInstance`. PR #99 landed SC-T3 (the D29 narrow
 dispatch readback), which exposes only the latest middle-click row kind and
 identity, configured action, dispatched operation, and monotonic sequence.
-SC-T5 (the D29 permanent runtime-effect acceptance) is now dependency-unblocked
-and remains approved but unchecked; it will pin both observed rows and effects.
+PR #101 landed SC-T5 (the D29 permanent runtime-effect acceptance) at
+`382268a92`. Its permanent nested recipe pins exact-once dispatch for the pure
+launcher and resulting task row, the zero-to-one active-window and one-to-two
+grouped-child effects, and an action-None negative control.
 SC-T4 (the D29 root fix) is not applicable. No action enum, persisted schema,
 target/action matrix, group-policy change, or action-surface expansion is
 approved.
@@ -406,10 +408,10 @@ red control where a defect is fixed, and its own `Commits:` trace.
       modifier and button combination and assert its action-specific independent
       effect. Dependencies: SC-F2, SC-P4, and action-specific oracles. Commits:
 
-SC-P4 config reflection never closes C4. All SC-R1 through SC-R11 units and
-SC-T5 must provide independent runtime-effect evidence before the Tasks page or
-per-view phase can close. Middle click remains in the D29 chain; wheel remains
-in SC-R6.
+SC-P4 config reflection never closes C4. SC-T5 now provides its independent
+runtime-effect evidence, while all SC-R1 through SC-R11 units must still provide
+theirs before the Tasks page or per-view phase can close. Middle click remains
+in the D29 chain; wheel remains in SC-R6.
 
 - [ ] **SC-P5 (the third-party indicator host contract):** prove load,
       replacement, malformed-page refusal, and cleanup against a fixture plugin,
@@ -469,13 +471,12 @@ in SC-R6.
 - [x] **SC-T4 (the D29 root fix, if proven):** not applicable because SC-T2
       established Qt5-faithful behavior with no defect or selected divergence.
       Dependencies: SC-T2. Commits: N/A (accepted behavior requires no fix)
-- [ ] **SC-T5 (the D29 permanent runtime-effect acceptance):** always drive the
+- [x] **SC-T5 (the D29 permanent runtime-effect acceptance):** always drive the
       pure launcher and resulting single-window row, assert the SC-T3 dispatch
       plus the zero-to-one active-window and one-to-two grouped-child effects,
       and include a negative control. Dependencies: SC-T2 and completed SC-T3;
-      SC-T4 is not applicable. The existing approval is now dependency-unblocked;
-      this unit remains unchecked. Commits: PROVISIONAL 9dc9f0e3f (local PR
-      #101 rewrite; remote update, rereview, and final post-rebase hash pending)
+      SC-T4 is not applicable. PR #101 landed the approved unit without changing
+      product behavior or the D-Bus surface. Commits: 382268a92
 - [x] **SC-W1 (the D56 launcher-wheel regression guard):** pin inherited pure
       launcher positive activation, negative no-op, `ScrollNone` refusal,
       manual-scroll enablement, and no-overflow behavior. Dependencies: existing
