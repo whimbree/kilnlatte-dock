@@ -313,8 +313,10 @@ maintained-continuation divergences are not approved by the plan.
 
 PR #88 landed SC-F1 at final commit `472711d11`. PR #89 landed SC-W1 at final
 commits `d2fa8bbd1`, `3b6930851`, and `c61ce8502`. SC-F2 (the source-to-ledger
-coverage gate) and SC-T3 (the D29 narrow dispatch readback) remain incomplete;
-their existing approval does not widen any adjacent unit.
+coverage gate) remains incomplete. SC-T3 (the D29 narrow dispatch readback)
+subsequently merged through PR #99 and is complete; SC-T5 (the D29 permanent
+runtime-effect acceptance) remains approved and pending. These approvals do not
+widen any adjacent unit.
 
 - D29 (task-icon middle click appears to execute left-click behavior) is
   ACCEPTED as Qt5-faithful configuration-scope behavior. At `5c2223a3e`, a
@@ -324,8 +326,9 @@ their existing approval does not widen any adjacent unit.
   dispatched `newInstance` to `requestNewInstance`, changing one window to a
   two-child group. The sequence was reproduced twice; Qt5 and both forks retain
   the launcher exception; temporary instrumentation was removed. SC-T3 (the D29
-  narrow dispatch readback) is approved, followed by SC-T5 (the D29 permanent
-  runtime-effect acceptance). SC-T4 (the D29 root fix) is not applicable.
+  narrow dispatch readback) is complete through PR #99. SC-T5 (the D29 permanent
+  runtime-effect acceptance) remains approved, dependency-unblocked, and
+  pending. SC-T4 (the D29 root fix) is not applicable.
 - D30 (Behavior mouse actions expose fixed booleans instead of full choices)
   remains OPEN only at SC-B2 (the product decision and sign-off gate). SC-B1
   (the D30 current-contract investigation) confirmed inherited booleans for
