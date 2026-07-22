@@ -539,6 +539,17 @@ launcher edits, output reconnect, and root runtime recreation. The removal and
 Undo recipe, seed 127934575 operation storm, and independent Duplicate recipe
 also pass after these lifecycle changes.
 
+The final transaction review found that layouts-dialog Copy retained linked
+lineage and that a late cross-layout move refusal left relocation pending. The
+corrections normalize Copy through the independent-snapshot boundary and make
+every started relocation end in commit or cancel-and-reveal. Focused rereview
+then found transient Cut/Paste flags at the same snapshot boundary;
+`8ef1de775` clears both flags centrally. The independent rereview returned
+MERGE. The final canonical gate exited 0 at exact executable head
+`7ee36a32b83f060db727de6b8f9550f18cf58406` with all 104 CTest entries, the
+coverage and QML ratchets, all 13 scene probes, three sanitizer recipes, and the
+deterministic output matrix passing.
+
 Each slice requires a failing regression first, pure-core ASan and UBSan tests
 where a value model can carry the invariant, nested-KWin state and render
 agreement for compositor behavior, and an independent cold diff review before

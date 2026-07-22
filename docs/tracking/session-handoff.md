@@ -61,8 +61,13 @@ local length stability, member and root output disconnect/reconnect, complete
 runtime recreation, independent duplication, and process reload. The removal
 and Undo recipe, seed 127934575 operation storm, and independent Duplicate
 recipe also pass. The canonical gate passed at `a9605fc8e` before the final
-cold-review corrections; the final post-correction gate and rereview remain
-required.
+cold-review corrections. The final focused rereview returned MERGE after
+`8ef1de775` removed the last move-state leak. The post-correction canonical
+gate exited 0 at exact executable head
+`7ee36a32b83f060db727de6b8f9550f18cf58406`: all 104 CTest entries, the
+104-target and 35-header coverage ratchet, the 234-file and 5,828-warning QML
+ratchet, all 13 scene probes, three sanitizer recipes, and the deterministic
+output matrix passed.
 
 ## 2026-07-22: explicit linked docks and independent duplication implemented
 
