@@ -11,6 +11,7 @@
 // local
 #include <coretypes.h>
 #include "waylandlayershell.h"
+#include "windowtrackingpredicates.h"
 #include "../view/positioner.h"
 #include "../view/view.h"
 #include "../view/settings/subconfigview.h"
@@ -492,7 +493,8 @@ WindowId WaylandInterface::winIdFor(QString appId, QString title)
     }
 
     auto it = std::find_if(m_windowManagement->windows().constBegin(), m_windowManagement->windows().constEnd(), [&appId, &title](PlasmaWindow * w) noexcept {
-        return w->isValid() && w->appId() == appId && w->title().startsWith(title);
+        return w->isValid()
+                && WindowTrackingPredicates::matchesExactWindowIdentity(w->appId(), w->title(), appId, title);
     });
 
     if (it == m_windowManagement->windows().constEnd()) {
