@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2020 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -1580,6 +1581,23 @@ Data::View Storage::view(const KConfigGroup &containmentGroup)
     vdata.onPrimary = containmentGroup.readEntry("onPrimary", true);
     vdata.screen = containmentGroup.readEntry("lastScreen", IDNULL);
     vdata.isClonedFrom = containmentGroup.readEntry("isClonedFrom", Data::View::ISCLONEDNULL);
+
+    const int storedLinkPlacement = containmentGroup.readEntry(
+        "linkPlacement", static_cast<int>(Data::View::LinkPlacement::ScreenGroupDerived));
+    if (storedLinkPlacement < static_cast<int>(Data::View::LinkPlacement::ScreenGroupDerived)
+            || storedLinkPlacement > static_cast<int>(Data::View::LinkPlacement::ExplicitTarget)) {
+        qWarning() << "Storage: refused view" << containmentGroup.name()
+                   << "with invalid linked placement" << storedLinkPlacement;
+        return Data::View{};
+    }
+    vdata.linkPlacement = static_cast<Data::View::LinkPlacement>(storedLinkPlacement);
+
+    if (vdata.linkPlacement == Data::View::LinkPlacement::ExplicitTarget && !vdata.isCloned()) {
+        qWarning() << "Storage: refused independent view" << containmentGroup.name()
+                   << "with explicit linked placement";
+        return Data::View{};
+    }
+
     vdata.screenEdgeMargin = containmentGroup.group("General").readEntry("screenEdgeMargin", (int)-1);
 
     int location = containmentGroup.readEntry("location", (int)Plasma::Types::BottomEdge);
@@ -1602,10 +1620,18 @@ void Storage::updateView(KConfigGroup viewGroup, const Data::View &viewData)
         return;
     }
 
+    if (!viewData.hasValidLinkPlacement()
+            || (viewData.linkPlacement == Data::View::LinkPlacement::ExplicitTarget
+                && !viewData.isCloned())) {
+        qWarning() << "Storage: refused invalid linked placement for view" << viewData.id;
+        return;
+    }
+
     viewGroup.writeEntry("name", viewData.name);
     viewGroup.writeEntry("screensGroup", (int)viewData.screensGroup);
     viewGroup.writeEntry("onPrimary", viewData.onPrimary);
     viewGroup.writeEntry("isClonedFrom", viewData.isClonedFrom);
+    viewGroup.writeEntry("linkPlacement", static_cast<int>(viewData.linkPlacement));
     viewGroup.writeEntry("lastScreen", viewData.screen);
     viewGroup.group("General").writeEntry("screenEdgeMargin", viewData.screenEdgeMargin);
     viewGroup.writeEntry("location", (int)viewData.edge);

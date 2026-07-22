@@ -26,6 +26,11 @@ namespace Data {
 class View : public Generic
 {
 public:
+    enum class LinkPlacement {
+        ScreenGroupDerived = 0,
+        ExplicitTarget,
+    };
+
     enum State {
         IsInvalid = -1,
         IsCreated = 0,
@@ -50,6 +55,7 @@ public:
     Plasma::Types::Location edge{Plasma::Types::BottomEdge};
     Latte::Types::Alignment alignment{Latte::Types::Center};
     Latte::Types::ScreensGroup screensGroup{Latte::Types::SingleScreenGroup};
+    LinkPlacement linkPlacement{LinkPlacement::ScreenGroupDerived};
     GenericTable<Data::Generic> subcontainments;
 
     int errors{0};
@@ -63,6 +69,9 @@ public:
     bool isCreated() const;
     bool isOriginal() const;
     bool isCloned() const;
+    bool isScreenGroupReplica() const;
+    bool isExplicitlyLinked() const;
+    bool hasValidLinkPlacement() const;
     bool hasViewTemplateOrigin() const;
     bool hasLayoutOrigin() const;
     bool hasSubContainment(const QString &subId) const;
@@ -73,6 +82,32 @@ public:
     bool isVertical() const;
 
     [[nodiscard]] View toIndependentSnapshot() const;
+    [[nodiscard]] View toExplicitLinkedMember(int relationshipRootId,
+                                              int targetScreenId,
+                                              Plasma::Types::Location targetEdge) const;
+
+    [[nodiscard]] static constexpr Latte::Types::Alignment normalizeAlignmentForEdge(
+        Latte::Types::Alignment sourceAlignment,
+        Plasma::Types::Location targetEdge) noexcept
+    {
+        const bool targetIsVertical = targetEdge == Plasma::Types::LeftEdge
+                || targetEdge == Plasma::Types::RightEdge;
+
+        switch (sourceAlignment) {
+        case Latte::Types::Left:
+        case Latte::Types::Top:
+            return targetIsVertical ? Latte::Types::Top : Latte::Types::Left;
+        case Latte::Types::Right:
+        case Latte::Types::Bottom:
+            return targetIsVertical ? Latte::Types::Bottom : Latte::Types::Right;
+        case Latte::Types::Center:
+        case Latte::Types::Justify:
+        case Latte::Types::NoneAlignment:
+            return sourceAlignment;
+        }
+
+        return Latte::Types::NoneAlignment;
+    }
 
     QString originFile() const;
     QString originLayout() const;
