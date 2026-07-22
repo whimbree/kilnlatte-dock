@@ -326,7 +326,7 @@
       ["context.add-view.menu","context-action",10,"view context menu exposes action","pointer,keyboard","open Add Dock/Panel template submenu","transient","zero,one,multiple templates; abort","OOOOOOOOO"],
       ["context.remove-view","context-action",11,"noncloned view and action visible","pointer,keyboard","request current view removal","transient","dock,panel; abort/undo; restart","OOOOOOOOO"],
       ["context.add-view.template.row","popup-action",10,"one submenu row per view template","pointer row,keyboard row","add view from selected template","transient","each template; dock,panel result","OOOOOOOOO"],
-      ["context.duplicate-view.row","popup-action",10,"Add View submenu mapped; noncloned view","pointer row,keyboard row","duplicate current view","transient","dock,panel; cloned exclusion","OOOOOOOOO"],
+      ["context.duplicate-view.row","popup-action",10,"Add View submenu mapped; valid original or linked view","pointer row,keyboard row","create one independent snapshot of the current view","transient","dock,panel; original,linked source; relationship severed","OOOOOOOOO"],
       ["context.move-view-to-layout.row","popup-action","none:move-view-between-layouts","one row per other layout when multiple layouts are active","pointer row,keyboard row","move the current view to the selected layout","persistent","single,multiple layouts; current layout excluded; cloned view exclusion","OOOOOOOOO"]
     ]}
   ],
