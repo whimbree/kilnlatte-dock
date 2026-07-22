@@ -108,6 +108,10 @@ latte_add_unit_test(inputmaskflushtest)
 # exported, moved, or removed outside the original's lifecycle.
 latte_add_unit_test(viewactionpolicytest)
 
+# PrimaryConfigView's delayed handoff generation. Only the latest uncanceled
+# request may rebind the shared edit chrome.
+latte_add_unit_test(retargetrequeststatetest)
+
 # EX-23 WindowTrackingPredicates + ExtraViewHints: two header-only cores,
 # one spec. The predicates test needs windowinfowrap's types (Qt Gui);
 # the hints test needs the Plasma location enum.

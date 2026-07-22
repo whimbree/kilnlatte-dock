@@ -674,6 +674,11 @@ QQuickView *View::configView() const
     return m_primaryConfigView.data();
 }
 
+View *View::configurationTargetView()
+{
+    return this;
+}
+
 void View::showConfigurationInterface(Plasma::Applet *applet)
 {
     if (!applet || !applet->containment())

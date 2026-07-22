@@ -10,6 +10,7 @@
 // local
 #include <coretypes.h>
 #include "subconfigview.h"
+#include "retargetrequeststate.h"
 #include "../../wm/windowinfowrap.h"
 
 //Qt
@@ -147,6 +148,8 @@ private Q_SLOTS:
 
 
 private:
+    void cancelPendingRetarget();
+    void scheduleRetarget(Latte::View *view);
     void setIsReady(bool ready);
     void instantUpdateAvailableScreenGeometry();
 
@@ -163,6 +166,12 @@ private:
     Latte::Types::Visibility m_originalMode{Latte::Types::DodgeActive};
 
     QTimer m_availableScreemGeometryTimer;
+    QTimer m_retargetTimer;
+
+    RetargetRequestState m_retargetRequests;
+    RetargetRequestState::Token m_pendingRetargetToken{0};
+    QMetaObject::Connection m_retargetConnection;
+    QPointer<Latte::View> m_pendingParentView;
 
     QRect m_availableScreenGeometry;
     QRect m_geometryWhenVisible;
@@ -179,4 +188,3 @@ private:
 }
 }
 #endif //PRIMARYCONFIGVIEW_H
-
