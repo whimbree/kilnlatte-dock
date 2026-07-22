@@ -1388,7 +1388,7 @@ void Corona::setViewEditMode(const uint &containmentId, const bool &editing)
     //! hideConfigWindow's cancelDeferredShow handles.
     auto configView = m_viewSettingsFactory->primaryConfigView();
 
-    if (!configurationTarget->inEditMode() || !configView || configView->parentView() != configurationTarget) {
+    if (!configView || !configView->hasEditRequestFor(configurationTarget)) {
         qWarning() << "corona: setViewEditMode exit requested for containment" << containmentId << "which is not in edit mode";
         return;
     }

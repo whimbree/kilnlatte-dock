@@ -77,9 +77,10 @@ void DockIdentityContractTest::retargetIsLatestRequestOnlyAndEndsOldSessionFirst
     const QString setParent = normalized(functionBody(source, QStringLiteral("void PrimaryConfigView::setParentView")));
     const QString schedule = normalized(functionBody(source, QStringLiteral("void PrimaryConfigView::scheduleRetarget")));
     const QString cancel = normalized(functionBody(source, QStringLiteral("void PrimaryConfigView::cancelPendingRetarget")));
+    const QString ownership = normalized(functionBody(source, QStringLiteral("bool PrimaryConfigView::hasEditRequestFor")));
     const QString show = normalized(functionBody(source, QStringLiteral("void PrimaryConfigView::showConfigWindow")));
 
-    QVERIFY2(!setParent.isEmpty() && !schedule.isEmpty() && !cancel.isEmpty() && !show.isEmpty(),
+    QVERIFY2(!setParent.isEmpty() && !schedule.isEmpty() && !cancel.isEmpty() && !ownership.isEmpty() && !show.isEmpty(),
              "PrimaryConfigView retarget functions were not found");
 
     QVERIFY(setParent.contains(QStringLiteral("hideConfigWindow();scheduleRetarget(view);")));
@@ -92,6 +93,8 @@ void DockIdentityContractTest::retargetIsLatestRequestOnlyAndEndsOldSessionFirst
     QVERIFY(cancel.contains(QStringLiteral("m_retargetRequests.cancelRequest();")));
     QVERIFY(schedule.contains(QStringLiteral("token=m_pendingRetargetToken")));
     QVERIFY(schedule.contains(QStringLiteral("m_retargetRequests.consumeIfCurrent(token)")));
+    QVERIFY(ownership.contains(QStringLiteral("m_pendingParentView==view")));
+    QVERIFY(ownership.contains(QStringLiteral("m_retargetRequests.isTargetPending(targetKey(view))")));
 
     const int beginSession = show.indexOf(QStringLiteral("setUserConfiguring(true);"));
     const int visibleReturn = show.indexOf(QStringLiteral("if(isVisible())"));
@@ -110,7 +113,8 @@ void DockIdentityContractTest::cloneEditRequestsResolveOneOriginalTarget()
 
     QVERIFY(editMode.contains(QStringLiteral("view->configurationTargetView()")));
     QVERIFY(editMode.contains(QStringLiteral("configurationTarget->showSettingsWindow();")));
-    QVERIFY(editMode.contains(QStringLiteral("configView->parentView()!=configurationTarget")));
+    QVERIFY(editMode.contains(QStringLiteral("!configView->hasEditRequestFor(configurationTarget)")));
+    QVERIFY(!editMode.contains(QStringLiteral("configView->parentView()!=configurationTarget")));
     QVERIFY(configureApplets.contains(QStringLiteral("view->configurationTargetView()")));
     QVERIFY(configureApplets.contains(QStringLiteral("!configurationTarget->inEditMode()")));
 }

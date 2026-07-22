@@ -162,6 +162,23 @@ void PrimaryConfigView::requestActivate()
     SubConfigView::requestActivate();
 }
 
+RetargetRequestState::TargetKey PrimaryConfigView::targetKey(const Latte::View *view)
+{
+    return reinterpret_cast<RetargetRequestState::TargetKey>(view);
+}
+
+bool PrimaryConfigView::hasEditRequestFor(const Latte::View *view) const
+{
+    if (!view) {
+        return false;
+    }
+
+    const bool pendingTargetMatches = m_pendingParentView == view
+            && m_retargetRequests.isTargetPending(targetKey(view));
+    const bool activeTargetMatches = m_latteView == view && view->inEditMode();
+    return pendingTargetMatches || activeTargetMatches;
+}
+
 void PrimaryConfigView::showConfigWindow()
 {
     if (m_latteView && m_latteView->containment()) {
@@ -317,7 +334,7 @@ void PrimaryConfigView::scheduleRetarget(Latte::View *view)
 {
     cancelPendingRetarget();
     m_pendingParentView = view;
-    m_pendingRetargetToken = m_retargetRequests.beginRequest();
+    m_pendingRetargetToken = m_retargetRequests.beginRequest(targetKey(view));
 
     m_retargetConnection = connect(&m_retargetTimer, &QTimer::timeout, this,
                                    [this, token = m_pendingRetargetToken]() {
