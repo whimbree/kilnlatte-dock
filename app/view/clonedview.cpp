@@ -129,6 +129,11 @@ Latte::Types::ScreensGroup ClonedView::screensGroup() const
     return Latte::Types::SingleScreenGroup;
 }
 
+View *ClonedView::configurationTargetView()
+{
+    return m_originalView.data();
+}
+
 ViewPart::Indicator *ClonedView::indicator() const
 {
     return m_originalView->indicator();
@@ -244,7 +249,11 @@ void ClonedView::showConfigurationInterface(Plasma::Applet *applet)
     Plasma::Containment *c = qobject_cast<Plasma::Containment *>(applet);
 
     if (Layouts::Storage::self()->isLatteContainment(c)) {
-        m_originalView->showSettingsWindow();
+        if (auto *target = configurationTargetView()) {
+            target->showSettingsWindow();
+        } else {
+            qWarning() << "ClonedView: cannot edit a clone after its original was destroyed";
+        }
     } else {
         View::showConfigurationInterface(applet);
     }

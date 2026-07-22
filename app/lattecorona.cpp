@@ -1308,6 +1308,12 @@ void Corona::setViewEditMode(const uint &containmentId, const bool &editing)
         return;
     }
 
+    auto *configurationTarget = view->configurationTargetView();
+    if (!configurationTarget) {
+        qWarning() << "corona: setViewEditMode requested for clone containment" << containmentId << "whose original no longer exists";
+        return;
+    }
+
     if (editing) {
         //! the same ensemble the context menu's Edit Dock... lands in: that
         //! entry emits configureRequested -> View::showConfigurationInterface,
@@ -1315,21 +1321,21 @@ void Corona::setViewEditMode(const uint &containmentId, const bool &editing)
         //! wrapper around the identical path (mustBeShown + configuration
         //! interface + window activities), already used by the global
         //! shortcut and by clones redirecting to their original. Idempotent
-        //! when the settings chrome is already shown for this view.
-        view->showSettingsWindow();
+        //! when the settings chrome is already shown for the resolved target.
+        configurationTarget->showSettingsWindow();
         return;
     }
 
     //! the same exit the settings chrome's close button uses
     //! (LatteDockConfiguration.qml -> viewConfig.hideConfigWindow()). The
     //! chrome is a shared singleton, so it may only be hidden when it is
-    //! parented to THIS view - hiding it otherwise would end another view's
+    //! parented to the resolved target: hiding it otherwise would end another view's
     //! editing session. Deliberately NOT gated on isVisible(): an exit
     //! racing the chrome's deferred show must still cancel it, which
     //! hideConfigWindow's cancelDeferredShow handles.
     auto configView = m_viewSettingsFactory->primaryConfigView();
 
-    if (!view->inEditMode() || !configView || configView->parentView() != view) {
+    if (!configurationTarget->inEditMode() || !configView || configView->parentView() != configurationTarget) {
         qWarning() << "corona: setViewEditMode exit requested for containment" << containmentId << "which is not in edit mode";
         return;
     }
@@ -1433,6 +1439,12 @@ void Corona::setViewConfiguringApplets(const uint &containmentId, const bool &co
         return;
     }
 
+    auto *configurationTarget = view->configurationTargetView();
+    if (!configurationTarget) {
+        qWarning() << "corona: setViewConfiguringApplets requested for clone containment" << containmentId << "whose original no longer exists";
+        return;
+    }
+
     //! inConfigureAppletsMode is a GLOBAL UniversalSettings flag the settings
     //! header's rearrange button toggles (HeaderSettings.qml); the containment
     //! QML gates the ConfigOverlay on `editMode && inConfigureAppletsMode`
@@ -1443,7 +1455,7 @@ void Corona::setViewConfiguringApplets(const uint &containmentId, const bool &co
     //! refused loudly here. Exiting is always honored (the flag goes false,
     //! matching main.qml's own edit-exit reset). Readback:
     //! viewsData()'s inConfigureAppletsMode field.
-    if (configuring && !view->inEditMode()) {
+    if (configuring && !configurationTarget->inEditMode()) {
         qWarning() << "corona: setViewConfiguringApplets(true) refused for containment" << containmentId
                    << "which is not in edit mode (open it with setViewEditMode first; rearrange only runs inside an edit session)";
         return;

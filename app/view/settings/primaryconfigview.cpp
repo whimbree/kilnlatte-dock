@@ -87,6 +87,9 @@ PrimaryConfigView::PrimaryConfigView(Latte::View *view, const bool &showOnCreati
     m_availableScreemGeometryTimer.setSingleShot(true);
     m_availableScreemGeometryTimer.setInterval(250);
 
+    m_retargetTimer.setSingleShot(true);
+    m_retargetTimer.setInterval(SLIDEOUTINTERVAL);
+
     connections << connect(&m_availableScreemGeometryTimer, &QTimer::timeout, this, [this]() {
         instantUpdateAvailableScreenGeometry();
     });
@@ -161,12 +164,12 @@ void PrimaryConfigView::requestActivate()
 
 void PrimaryConfigView::showConfigWindow()
 {
-    if (isVisible()) {
-        return;
-    }
-
     if (m_latteView && m_latteView->containment()) {
         m_latteView->containment()->setUserConfiguring(true);
+    }
+
+    if (isVisible()) {
+        return;
     }
 
     showAfter(PRIMARYWINDOWINTERVAL);
@@ -176,6 +179,8 @@ void PrimaryConfigView::showConfigWindow()
 
 void PrimaryConfigView::hideConfigWindow()
 {
+    cancelPendingRetarget();
+
     //! Session-end semantics live HERE, not in hideEvent: the window also
     //! hides transiently (deferred show on view retargeting, layer-surface
     //! remaps), and a transient hide must not end the user's configuring
@@ -274,31 +279,69 @@ void PrimaryConfigView::hideSecondaryWindow()
 
 void PrimaryConfigView::setParentView(Latte::View *view, const bool &immediate)
 {
+    if (!view) {
+        qWarning() << "PrimaryConfigView: refusing to retarget the settings window to a null view";
+        cancelPendingRetarget();
+        return;
+    }
+
     if (m_latteView == view) {
+        cancelPendingRetarget();
+        showConfigWindow();
         return;
     }
 
     if (m_latteView && !immediate) {
         hideConfigWindow();
-
-        //!slide-out delay; the target view can be destroyed while the slide-out
-        //!plays (dock removal, layout switch), so hold it through a QPointer and
-        //!drop the retarget loudly instead of dereferencing a dangling pointer
-        QPointer<Latte::View> nextview(view);
-
-        QTimer::singleShot(SLIDEOUTINTERVAL, this, [this, nextview]() {
-            if (!nextview) {
-                qWarning() << "PrimaryConfigView: the view to be configured was destroyed during the slide-out delay; the settings window stays hidden";
-                return;
-            }
-
-            initParentView(nextview);
-            showConfigWindow();
-        });
+        scheduleRetarget(view);
     } else {
+        cancelPendingRetarget();
+        if (m_latteView) {
+            endConfiguringSession();
+        }
         initParentView(view);
         showConfigWindow();
     }
+}
+
+void PrimaryConfigView::cancelPendingRetarget()
+{
+    m_retargetTimer.stop();
+    QObject::disconnect(m_retargetConnection);
+    m_retargetConnection = {};
+    m_pendingParentView = nullptr;
+    m_retargetRequests.cancelRequest();
+}
+
+void PrimaryConfigView::scheduleRetarget(Latte::View *view)
+{
+    cancelPendingRetarget();
+    m_pendingParentView = view;
+    m_pendingRetargetToken = m_retargetRequests.beginRequest();
+
+    m_retargetConnection = connect(&m_retargetTimer, &QTimer::timeout, this,
+                                   [this, token = m_pendingRetargetToken]() {
+        QObject::disconnect(m_retargetConnection);
+        m_retargetConnection = {};
+
+        if (!m_retargetRequests.consumeIfCurrent(token)) {
+            qWarning() << "PrimaryConfigView: discarded a superseded settings-window retarget";
+            return;
+        }
+
+        QPointer<Latte::View> nextview = m_pendingParentView;
+        m_pendingParentView = nullptr;
+
+        if (!nextview) {
+            qWarning() << "PrimaryConfigView: the view to be configured was destroyed during the slide-out delay; the settings window stays hidden";
+            return;
+        }
+
+        initParentView(nextview);
+        showConfigWindow();
+    });
+
+    m_retargetTimer.start();
 }
 
 void PrimaryConfigView::initParentView(Latte::View *view)
@@ -767,4 +810,3 @@ void PrimaryConfigView::updateEffects()
 
 }
 }
-

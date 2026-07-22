@@ -568,6 +568,18 @@ set_tests_properties(sourceguardtest PROPERTIES
 target_compile_definitions(sourceguardtest PRIVATE
     REPO_ROOT="${CMAKE_SOURCE_DIR}")
 
+# Dock identity and edit-session boundary wiring. The value-only action policy
+# and retarget generations have sanitized unit tests; this pins their use by
+# the runtime objects that need a complete Plasma shell to construct.
+ecm_add_test(dockidentitycontracttest.cpp
+    TEST_NAME dockidentitycontracttest
+    LINK_LIBRARIES Qt6::Test
+)
+set_tests_properties(dockidentitycontracttest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_compile_definitions(dockidentitycontracttest PRIVATE
+    REPO_ROOT="${CMAKE_SOURCE_DIR}")
+
 # The details-dialog color-scheme model over planted .colors fixtures:
 # enumeration, sorting, the synthetic System Colors row and the row lookup.
 ecm_add_test(schemesmodeltest.cpp

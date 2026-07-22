@@ -247,6 +247,10 @@ public:
     virtual bool isSingle() const = 0; //means that this view is not related to clones and screen groups in any way
     virtual Latte::Types::ScreensGroup screensGroup() const = 0;
 
+    //! The runtime view that owns this view's shared edit session. Original
+    //! views own themselves; screen-group clones resolve to their original.
+    virtual Latte::View *configurationTargetView();
+
     QVariantList containmentActions() const;
 
     QQuickView *configView() const;

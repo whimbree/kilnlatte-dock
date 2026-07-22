@@ -36,6 +36,8 @@ public:
 
     Latte::Types::ScreensGroup screensGroup() const override;
 
+    Latte::View *configurationTargetView() override;
+
     ViewPart::Indicator *indicator() const override;
     Latte::Data::View data() const override;
 
