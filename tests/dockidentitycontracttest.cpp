@@ -64,7 +64,8 @@ private:
 
 private Q_SLOTS:
     void retargetIsLatestRequestOnlyAndEndsOldSessionFirst();
-    void cloneActionsGuardEveryProductionBoundary();
+    void relationshipActionsGuardEveryProductionBoundary();
+    void duplicateNormalizesRelationshipBeforeImport();
     void cloneEditRequestsResolveOneOriginalTarget();
     void cloneDestructionUnregistersMembership();
     void outputRetargetReplacesGeometryConnection();
@@ -72,7 +73,7 @@ private Q_SLOTS:
     void persistentMenuIdentitySurvivesRuntimeGap();
 };
 
-void DockIdentityContractTest::cloneActionsGuardEveryProductionBoundary()
+void DockIdentityContractTest::relationshipActionsGuardEveryProductionBoundary()
 {
     struct Boundary {
         QString signature;
@@ -97,7 +98,7 @@ void DockIdentityContractTest::cloneActionsGuardEveryProductionBoundary()
 
     const QString viewSource = readFile(QStringLiteral("app/view/view.cpp"));
     const QList<Boundary> viewBoundaries{
-        {QStringLiteral("void View::duplicateView"), QStringLiteral("Action::Duplicate"), QStringLiteral("newView(storedTmpViewFilepath);")},
+        {QStringLiteral("void View::duplicateView"), QStringLiteral("Action::Duplicate"), QStringLiteral("createViewFromTemplate(storedTmpViewFilepath,TemplateImportRelationship::IndependentSnapshot);")},
         {QStringLiteral("void View::exportTemplate"), QStringLiteral("Action::ExportTemplate"), QStringLiteral("exportDlg->show();")},
         {QStringLiteral("void View::removeView"), QStringLiteral("Action::Remove"), QStringLiteral("removeAct->trigger();")},
     };
@@ -108,6 +109,30 @@ void DockIdentityContractTest::cloneActionsGuardEveryProductionBoundary()
         const int effect = body.indexOf(boundary.effect);
         QVERIFY2(policy >= 0 && effect > policy, qPrintable(boundary.signature));
     }
+}
+
+void DockIdentityContractTest::duplicateNormalizesRelationshipBeforeImport()
+{
+    const QString viewSource = readFile(QStringLiteral("app/view/view.cpp"));
+    const QString create = normalized(functionBody(viewSource, QStringLiteral("void View::createViewFromTemplate")));
+
+    const int independent = create.indexOf(QStringLiteral("relationship==TemplateImportRelationship::IndependentSnapshot"));
+    const int clearSource = create.indexOf(QStringLiteral("nextdata.isClonedFrom=Data::View::ISCLONEDNULL"), independent);
+    const int clearScreenGroup = create.indexOf(QStringLiteral("nextdata.screensGroup=Latte::Types::SingleScreenGroup"), clearSource);
+    const int import = create.indexOf(QStringLiteral("m_layout->newView(nextdata);"), clearScreenGroup);
+
+    QVERIFY2(independent >= 0 && clearSource > independent && clearScreenGroup > clearSource && import > clearScreenGroup,
+             "independent duplication must clear both persisted relationship fields before import");
+
+    const QString menuSource = readFile(QStringLiteral("containmentactions/contextmenu/menu.cpp"));
+    const QString visibility = normalized(functionBody(menuSource, QStringLiteral("void Menu::updateVisibleActions")));
+    const int cloneBranch = visibility.indexOf(QStringLiteral("if(m_view.isCloned)"));
+    const int branchEnd = visibility.indexOf(QLatin1Char('}'), cloneBranch);
+    const QString cloneActions = visibility.mid(cloneBranch, branchEnd - cloneBranch);
+    QVERIFY(!cloneActions.contains(QStringLiteral("DUPLICATEVIEWACTION]->setVisible(false)")));
+    QVERIFY(cloneActions.contains(QStringLiteral("EXPORTVIEWTEMPLATEACTION]->setVisible(false)")));
+    QVERIFY(cloneActions.contains(QStringLiteral("MOVEVIEWACTION]->setVisible(false)")));
+    QVERIFY(cloneActions.contains(QStringLiteral("REMOVEVIEWACTION]->setVisible(false)")));
 }
 
 void DockIdentityContractTest::retargetIsLatestRequestOnlyAndEndsOldSessionFirst()

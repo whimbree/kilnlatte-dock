@@ -404,6 +404,13 @@ private Q_SLOTS:
     void saveConfig();
 
 private:
+    enum class TemplateImportRelationship
+    {
+        Preserve,
+        IndependentSnapshot,
+    };
+
+    void createViewFromTemplate(const QString &templateFile, TemplateImportRelationship relationship);
     void initSignalingForLocationChangeSliding();
     void reanchorLayerShell();
     //! true when this view's window covers the whole screen along its length

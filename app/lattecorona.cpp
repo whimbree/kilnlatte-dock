@@ -1724,7 +1724,7 @@ void Corona::duplicateView(const uint &containmentId)
 
     const auto role = view->isCloned() ? ViewActionPolicy::Role::Clone : ViewActionPolicy::Role::Original;
     if (!ViewActionPolicy::permits(role, ViewActionPolicy::Action::Duplicate)) {
-        qWarning() << "corona: duplicateView refused for screen-group clone containment" << containmentId;
+        qWarning() << "corona: duplicateView refused by the view relationship policy for containment" << containmentId;
         return;
     }
 
