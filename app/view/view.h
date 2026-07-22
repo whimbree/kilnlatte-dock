@@ -152,6 +152,7 @@ public:
     bool containsMouse() const;
 
     [[nodiscard]] virtual bool canRemove() const;
+    [[nodiscard]] virtual bool canMoveToLayout() const;
 
     bool byPassWM() const;
     void setByPassWM(bool bypass);

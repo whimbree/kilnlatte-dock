@@ -33,10 +33,24 @@ public:
 
     bool hasContainmentId(const QString &cid) const;
 
+    [[nodiscard]] int linkedMembersCount(const QString &rootId) const;
+    [[nodiscard]] int explicitLinkedMembersCount(const QString &rootId) const;
+
     //! Explicit members are persistent relationship records. A root cannot be
-    //! removed as one Plasma containment transaction while any of these
-    //! records remain because Undo would restore only the root.
+    //! removed or moved as one Plasma containment transaction while any of
+    //! these records remain because the operation would strand part of the
+    //! relationship.
     [[nodiscard]] bool hasExplicitLinkedMembers(const QString &rootId) const;
+
+    //! Only an independent root, or a root whose members are all
+    //! screen-group-derived, can cross a layout boundary through the legacy
+    //! per-containment move transaction.
+    [[nodiscard]] bool allowsMoveToAnotherLayout(const QString &viewId) const;
+
+    //! A legacy All Screens move is coordinated as one root request followed
+    //! by one internal move for each screen-group-derived member. Explicit
+    //! members never participate in that transaction.
+    [[nodiscard]] bool participatesInLegacyLayoutMove(const QString &viewId) const;
 
     //! Empty means that every linked member names a present direct root.
     //! Persisted chains, cycles, missing roots, and duplicate identities are

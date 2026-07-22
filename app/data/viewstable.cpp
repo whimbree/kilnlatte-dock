@@ -98,17 +98,60 @@ bool ViewsTable::hasContainmentId(const QString &cid) const
     return false;
 }
 
-bool ViewsTable::hasExplicitLinkedMembers(const QString &rootId) const
+int ViewsTable::linkedMembersCount(const QString &rootId) const
 {
     bool parsed{false};
     const int root = rootId.toInt(&parsed);
-    if (!parsed || root <= 0) {
+    if (!parsed || root <= 0 || rootId != QString::number(root)) {
+        return 0;
+    }
+
+    return static_cast<int>(std::count_if(m_list.cbegin(), m_list.cend(), [root](const View &view) {
+        return view.isCloned() && view.isClonedFrom == root;
+    }));
+}
+
+int ViewsTable::explicitLinkedMembersCount(const QString &rootId) const
+{
+    bool parsed{false};
+    const int root = rootId.toInt(&parsed);
+    if (!parsed || root <= 0 || rootId != QString::number(root)) {
+        return 0;
+    }
+
+    return static_cast<int>(std::count_if(m_list.cbegin(), m_list.cend(), [root](const View &view) {
+        return view.isExplicitlyLinked() && view.isClonedFrom == root;
+    }));
+}
+
+bool ViewsTable::hasExplicitLinkedMembers(const QString &rootId) const
+{
+    return explicitLinkedMembersCount(rootId) > 0;
+}
+
+bool ViewsTable::allowsMoveToAnotherLayout(const QString &viewId) const
+{
+    if (!containsId(viewId)) {
         return false;
     }
 
-    return std::any_of(m_list.cbegin(), m_list.cend(), [root](const View &view) {
-        return view.isExplicitlyLinked() && view.isClonedFrom == root;
-    });
+    const View view = (*this)[viewId];
+    return !view.isCloned() && !hasExplicitLinkedMembers(viewId);
+}
+
+bool ViewsTable::participatesInLegacyLayoutMove(const QString &viewId) const
+{
+    if (!containsId(viewId)) {
+        return false;
+    }
+
+    const View view = (*this)[viewId];
+    if (view.isCloned()) {
+        return view.linkPlacement == View::LinkPlacement::ScreenGroupDerived
+                && !hasExplicitLinkedMembers(QString::number(view.isClonedFrom));
+    }
+
+    return !hasExplicitLinkedMembers(viewId);
 }
 
 QString ViewsTable::relationshipValidationError() const

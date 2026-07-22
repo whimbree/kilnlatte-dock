@@ -290,6 +290,14 @@ void Manager::moveView(QString originLayoutName, uint originViewId, QString dest
         return;
     }
 
+    const Data::ViewsTable originViews = originlayout->viewsTable();
+    if (!originViews.participatesInLegacyLayoutMove(QString::number(originViewId))) {
+        qCritical() << "layout manager refused moving containment" << originViewId
+                    << "from" << originLayoutName
+                    << "because its dock relationship cannot cross layouts as one containment";
+        return;
+    }
+
     QList<Plasma::Containment *> origincontainments = originlayout->unassignFromLayout(originviewcontainment);
 
     if (origincontainments.size() > 0) {

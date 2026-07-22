@@ -22,6 +22,7 @@
 #include "../../layout/genericlayout.h"
 #include "../../layout/centrallayout.h"
 #include "../../layouts/manager.h"
+#include "../../layouts/storage.h"
 #include "../../layouts/synchronizer.h"
 #include "../../view/view.h"
 
@@ -150,6 +151,20 @@ bool Views::hasChangedData() const
 bool Views::hasSelectedView() const
 {
     return m_view->selectionModel()->hasSelection();
+}
+
+bool Views::canMoveSelectedViews() const
+{
+    const Data::ViewsTable selected = selectedViewsCurrentData();
+    const Data::ViewsTable &all = m_model->currentViewsData();
+
+    for (int index = 0; index < selected.rowCount(); ++index) {
+        if (!all.allowsMoveToAnotherLayout(selected[index].id)) {
+            return false;
+        }
+    }
+
+    return selected.rowCount() > 0;
 }
 
 bool Views::canRemoveSelectedViews() const
@@ -283,7 +298,8 @@ void Views::cutSelectedViews()
 {
     qDebug() << Q_FUNC_INFO;
 
-    if (!hasSelectedView()) {
+    if (!hasSelectedView() || !canMoveSelectedViews()) {
+        qWarning() << "Views controller refused moving a dock relationship across layouts";
         return;
     }
 
@@ -430,11 +446,16 @@ void Views::onCurrentLayoutChanged()
 
 void Views::onSelectionsChanged()
 {
-    bool hasselectedview = hasSelectedView();
+    const bool hasSelection = hasSelectedView();
+    const bool canMove = canMoveSelectedViews();
 
-    m_cutAction->setVisible(hasselectedview);
-    m_copyAction->setVisible(hasselectedview);
-    m_duplicateAction->setVisible(hasselectedview);
+    m_cutAction->setVisible(hasSelection);
+    m_cutAction->setEnabled(canMove);
+    m_cutAction->setToolTip(canMove || !hasSelection
+            ? i18n("Move selected view to another layout")
+            : i18n("Remove linked docks or panels before moving their source to another layout"));
+    m_copyAction->setVisible(hasSelection);
+    m_duplicateAction->setVisible(hasSelection);
     m_pasteAction->setEnabled(m_handler->layoutsController()->templatesKeeper()->hasClipboardContents());
 }
 
@@ -451,7 +472,45 @@ int Views::viewsForRemovalCount() const
     return removedViews.rowCount();
 }
 
-bool Views::hasValidOriginView(const Data::View &view)
+bool Views::canCommitMoveDestinations(const Data::ViewsTable &newViews) const
+{
+    for (int index = 0; index < newViews.rowCount(); ++index) {
+        const Data::View &destination = newViews[index];
+        if (!destination.isMoveDestination) {
+            continue;
+        }
+
+        if (!hasValidOriginView(destination)) {
+            qCritical() << "Views controller refused a move destination with invalid origin identity"
+                        << destination.originView();
+            return false;
+        }
+
+        const Data::Layout originData =
+            m_handler->layoutsController()->originalData(destination.originLayout());
+        CentralLayout *const origin =
+            m_handler->layoutsController()->centralLayout(originData.id);
+        if (!origin) {
+            qCritical() << "Views controller refused a move destination whose origin layout is unavailable"
+                        << destination.originLayout();
+            return false;
+        }
+
+        const Data::ViewsTable currentOriginViews = Latte::Layouts::Storage::self()->views(origin);
+        const QString originViewId = destination.originView();
+        if (!currentOriginViews.containsId(originViewId)
+                || !currentOriginViews.allowsMoveToAnotherLayout(originViewId)) {
+            qCritical() << "Views controller refused a stale Cut/Paste transaction for containment"
+                        << originViewId
+                        << "because its current dock relationship cannot cross layouts";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Views::hasValidOriginView(const Data::View &view) const
 {
     bool viewidisinteger{true};
     int vid_int = view.originView().toInt(&viewidisinteger);
@@ -464,7 +523,7 @@ bool Views::hasValidOriginView(const Data::View &view)
     return true;
 }
 
-CentralLayout *Views::originLayout(const Data::View &view)
+CentralLayout *Views::originLayout(const Data::View &view) const
 {
     QString origincurrentid = view.originLayout();
     Data::Layout originlayoutdata = m_handler->layoutsController()->originalData(origincurrentid);
@@ -886,6 +945,17 @@ void Views::save()
     Latte::Data::ViewsTable currentViews = m_model->currentViewsData();
     Latte::Data::ViewsTable alteredViews = m_model->alteredViews();
     Latte::Data::ViewsTable newViews = m_model->newViews();
+
+    //! Cut and Paste span multiple UI events. Revalidate at the transaction
+    //! boundary before importing anything because the origin may have gained
+    //! a linked member after Cut. Without this check, origin removal refuses
+    //! after the destination exists and silently degrades the move into Copy.
+    if (!canCommitMoveDestinations(newViews)) {
+        showDefaultPersistentErrorWarningInlineMessage(
+            i18n("The move was cancelled because the source dock relationship changed after Cut."),
+            KMessageWidget::Warning);
+        return;
+    }
 
     QHash<QString, Data::View> newviewsresponses;
     QHash<QString, Data::View> cuttedpastedviews;

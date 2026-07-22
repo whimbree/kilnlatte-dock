@@ -322,6 +322,7 @@ void Menu::updateVisibleActions()
     }
 
     QAction *const removeAction = m_actions[Latte::Data::ContextMenu::REMOVEVIEWACTION];
+    QAction *const moveAction = m_actions[Latte::Data::ContextMenu::MOVEVIEWACTION];
     const bool rootHasExplicitMembers = !m_view.isCloned
             && m_view.explicitLinkedMembersCount > 0;
     removeAction->setEnabled(!rootHasExplicitMembers);
@@ -330,6 +331,13 @@ void Menu::updateVisibleActions()
             : QString{};
     removeAction->setToolTip(removalExplanation);
     removeAction->setStatusTip(removalExplanation);
+
+    moveAction->setEnabled(!rootHasExplicitMembers);
+    const QString moveExplanation = rootHasExplicitMembers
+            ? i18n("Remove linked docks or panels before moving their source to another layout")
+            : QString{};
+    moveAction->setToolTip(moveExplanation);
+    moveAction->setStatusTip(moveExplanation);
 }
 
 
@@ -408,7 +416,8 @@ void Menu::populateMoveToLayouts()
 {
     m_moveToLayoutMenu->clear();
 
-    if (!m_contextDataValid) {
+    if (!m_contextDataValid
+            || (!m_view.isCloned && m_view.explicitLinkedMembersCount > 0)) {
         return;
     }
 

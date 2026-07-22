@@ -1269,24 +1269,11 @@ QStringList Corona::contextMenuData(const uint &containmentId)
         linkPlacement = -1;
     }
 
-    if (!isCloned && view && view->isOriginal()) {
-        if (auto *originalView = qobject_cast<Latte::OriginalView *>(view)) {
-            clonesCount = originalView->clonesCount();
-            explicitLinkedMembersCount = originalView->explicitLinkedMembersCount();
-        }
-    } else if (!isCloned && persistentLayout) {
-        for (const auto *containment : *persistentLayout->containments()) {
-            if (containment
-                    && containment->config().readEntry("isClonedFrom", Layouts::Storage::IDNULL)
-                        == static_cast<int>(containmentId)) {
-                ++clonesCount;
-                const int memberPlacement = containment->config().readEntry(
-                    "linkPlacement", static_cast<int>(Data::View::LinkPlacement::ScreenGroupDerived));
-                if (memberPlacement == static_cast<int>(Data::View::LinkPlacement::ExplicitTarget)) {
-                    ++explicitLinkedMembersCount;
-                }
-            }
-        }
+    if (!isCloned && persistentLayout) {
+        const Data::ViewsTable persistentViews = persistentLayout->viewsTable();
+        const QString rootId = QString::number(containmentId);
+        clonesCount = persistentViews.linkedMembersCount(rootId);
+        explicitLinkedMembersCount = persistentViews.explicitLinkedMembersCount(rootId);
     }
 
     data << QString::number((int)m_layoutsManager->memoryUsage()); // Memory Usage
@@ -1851,8 +1838,10 @@ void Corona::moveViewToLayout(const uint &containmentId, const QString &layoutNa
     }
 
     const auto role = view->actionRole();
-    if (!ViewActionPolicy::permits(role, ViewActionPolicy::Action::MoveToLayout)) {
-        qWarning() << "corona: moveViewToLayout refused for screen-group clone containment" << containmentId;
+    if (!ViewActionPolicy::permits(role, ViewActionPolicy::Action::MoveToLayout)
+            || !view->canMoveToLayout()) {
+        qWarning() << "corona: moveViewToLayout refused because the dock relationship cannot cross layouts alone"
+                   << containmentId;
         return;
     }
 

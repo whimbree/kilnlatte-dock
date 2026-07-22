@@ -63,16 +63,22 @@ int OriginalView::clonesCount() const
     });
 }
 
-int OriginalView::explicitLinkedMembersCount() const
-{
-    return std::count_if(m_clones.cbegin(), m_clones.cend(), [](const auto &clone) {
-        return clone && clone->linkPlacement() == Data::View::LinkPlacement::ExplicitTarget;
-    });
-}
-
 bool OriginalView::canRemove() const
 {
-    return View::canRemove() && explicitLinkedMembersCount() == 0;
+    if (!View::canRemove() || !layout() || !containment()) {
+        return false;
+    }
+
+    return !layout()->viewsTable().hasExplicitLinkedMembers(QString::number(containment()->id()));
+}
+
+bool OriginalView::canMoveToLayout() const
+{
+    if (!View::canMoveToLayout() || !layout() || !containment()) {
+        return false;
+    }
+
+    return layout()->viewsTable().allowsMoveToAnotherLayout(QString::number(containment()->id()));
 }
 
 int OriginalView::expectedScreenIdFromScreenGroup(const Latte::Types::ScreensGroup &nextScreensGroup) const

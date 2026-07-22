@@ -64,6 +64,7 @@ public:
     void sortByColumn(int column, Qt::SortOrder order);
 
     bool hasSelectedView() const;
+    bool canMoveSelectedViews() const;
     bool canRemoveSelectedViews() const;
     int selectedViewsCount() const;
     const Latte::Data::View currentData(const QString &id);
@@ -90,8 +91,9 @@ Q_SIGNALS:
 private:
     void init();
 
-    bool hasValidOriginView(const Data::View &view);
-    CentralLayout *originLayout(const Data::View &view);
+    [[nodiscard]] bool canCommitMoveDestinations(const Data::ViewsTable &newViews) const;
+    [[nodiscard]] bool hasValidOriginView(const Data::View &view) const;
+    CentralLayout *originLayout(const Data::View &view) const;
 
     int rowForId(QString id) const;
     QString uniqueViewName(QString name);

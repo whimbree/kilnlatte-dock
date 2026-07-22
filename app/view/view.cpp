@@ -1179,6 +1179,11 @@ bool View::canRemove() const
     return ViewActionPolicy::permits(actionRole(), ViewActionPolicy::Action::Remove);
 }
 
+bool View::canMoveToLayout() const
+{
+    return ViewActionPolicy::permits(actionRole(), ViewActionPolicy::Action::MoveToLayout);
+}
+
 int View::normalThickness() const
 {
     return m_normalThickness;
