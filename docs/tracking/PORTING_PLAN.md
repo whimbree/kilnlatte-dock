@@ -1363,6 +1363,13 @@ multi-view, multi-monitor setup.
       embedded containment cleanup follows the same Undo transaction.
       Commits: 0ea1c8112
 
+- [x] Fix D103 (linked-dock controls escaped the settings inventory). Treat an
+      ordinary QML Dialog as an interactive source, then catalog linked popup,
+      output, edge, accept, cancel, and context-menu target actions with exact
+      source selectors. The checked ledger now covers 278 affordances through
+      742 candidates and 1274 relations.
+      Commits: 4fc64590f
+
 - [x] Bottom-dock layer surface drifts left of its reported geometry
       (filed 2026-07-17 from the e2e promotion unit, evidence in
       docs/agent-logs/2026-07-17-e2e-promotion.md finding 6; root-caused,
@@ -4151,7 +4158,7 @@ prerequisites in the phases above are done.
       item in `docs/reference/dock-replication-design.md`.
       Commits: 6a9183fc6, fe1230670, ea7a77f0e, 9ba2429e1,
       2b133d839, 2c1e656c7, dcd95bb42, ea8e60dce, ce7a632e3,
-      09a61e537, 43b86fe64, 39fb979bc
+      09a61e537, 43b86fe64, 39fb979bc, 4fc64590f
 - [ ] Ship the Latte separator applet in-tree (requested 2026-07-15
       while surveying what the repo actually ships: shell,
       containment, tasks plasmoid and three indicators - NO applets).

@@ -930,6 +930,24 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 - EVIDENCE: the source contract requires the timer arm after the view-only
   branch; production compiles and the focused identity contract passes.
 
+### D103 - Linked-dock controls escaped the settings inventory
+- STATUS: FIXED on `feat/create-linked-dock` (`4fc64590f`).
+- FOUND: 2026-07-22, canonical gate for Create Linked Dock.
+- SYMPTOM: `settingsinventorytest` rejected the new linked popup, output and
+  edge selectors, context-menu target actions, and changed action-model
+  signatures. The dialog's accept and cancel lifecycle was absent from the
+  source candidates entirely.
+- ROOT: the feature added the first ordinary `Dialog` under the scanned
+  settings roots, but the scanner classified only `ColorDialog` as
+  interactive. The feature also changed exact action signatures without adding
+  their new semantic rows to the checked ledger.
+- FIX: classify ordinary dialogs as interactive and catalog all seven new
+  linked-view affordances, including accept and cancel. Exact coverage now maps
+  278 affordances to 742 candidates through 1274 relations.
+- EVIDENCE: the scanner unit test proves that a dialog and its accepted handler
+  become candidates. `settingssourcescannertest` and `settingsinventorytest`
+  pass with the expanded checked counts.
+
 ### D93 - Duplicate submenu change left a stale settings-inventory identity
 - STATUS: FIXED IN PR #109 (`feea7158f`).
 - FOUND: 2026-07-22, canonical gate on the rebased identity branch.

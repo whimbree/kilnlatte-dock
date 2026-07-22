@@ -49,6 +49,13 @@ therefore remain transient under the same notification failure. The timer now
 belongs to every registered containment; only view-map parking is conditional
 (`0ea1c8112`).
 
+The canonical gate found D103 (linked-dock controls escaped the settings
+inventory). The source scanner knew `ColorDialog` but not an ordinary QML
+`Dialog`, so accept and cancel lifecycle ownership could not be audited. Commit
+`4fc64590f` classifies dialogs as interactive and records all seven new linked
+creation affordances with exact source selectors. Both inventory tests pass
+with 278 affordances, 742 candidates, and 1274 coverage relations.
+
 `39fb979bc` adds the exact linked-dock acceptance and deterministic stress
 recipes. The first uses a separated portrait secondary output, creates a member
 on the root's already occupied edge, verifies direct-root lineage, per-member
