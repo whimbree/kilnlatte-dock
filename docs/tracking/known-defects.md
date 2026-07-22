@@ -659,8 +659,8 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   of the review sequence without a third review.
 
 ### D81 - Installed-package audit crossed its isolated package-root boundary
-- STATUS: FIXED IN PR #108 (`bd620c89b`, `29322fb93`; standalone
-  package-provenance and fixture corrections).
+- STATUS: FIXED IN PR #108 (`bd620c89b`, `29322fb93`, `06da33ae0`;
+  standalone package-provenance and fixture corrections).
 - FOUND: 2026-07-21, the C0 (atomic dock-system observability snapshot) branch's
   required fast gate under a `/tmp` worktree.
 - ROOT: recursive package-link validation first proved a target belonged to the
@@ -672,13 +672,16 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   direct source/build markers inside a package remain refusals. The live-root
   fixture starts below an explicit marker-free parent, defaults to
   `XDG_RUNTIME_DIR` or `/var/tmp`, and refuses source/build-marked ancestry
-  before exercising the production host-root walk.
+  before exercising the production host-root walk. Its preflight inspects the
+  current ancestor before the stop condition, including `/`, to match the
+  production live-root traversal.
 - EVIDENCE: the focused installed-package self-test places a valid internally
   linked package beneath an external parent carrying `CMakeLists.txt` and
-  requires acceptance. All 90 provenance, parser, link, ELF, loader, mapping,
-  signal, and cleanup controls pass. The same driven run also requires a
-  host-absolute live-root symlink to retain host semantics from marker-free
-  ancestry.
+  requires acceptance. All 91 provenance, parser, link, ELF, loader, mapping,
+  signal, and cleanup controls pass. A predicate that marks only `/` drives the
+  exact fixture-preflight refusal without modifying the host root. The same run
+  also requires a host-absolute live-root symlink to retain host semantics from
+  real marker-free ancestry.
 
 ### D82 - TaskItem Connections syntax exceeded the curated Qt 6 lint ratchet
 - STATUS: FIXED IN PR #108 (`4f90ed05f`; standalone QML syntax correction).

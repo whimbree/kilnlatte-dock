@@ -3746,21 +3746,26 @@ polished, distributable form of it.
       `--root /` validation keeps its complete host-root walk. The initial
       independent review found that the live-root self-test itself lived below
       `/tmp` and could inherit an unrelated `/tmp/.git`, so that fixture now
-      starts below a validated marker-free runtime parent. The driven focused
-      self-test exits 0 with all 90 controls, including isolated-root acceptance
-      beneath an explicitly marked external parent and live-root host-absolute
-      symlink semantics. The canonical fast gate exits 0 at exact executable
-      head `29322fb937bb84cebadf3f8241189d4e5cb84185`. Keep this item unchecked
-      until the required second independent review accepts the correction and
-      PR #108 merges.
-      Commits: pending PR #108 merge; branch commits `bd620c89b`, `29322fb93`
+      starts below a validated marker-free runtime parent. The required second
+      review found that the preflight stopped before `/`; it now checks the
+      current ancestor before stopping, exactly like production. The driven
+      focused self-test exits 0 with all 91 controls, including isolated-root
+      acceptance beneath an explicitly marked external parent, injected
+      host-root marker refusal without host mutation, and live-root
+      host-absolute symlink semantics. The canonical fast gate exits 0 at exact
+      executable head `06da33ae0a71e7505b9800662956afbbbfc7110e`.
+      No third review is required because the follow-up finding was major but
+      not critical; the severity rule makes the second review the single
+      follow-up. Keep this item unchecked until PR #108 merges.
+      Commits: pending PR #108 merge; branch commits `bd620c89b`, `29322fb93`,
+      `06da33ae0`
 - [ ] Merge D82 (TaskItem Connections syntax exceeded the curated Qt 6 lint
       ratchet) through PR #108. The PulseAudio stream handler uses explicit
       function syntax without changing its target, optional-signal contract, or
       `updateAudioStreams()` action. The QML compile gate accepts every staged
       package file and qmllint returns `TaskItem.qml` to the checked-in
-      211-warning ceiling. Keep this item unchecked until the required second
-      independent review accepts the prerequisite branch and PR #108 merges.
+      211-warning ceiling. The required second review is complete; keep this
+      item unchecked until PR #108 merges.
       Commits: pending PR #108 merge; branch commit `4f90ed05f`
 
 - [ ] Write `default.nix` (Qt6/KF6 dependency list, matching Phase 1-3

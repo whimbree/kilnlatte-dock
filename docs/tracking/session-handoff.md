@@ -3,7 +3,7 @@
 Rolling handoff for the next session to pick up without re-deriving context.
 Last updated 2026-07-22.
 
-## 2026-07-21: D81 and D82 prerequisite corrections await second review
+## 2026-07-21: D81 and D82 prerequisite corrections completed review
 
 PR #108 carries the standalone prerequisites discovered while gating C0 (the
 atomic dock-system observability snapshot): D81 (installed-package audit
@@ -22,21 +22,30 @@ makes the fixture environment explicit: it defaults to `XDG_RUNTIME_DIR` or
 production root boundary unchanged. The earlier `bd620c89b` provider fix still
 stops only isolated-root traversal at the package boundary.
 
+The required second cold review returned MERGE AFTER FIXES with one major
+test-meaning finding: the fixture preflight stopped before checking `/`, while
+the production live-root traversal checks `/` before stopping. Commit
+`06da33ae0` makes the shared preflight inspect every current ancestor including
+the host root. Its predicate seam drives a root-only marker refusal without
+creating a real `/.git`, `/CMakeLists.txt`, `/CMakeCache.txt`, or `/CMakeFiles`.
+
 The committed fixture was driven by
 `nix develop --command tests/installed-package-gate-selftest.sh`. It exited 0
-with all 90 focused controls, including `isolated package provenance stops at
-the package root` and `live roots retain host-absolute symlink semantics`. The
+with all 91 focused controls, including `live-root fixture preflight rejects a
+source/build marker at host root`, `isolated package provenance stops at the
+package root`, and `live roots retain host-absolute symlink semantics`. The
 canonical fast gate then exited 0 and stamped exact executable head
-`29322fb937bb84cebadf3f8241189d4e5cb84185`: 100/100 CTest entries passed, the
+`06da33ae0a71e7505b9800662956afbbbfc7110e`: 100/100 CTest entries passed, the
 100-entry/32-header coverage ratchet passed, qmllint matched 5,832 curated
 warnings across 234 files, all 13 scene probes passed, and the package matrix
 passed. ASan e2e was intentionally skipped by `LATTE_GATE_FAST=1` and remains a
 merge-time gate.
 
-The major initial finding requires one second cold diff review of the corrected
-PR #108 branch. Do not merge PR #108 or PR #110 before that verdict. Replace
-the provisional branch hashes in the Phase 11 checklist with post-rebase hashes
-and tick D81/D82 only after PR #108 merges.
+No additional cold review is required. The root-omission finding was major but
+not critical, and the severity rule defines this completed second review as the
+single follow-up rather than the start of another review loop. PR #108 remains
+unmerged. Replace the provisional branch hashes in the Phase 11 checklist with
+post-rebase hashes and tick D81/D82 only after PR #108 merges.
 
 ## 2026-07-22: SC-O1 settings-control registry merged
 
