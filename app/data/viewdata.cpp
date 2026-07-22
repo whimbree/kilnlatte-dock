@@ -26,6 +26,7 @@ View::View(View &&o)
       screen(o.screen),
       screenEdgeMargin(o.screenEdgeMargin),
       screensGroup(o.screensGroup),
+      linkPlacement(o.linkPlacement),
       maxLength(o.maxLength),
       edge(o.edge),
       alignment(o.alignment),
@@ -49,6 +50,7 @@ View::View(const View &o)
       screen(o.screen),
       screenEdgeMargin(o.screenEdgeMargin),
       screensGroup(o.screensGroup),
+      linkPlacement(o.linkPlacement),
       maxLength(o.maxLength),
       edge(o.edge),
       alignment(o.alignment),
@@ -79,6 +81,7 @@ View &View::operator=(const View &rhs)
     screen = rhs.screen;
     screenEdgeMargin = rhs.screenEdgeMargin;
     screensGroup = rhs.screensGroup;
+    linkPlacement = rhs.linkPlacement;
     maxLength = rhs.maxLength;
     edge = rhs.edge;
     alignment = rhs.alignment;
@@ -106,6 +109,7 @@ View &View::operator=(View &&rhs)
     screen = rhs.screen;
     screenEdgeMargin = rhs.screenEdgeMargin;
     screensGroup = rhs.screensGroup;
+    linkPlacement = rhs.linkPlacement;
     maxLength = rhs.maxLength;
     edge = rhs.edge;
     alignment = rhs.alignment;
@@ -133,6 +137,7 @@ bool View::operator==(const View &rhs) const
             && (screen == rhs.screen)
             && (screenEdgeMargin == rhs.screenEdgeMargin)
             && (screensGroup == rhs.screensGroup)
+            && (linkPlacement == rhs.linkPlacement)
             && (maxLength == rhs.maxLength)
             && (edge == rhs.edge)
             && (alignment == rhs.alignment)
@@ -258,6 +263,27 @@ bool View::isCloned() const
     return isClonedFrom != ISCLONEDNULL;
 }
 
+bool View::isScreenGroupReplica() const
+{
+    return isCloned() && linkPlacement == LinkPlacement::ScreenGroupDerived;
+}
+
+bool View::isExplicitlyLinked() const
+{
+    return isCloned() && linkPlacement == LinkPlacement::ExplicitTarget;
+}
+
+bool View::hasValidLinkPlacement() const
+{
+    switch (linkPlacement) {
+    case LinkPlacement::ScreenGroupDerived:
+    case LinkPlacement::ExplicitTarget:
+        return true;
+    }
+
+    return false;
+}
+
 bool View::isValid() const
 {
     return m_state != IsInvalid;
@@ -278,7 +304,30 @@ View View::toIndependentSnapshot() const
     View snapshot{*this};
     snapshot.isClonedFrom = ISCLONEDNULL;
     snapshot.screensGroup = Latte::Types::SingleScreenGroup;
+    snapshot.linkPlacement = LinkPlacement::ScreenGroupDerived;
     return snapshot;
+}
+
+View View::toExplicitLinkedMember(const int relationshipRootId,
+                                  const int targetScreenId,
+                                  const Plasma::Types::Location targetEdge) const
+{
+    Q_ASSERT(relationshipRootId > 0);
+    Q_ASSERT(targetScreenId >= Latte::ScreenPool::FIRSTSCREENID);
+    Q_ASSERT(targetEdge == Plasma::Types::TopEdge
+             || targetEdge == Plasma::Types::BottomEdge
+             || targetEdge == Plasma::Types::LeftEdge
+             || targetEdge == Plasma::Types::RightEdge);
+
+    View linked{*this};
+    linked.isClonedFrom = relationshipRootId;
+    linked.screensGroup = Latte::Types::SingleScreenGroup;
+    linked.linkPlacement = LinkPlacement::ExplicitTarget;
+    linked.onPrimary = false;
+    linked.screen = targetScreenId;
+    linked.edge = targetEdge;
+    linked.alignment = normalizeAlignmentForEdge(alignment, targetEdge);
+    return linked;
 }
 
 bool View::hasViewTemplateOrigin() const

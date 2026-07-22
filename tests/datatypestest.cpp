@@ -66,6 +66,9 @@ private Q_SLOTS:
     void layout_operatorEqualExclusions();
     void view_stateMachine();
     void view_independentSnapshotBreaksRelationshipOnly();
+    void view_explicitLinkedMemberOwnsPlacement();
+    void view_alignmentNormalization_data();
+    void view_alignmentNormalization();
     void view_operatorQStringMarkers();
     void screen_serializeRoundTrip();
     void screen_isScreensGroup();
@@ -488,6 +491,7 @@ void DataTypesTest::view_independentSnapshotBreaksRelationshipOnly()
     linked.edge = Plasma::Types::LeftEdge;
     linked.alignment = Latte::Types::Top;
     linked.screensGroup = Latte::Types::AllSecondaryScreensGroup;
+    linked.linkPlacement = Data::View::LinkPlacement::ExplicitTarget;
     linked.errors = 2;
     linked.warnings = 3;
     linked.subcontainments << Data::Generic(QStringLiteral("31"), QStringLiteral("Applet Container"));
@@ -495,6 +499,7 @@ void DataTypesTest::view_independentSnapshotBreaksRelationshipOnly()
     Data::View expected = linked;
     expected.isClonedFrom = Data::View::ISCLONEDNULL;
     expected.screensGroup = Latte::Types::SingleScreenGroup;
+    expected.linkPlacement = Data::View::LinkPlacement::ScreenGroupDerived;
 
     const Data::View snapshot = linked.toIndependentSnapshot();
 
@@ -510,8 +515,81 @@ void DataTypesTest::view_independentSnapshotBreaksRelationshipOnly()
     QCOMPARE(snapshot.warnings, linked.warnings);
     QCOMPARE(snapshot.isClonedFrom, Data::View::ISCLONEDNULL);
     QCOMPARE(snapshot.screensGroup, Latte::Types::SingleScreenGroup);
+    QCOMPARE(snapshot.linkPlacement, Data::View::LinkPlacement::ScreenGroupDerived);
     QCOMPARE(linked.isClonedFrom, 1);
     QCOMPARE(linked.screensGroup, Latte::Types::AllSecondaryScreensGroup);
+    QCOMPARE(linked.linkPlacement, Data::View::LinkPlacement::ExplicitTarget);
+}
+
+void DataTypesTest::view_explicitLinkedMemberOwnsPlacement()
+{
+    Data::View source(QStringLiteral("12"), QStringLiteral("Source Dock"));
+    source.isClonedFrom = 1;
+    source.screensGroup = Latte::Types::AllScreensGroup;
+    source.linkPlacement = Data::View::LinkPlacement::ScreenGroupDerived;
+    source.onPrimary = true;
+    source.screen = 10;
+    source.edge = Plasma::Types::BottomEdge;
+    source.alignment = Latte::Types::Left;
+
+    const Data::View linked = source.toExplicitLinkedMember(1, 13, Plasma::Types::RightEdge);
+
+    QCOMPARE(linked.isClonedFrom, 1);
+    QCOMPARE(linked.screensGroup, Latte::Types::SingleScreenGroup);
+    QCOMPARE(linked.linkPlacement, Data::View::LinkPlacement::ExplicitTarget);
+    QVERIFY(linked.isExplicitlyLinked());
+    QVERIFY(!linked.isScreenGroupReplica());
+    QCOMPARE(linked.onPrimary, false);
+    QCOMPARE(linked.screen, 13);
+    QCOMPARE(linked.edge, Plasma::Types::RightEdge);
+    QCOMPARE(linked.alignment, Latte::Types::Top);
+
+    QCOMPARE(source.isClonedFrom, 1);
+    QCOMPARE(source.screensGroup, Latte::Types::AllScreensGroup);
+    QCOMPARE(source.linkPlacement, Data::View::LinkPlacement::ScreenGroupDerived);
+    QCOMPARE(source.onPrimary, true);
+    QCOMPARE(source.screen, 10);
+    QCOMPARE(source.edge, Plasma::Types::BottomEdge);
+    QCOMPARE(source.alignment, Latte::Types::Left);
+}
+
+void DataTypesTest::view_alignmentNormalization_data()
+{
+    QTest::addColumn<int>("sourceAlignment");
+    QTest::addColumn<int>("targetEdge");
+    QTest::addColumn<int>("expectedAlignment");
+
+    QTest::newRow("start-horizontal") << static_cast<int>(Latte::Types::Top)
+                                       << static_cast<int>(Plasma::Types::BottomEdge)
+                                       << static_cast<int>(Latte::Types::Left);
+    QTest::newRow("start-vertical") << static_cast<int>(Latte::Types::Left)
+                                     << static_cast<int>(Plasma::Types::RightEdge)
+                                     << static_cast<int>(Latte::Types::Top);
+    QTest::newRow("end-horizontal") << static_cast<int>(Latte::Types::Bottom)
+                                     << static_cast<int>(Plasma::Types::TopEdge)
+                                     << static_cast<int>(Latte::Types::Right);
+    QTest::newRow("end-vertical") << static_cast<int>(Latte::Types::Right)
+                                   << static_cast<int>(Plasma::Types::LeftEdge)
+                                   << static_cast<int>(Latte::Types::Bottom);
+    QTest::newRow("center") << static_cast<int>(Latte::Types::Center)
+                             << static_cast<int>(Plasma::Types::LeftEdge)
+                             << static_cast<int>(Latte::Types::Center);
+    QTest::newRow("justify") << static_cast<int>(Latte::Types::Justify)
+                              << static_cast<int>(Plasma::Types::BottomEdge)
+                              << static_cast<int>(Latte::Types::Justify);
+}
+
+void DataTypesTest::view_alignmentNormalization()
+{
+    QFETCH(int, sourceAlignment);
+    QFETCH(int, targetEdge);
+    QFETCH(int, expectedAlignment);
+
+    QCOMPARE(
+        Data::View::normalizeAlignmentForEdge(
+            static_cast<Latte::Types::Alignment>(sourceAlignment),
+            static_cast<Plasma::Types::Location>(targetEdge)),
+        static_cast<Latte::Types::Alignment>(expectedAlignment));
 }
 
 void DataTypesTest::view_operatorQStringMarkers()

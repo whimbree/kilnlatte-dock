@@ -69,6 +69,7 @@ private Q_SLOTS:
     //! view() deserializer
     void deserializeViewFromContainmentGroup();
     void deserializeViewDefaultsForUnsetKeys();
+    void refuseMalformedLinkedPlacement();
     void refuseViewForNonLatteContainment();
 
     //! updateView() serializer
@@ -242,6 +243,7 @@ void StorageTest::deserializeViewFromContainmentGroup()
     QCOMPARE(v.onPrimary, false);
     QCOMPARE(v.screen, 12);
     QCOMPARE(v.isClonedFrom, 5);
+    QCOMPARE(v.linkPlacement, Latte::Data::View::LinkPlacement::ScreenGroupDerived);
     QCOMPARE(v.screenEdgeMargin, 7);
     QCOMPARE(v.screensGroup, Latte::Types::AllSecondaryScreensGroup);
     QCOMPARE(v.edge, Plasma::Types::LeftEdge);
@@ -268,12 +270,32 @@ void StorageTest::deserializeViewDefaultsForUnsetKeys()
     QCOMPARE(v.onPrimary, true);
     QCOMPARE(v.screen, Storage::IDNULL);
     QCOMPARE(v.isClonedFrom, Latte::Data::View::ISCLONEDNULL);
+    QCOMPARE(v.linkPlacement, Latte::Data::View::LinkPlacement::ScreenGroupDerived);
     QCOMPARE(v.screenEdgeMargin, -1);
     QCOMPARE(v.screensGroup, Latte::Types::SingleScreenGroup);
     QCOMPARE(v.edge, Plasma::Types::BottomEdge);
     QCOMPARE(v.maxLength, (float)100.0);
     QCOMPARE(v.alignment, Latte::Types::Center);
     QCOMPARE(v.subcontainments.rowCount(), 0);
+}
+
+void StorageTest::refuseMalformedLinkedPlacement()
+{
+    KConfig cfg(m_dir.filePath(QStringLiteral("malformed-linked-placement.latte")));
+
+    KConfigGroup invalidEnum = cfg.group(QStringLiteral("Containments")).group(QStringLiteral("31"));
+    invalidEnum.writeEntry(QStringLiteral("plugin"), QStringLiteral("org.kde.latte.containment"));
+    invalidEnum.writeEntry(QStringLiteral("isClonedFrom"), 1);
+    invalidEnum.writeEntry(QStringLiteral("linkPlacement"), 99);
+    QVERIFY(!Storage::self()->view(invalidEnum).isValid());
+
+    KConfigGroup missingRoot = cfg.group(QStringLiteral("Containments")).group(QStringLiteral("32"));
+    missingRoot.writeEntry(QStringLiteral("plugin"), QStringLiteral("org.kde.latte.containment"));
+    missingRoot.writeEntry(QStringLiteral("isClonedFrom"), Latte::Data::View::ISCLONEDNULL);
+    missingRoot.writeEntry(
+        QStringLiteral("linkPlacement"),
+        static_cast<int>(Latte::Data::View::LinkPlacement::ExplicitTarget));
+    QVERIFY(!Storage::self()->view(missingRoot).isValid());
 }
 
 void StorageTest::refuseViewForNonLatteContainment()
@@ -302,6 +324,7 @@ void StorageTest::roundTripViewThroughKConfig()
         nv.screensGroup = Latte::Types::AllScreensGroup;
         nv.onPrimary = false;
         nv.isClonedFrom = 4;
+        nv.linkPlacement = Latte::Data::View::LinkPlacement::ExplicitTarget;
         nv.screen = 13;
         nv.screenEdgeMargin = 9;
         nv.edge = Plasma::Types::TopEdge;
@@ -319,6 +342,7 @@ void StorageTest::roundTripViewThroughKConfig()
     QCOMPARE(r.screensGroup, Latte::Types::AllScreensGroup);
     QCOMPARE(r.onPrimary, false);
     QCOMPARE(r.isClonedFrom, 4);
+    QCOMPARE(r.linkPlacement, Latte::Data::View::LinkPlacement::ExplicitTarget);
     QCOMPARE(r.screen, 13);
     QCOMPARE(r.screenEdgeMargin, 9);
     QCOMPARE(r.edge, Plasma::Types::TopEdge);
