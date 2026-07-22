@@ -485,7 +485,7 @@ void Menu::populateViewTemplates()
         templateAction->setData(m_viewTemplates[i+1]);
     }
 
-    if (m_contextDataValid && !m_view.isCloned) {
+    if (m_contextDataValid) {
         m_addViewMenu->addSeparator();
         QAction *duplicateAction = m_addViewMenu->addAction(m_actions[Latte::Data::ContextMenu::DUPLICATEVIEWACTION]->text());
         duplicateAction->setToolTip(m_actions[Latte::Data::ContextMenu::DUPLICATEVIEWACTION]->toolTip());
