@@ -139,27 +139,35 @@ void CanvasConfigView::syncGeometry()
 
     updateEnabledBorders();
 
-    auto geometry = m_latteView->positioner()->canvasGeometry();
-
-    if (m_geometryWhenVisible == geometry) {
-        return;
-    }
+    const auto geometry = m_latteView->positioner()->canvasGeometry();
+    const bool geometryChanged = m_geometryWhenVisible != geometry;
 
     m_geometryWhenVisible = geometry;
 
     if (KWindowSystem::isPlatformWayland()) {
         //! layer-shell ignores setPosition(), and the Center-anchored config
         //! from SubConfigView would drop the canvas centred on the dock's
-        //! edge; anchor it so it overlays the dock's canvas geometry exactly
-        Latte::WindowSystem::LayerShell::applyCanvasPlacement(this, m_latteView->location(), m_latteView->screen(), geometry, m_latteView->screenGeometry());
-    } else {
+        //! edge; anchor it so it overlays the dock's canvas geometry exactly.
+        //! Reapply even when the rectangle is unchanged: shared config chrome
+        //! retargeting clears the previous layer anchors before this concrete
+        //! window takes ownership again. Two same-edge docks legitimately have
+        //! identical canvas rectangles, so geometry equality says nothing
+        //! about the compositor-owned placement state.
+        Latte::WindowSystem::LayerShell::applyCanvasPlacement(this, m_latteView->location(),
+                                                              m_latteView->screen(), geometry,
+                                                              m_latteView->screenGeometry());
+    } else if (geometryChanged) {
         setPosition(geometry.topLeft());
     }
 
-    setMaximumSize(geometry.size());
-    setMinimumSize(geometry.size());
-    resize(geometry.size());
+    if (geometryChanged) {
+        setMaximumSize(geometry.size());
+        setMinimumSize(geometry.size());
+        resize(geometry.size());
+    }
 
+    //! This is also view-owned state rather than rectangle-owned state: two
+    //! docks can share a canvas rectangle while their dock strips differ.
     updateInputRegion();
 
 }
@@ -342,4 +350,3 @@ void CanvasConfigView::updateEnabledBorders()
 
 }
 }
-
