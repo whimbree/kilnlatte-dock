@@ -81,6 +81,7 @@ public:
     ~PrimaryConfigView() override;
 
     bool hasFocus() const;
+    bool hasEditRequestFor(const Latte::View *view) const;
 
     //! the chooser window owned by this primary view (may be null); exposed
     //! so sibling chrome windows can recognize family members in focus checks
@@ -148,6 +149,7 @@ private Q_SLOTS:
 
 
 private:
+    static RetargetRequestState::TargetKey targetKey(const Latte::View *view);
     void cancelPendingRetarget();
     void scheduleRetarget(Latte::View *view);
     void setIsReady(bool ready);

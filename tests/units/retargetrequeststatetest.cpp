@@ -19,13 +19,14 @@ private Q_SLOTS:
     void onlyNewestRequestCanBeConsumed();
     void canceledRequestCannotBeConsumed();
     void requestCanBeConsumedOnlyOnce();
+    void pendingTargetCanBeCanceledBeforeTimeout();
 };
 
 void RetargetRequestStateTest::onlyNewestRequestCanBeConsumed()
 {
     RetargetRequestState state;
-    const auto first = state.beginRequest();
-    const auto second = state.beginRequest();
+    const auto first = state.beginRequest(1);
+    const auto second = state.beginRequest(2);
 
     QVERIFY(!state.consumeIfCurrent(first));
     QVERIFY(state.consumeIfCurrent(second));
@@ -34,7 +35,7 @@ void RetargetRequestStateTest::onlyNewestRequestCanBeConsumed()
 void RetargetRequestStateTest::canceledRequestCannotBeConsumed()
 {
     RetargetRequestState state;
-    const auto request = state.beginRequest();
+    const auto request = state.beginRequest(1);
 
     state.cancelRequest();
 
@@ -44,9 +45,23 @@ void RetargetRequestStateTest::canceledRequestCannotBeConsumed()
 void RetargetRequestStateTest::requestCanBeConsumedOnlyOnce()
 {
     RetargetRequestState state;
-    const auto request = state.beginRequest();
+    const auto request = state.beginRequest(1);
 
     QVERIFY(state.consumeIfCurrent(request));
+    QVERIFY(!state.consumeIfCurrent(request));
+}
+
+void RetargetRequestStateTest::pendingTargetCanBeCanceledBeforeTimeout()
+{
+    RetargetRequestState state;
+    const auto request = state.beginRequest(42);
+
+    QVERIFY(state.isTargetPending(42));
+    QVERIFY(!state.isTargetPending(41));
+
+    state.cancelRequest();
+
+    QVERIFY(!state.isTargetPending(42));
     QVERIFY(!state.consumeIfCurrent(request));
 }
 
