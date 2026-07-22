@@ -282,13 +282,12 @@ void Views::copySelectedViews()
 
     Data::ViewsTable clipboardviews = selectedViewsForClipboard();
 
-    //! reset cut substates for views
+    //! Copy is a new independent snapshot, matching Duplicate Dock. Keeping a
+    //! linked member's source ID would create a cross-layout reference whose
+    //! numeric target may be absent or belong to an unrelated dock.
     for (int i=0; i<clipboardviews.rowCount(); ++i) {
+        clipboardviews[i] = clipboardviews[i].toIndependentSnapshot();
         clipboardviews[i].isMoveOrigin = false;
-
-        /*   Data::View tempview = m_model->currentData(clipboardviews[i].id);
-        tempview.isMoveOrigin = false;
-        m_model->updateCurrentView(tempview.id, tempview);*/
     }
 
     m_handler->layoutsController()->templatesKeeper()->setClipboardContents(clipboardviews);
