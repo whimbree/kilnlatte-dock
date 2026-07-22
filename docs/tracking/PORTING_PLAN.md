@@ -1269,13 +1269,16 @@ multi-view, multi-monitor setup.
       exactly one nonlinked dock per call with disjoint applet IDs, preserved
       the existing relationship, propagated a visibility-mode change only
       inside that relationship, and retained all identities after restart. The
-      canonical full gate remains required before push. Placement
+      shared const snapshot transformation also closes the layouts-dialog
+      Duplicate path found by the final cold review. The canonical full gate
+      passed at `81c15c789`; the review correction requires a new exact-head
+      run before push. Placement
       normalization and same-edge stacking remain separate unchecked work in
       `docs/tracking/DOCK_IDENTITY_HARDENING.md`.
       Commits: a92d3b454, aad2f524f, 5de3f98d3, bf6602737,
       b72c6147c, 103147995, eb5b6d47b, d819fbb91, 8082a504f,
       d2772a5ca, 8828f1f2b, d3d0a170e, f63e555e5, a8bbe1b7e,
-      e2f8bd1d6, 8af5b7f6d, ac6a078be, a10356c44
+      e2f8bd1d6, 8af5b7f6d, ac6a078be, a10356c44, 170c827ee
 
 - [x] Fix D93 (Duplicate submenu change left a stale settings-inventory
       identity). The relationship-aware menu made the structural separator
@@ -1289,6 +1292,20 @@ multi-view, multi-monitor setup.
       all four PR #109 targets to the sorted target ledger and raise its exact
       count from 100 to 104. The paired-header check now covers 35 unit headers.
       Commits: 5efe665c2
+
+- [x] Fix D95 (layouts-dialog Duplicate preserves linked relationship state).
+      The layouts dialog had a second Duplicate implementation that copied
+      `Data::View` directly and bypassed the live view's relationship
+      normalization. Centralize the operation in the const
+      `Data::View::toIndependentSnapshot()` transformation and require both
+      production paths to call it before import. The source stays unchanged;
+      only `isClonedFrom` and `screensGroup` are normalized on the copy.
+      Commits: 170c827ee
+
+- [x] Fix D96 (Duplicate settings inventory still claims linked exclusion).
+      Replace the obsolete noncloned precondition with original-or-linked source
+      coverage and require the resulting relationship to be severed.
+      Commits: a009f8875
 
 - [ ] Fix D83 (removed duplicate containment survives the undo window in
       persistent layout state). Baseline nested evidence at `16eb58ea4` shows

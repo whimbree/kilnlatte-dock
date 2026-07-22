@@ -209,8 +209,12 @@ carried legacy `isClonedFrom`. Refusing that source did not satisfy the operatio
 contract. `e2f8bd1d6` makes Duplicate Dock a relation-breaking snapshot from
 either role: both relationship fields are normalized before import, the action
 stays visible on linked-member menus, and export, move, and remove remain owned
-by the original. Existing persisted linked layouts are unchanged. Future
-Create Linked Dock… is documented but not implemented.
+by the original. The final cold review found that the layouts dialog had a
+second Duplicate implementation which bypassed that normalization. Commit
+`170c827ee` moves relationship breaking into the const
+`Data::View::toIndependentSnapshot()` transformation and requires both entry
+paths to call it. Existing persisted linked layouts are unchanged. Future Create
+Linked Dock… is documented but not implemented.
 
 Focused sanitizer-backed action-policy and retarget-generation tests pass. The
 production source contract passes, and `latte-dock` plus the containment-actions
@@ -220,8 +224,7 @@ the old timeout, and passed a later B round trip. The dual-output recipe in
 `e2f8bd1d6` made All Screens original 1 and linked replica 12 each create exactly
 one independent dock (13 and 14), found disjoint containment and applet IDs,
 kept 1 -> 12 linked, propagated a visibility-mode change only inside 1 -> 12,
-and preserved all four identities across restart. The
-canonical full gate remains required before push. The branch now sits on C0
+and preserved all four identities across restart. The branch now sits on C0
 (the atomic dock-system observability snapshot), whose runtime tokens and
 fail-closed relationship graph remain the diagnostic authority. No live desktop
 run, placement normalization, or same-edge stack coordinator was added.
@@ -232,14 +235,26 @@ relationship-aware submenu had removed an unused QAction binding around its
 conditional separator, while the exact source-site ledger retained the old
 statement identity. The one structural exemption now follows the scanner's
 direct `m_addViewMenu` receiver identity. No inventory rule or coverage scope
-was weakened. The final canonical gate must rerun after this correction.
+was weakened.
 
 The second canonical run then passed all 104 CTest entries and stopped at D94
 (dock identity tests were absent from the coverage ratchet). The branch had
 registered four new targets without adding them to the exact target ledger.
 Commit `5efe665c2` adds all four in sorted order; the focused ratchet passes with
-104 CTest entries and 35 paired unit headers. The final exact-head canonical
-gate remains required.
+104 CTest entries and 35 paired unit headers. The third canonical run passed at
+`81c15c789` with all 104 CTest entries, 104 coverage targets and 35 paired unit
+headers, the 234-file QML ratchet, 13 scene probes, three sanitizer recipes, and
+the deterministic output matrix.
+
+The mandatory cold review of that exact head returned MERGE AFTER FIXES. D95
+(layouts-dialog Duplicate preserves linked relationship state) was the major
+finding: the distinct settings-dialog path copied `Data::View` without severing
+lineage. Commit `170c827ee` centralizes the const transformation, pins its value
+semantics, and checks both callers. D96 (Duplicate settings inventory still
+claims linked exclusion) corrected the stale semantic row in `a009f8875`.
+`datatypestest`, `dockidentitycontracttest`, and `settingsinventorytest` pass on
+the correction. A new exact-head canonical gate and the mandated second cold
+review remain required before merge.
 
 The baseline nested run also confirmed D83 (removed duplicate containment
 survives the undo window in persistent layout state), which is not fixed by this

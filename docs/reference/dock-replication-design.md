@@ -38,15 +38,19 @@ It retains no dock source pointer and no dock-level synchronization connection.
 The source may be either an original or any visible member of an existing
 replica relationship. Both entry paths produce exactly one independent dock.
 
-D77 enforces that boundary before import by setting legacy `isClonedFrom` to
-`-1` and normalizing `screensGroup` to `SingleScreenGroup`. This second field is
-load-bearing: copying `AllScreensGroup` from an ordinary original used to make
-`OriginalView::syncClonesToScreens()` create another persisted replica and
-install `ClonedView` synchronization immediately after the template copy.
-Copying from a visible replica had a second failure mode because the captured
-`Data::View` could restore its old `isClonedFrom` after Storage orphaned the
-unmapped source. Refusing the replica action avoided that fault but did not
-satisfy the Duplicate Dock contract; the operation now works from both roles.
+D77 enforces that boundary through the const
+`Data::View::toIndependentSnapshot()` transformation before import. The
+transformation sets legacy `isClonedFrom` to `-1` and normalizes `screensGroup`
+to `SingleScreenGroup`, while leaving the source value and copied configuration
+unchanged. Both the live dock action and the layouts dialog call the same
+boundary. The second field is load-bearing: copying `AllScreensGroup` from an
+ordinary original used to make `OriginalView::syncClonesToScreens()` create
+another persisted replica and install `ClonedView` synchronization immediately
+after the template copy. Copying from a visible replica had a second failure
+mode because the captured `Data::View` could restore its old `isClonedFrom`
+after Storage orphaned the unmapped source. Refusing the replica action avoided
+that fault but did not satisfy the Duplicate Dock contract; the operation now
+works from both roles and both Duplicate interfaces.
 
 The copied Tasks configuration can still explicitly select Unique, Layout, or
 Global launcher groups. Layout and Global groups are independent content
@@ -117,8 +121,9 @@ The target implementation must satisfy these rules:
       ready (`e3fdcae78`, 2026-07-16).
 - [x] Existing screen-group relationships were verified live on two monitors
       with per-position applet identity readback (`f7561df37`, 2026-07-16).
-- [x] Duplicate Dock normalizes relationship state and works from original and
-      linked-member sources (D77, 2026-07-21). The dual-output nested acceptance
+- [x] Duplicate Dock normalizes relationship state through one const value
+      transformation used by the live view and layouts dialog, and works from
+      original and linked-member sources (D77, 2026-07-21). The dual-output nested acceptance
       created exactly one independent dock per invocation with disjoint applet
       IDs, observed a visibility-mode change propagate only inside the existing
       relationship, and kept identities stable across restart.

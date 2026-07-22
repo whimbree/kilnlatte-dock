@@ -786,7 +786,8 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 - STATUS: FIXED on `fix/dock-identity-isolation` (`aad2f524f`, `5de3f98d3`,
   `bf6602737`, `b72c6147c`, `103147995`, `d819fbb91`, `8082a504f`,
   `8828f1f2b`, `d3d0a170e`, `e2f8bd1d6`, `ac6a078be`; focused caller
-  contract `eb5b6d47b`; runtime recipes `a8bbe1b7e`, `e2f8bd1d6`).
+  contract `eb5b6d47b`; shared layouts-dialog correction `170c827ee`; runtime
+  recipes `a8bbe1b7e`, `e2f8bd1d6`).
 - FOUND: 2026-07-21, dock duplication and edit-mode identity investigation.
 - SYMPTOM: Duplicate Dock on an ordinary All Screens source created another
   linked multi-output ensemble instead of one independent dock. Duplicating a
@@ -824,7 +825,8 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   nonlinked dock (13 and 14), found no containment or applet ID overlap, kept
   the original relation intact, propagated a visibility-mode change from the
   original only to its linked replica, and preserved all four identities across
-  restart. The canonical full gate remains required before push.
+  restart. The canonical full gate passed at `81c15c789`; the later cold-review
+  correction requires a new exact-head run.
 
 ### D83 - Removed duplicate containment survives the undo window in persistent layout state
 - STATUS: OPEN, CONFIRMED in the baseline nested vehicle.
@@ -870,6 +872,33 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
 - FIX: add all four targets in sorted order and update the exact count to 104.
 - EVIDENCE: the focused ratchet passes with 104 CTest entries and 35 paired unit
   headers. The final canonical rerun provides whole-tree evidence.
+
+### D95 - Layouts-dialog Duplicate preserves linked relationship state
+- STATUS: FIXED on `fix/dock-identity-isolation` (`170c827ee`).
+- FOUND: 2026-07-22, mandatory cold review of PR #109.
+- SYMPTOM: Duplicate in the layouts dialog could create another linked ensemble
+  from an All Screens or All Secondary Screens source, even though Duplicate in
+  the live dock created one independent snapshot.
+- ROOT: `Views::duplicateSelectedViews()` was a distinct import path that copied
+  `Data::View` directly. It never cleared `isClonedFrom` or normalized
+  `screensGroup`, so it bypassed `View::createViewFromTemplate()` and its
+  independent-import branch.
+- FIX: `Data::View::toIndependentSnapshot()` is the single const value
+  transformation for relationship breaking. Both live-view and layouts-dialog
+  Duplicate paths call it before import. Runtime assertions pin the live import
+  precondition without carrying side effects.
+- EVIDENCE: `datatypestest` proves the source is unchanged, every unrelated
+  field survives, and both relationship fields normalize. The production source
+  contract proves both callers transform before import.
+
+### D96 - Duplicate settings inventory still claims linked exclusion
+- STATUS: FIXED on `fix/dock-identity-isolation` (`a009f8875`).
+- FOUND: 2026-07-22, mandatory cold review of PR #109.
+- ROOT: the settings ledger retained the old noncloned precondition and cloned
+  exclusion matrix after Duplicate became valid from a linked member.
+- FIX: the row now covers original and linked sources and requires one
+  independent result with the relationship severed.
+- EVIDENCE: `settingsinventorytest` passes with the corrected semantic row.
 
 ## Recorded elsewhere - indexed here so the flat scan is complete
 

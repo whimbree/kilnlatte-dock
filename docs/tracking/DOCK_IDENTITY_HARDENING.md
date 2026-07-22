@@ -200,8 +200,9 @@ visible symptom.
 ## Implementation and verification slices
 
 1. [x] Relationship capability policy, independent Duplicate Dock from original
-   and replica sources, edit targeting, lifecycle cleanup, exact Wayland
-   identity, owner-scoped registrations, and persistent context-menu identity.
+   and replica sources through both live-view and layouts-dialog entry paths,
+   edit targeting, lifecycle cleanup, exact Wayland identity, owner-scoped
+   registrations, and persistent context-menu identity.
 2. [ ] Placement normalization and bounded visible geometry across all edges and
    semantic alignments.
 3. [ ] Same-edge stack solving, persistence, layer-shell application, reserved
@@ -220,8 +221,13 @@ one independent containment per call with disjoint applet IDs, and verified all
 four identities after restart. A visibility-mode change propagated from the
 original to its linked replica but bypassed both duplicates, proving the
 production synchronization connection retained only its intended members. The
-canonical repository gate remains required on the final branch head before
-push.
+canonical repository gate passed at `81c15c789` with 104/104 CTest entries,
+coverage and QML ratchets, 13 scene probes, three sanitizer recipes, and the
+deterministic output matrix. The subsequent cold review found D95 (layouts-dialog
+Duplicate preserves linked relationship state) and D96 (Duplicate settings
+inventory still claims linked exclusion). Their corrections pass the focused
+data-type, source-contract, and settings-inventory tests; the changed final head
+requires another canonical gate before push.
 
 Each slice requires a failing regression first, pure-core ASan and UBSan tests
 where a value model can carry the invariant, nested-KWin state and render

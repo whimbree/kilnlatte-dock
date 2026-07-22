@@ -58,9 +58,9 @@ continuation features of its own, the first being resizable applet popups
 with per-applet size persistence.
 
 Dock identity boundaries keep linked screen-group members inside one original's
-lifecycle. Duplicate Dock creates one independent snapshot even when invoked on
-a linked member; the user-placed Create Linked Dock… action remains on the
-continuation roadmap.
+lifecycle. Duplicate Dock creates one independent snapshot from the live dock or
+layouts dialog, including when the source is linked; the user-placed Create
+Linked Dock… action remains on the continuation roadmap.
 
 The stabilization initiative is complete: the feel-critical QML math
 (parabolic zoom, previews, launcher ordering, drag classification,
