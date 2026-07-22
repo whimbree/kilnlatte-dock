@@ -299,7 +299,6 @@ void Menu::updateVisibleActions()
     m_actions[Latte::Data::ContextMenu::SECTIONACTION]->setVisible(true);
 
     if (m_view.isCloned) {
-        m_actions[Latte::Data::ContextMenu::DUPLICATEVIEWACTION]->setVisible(false);
         m_actions[Latte::Data::ContextMenu::EXPORTVIEWTEMPLATEACTION]->setVisible(false);
         m_actions[Latte::Data::ContextMenu::MOVEVIEWACTION]->setVisible(false);
         m_actions[Latte::Data::ContextMenu::REMOVEVIEWACTION]->setVisible(false);

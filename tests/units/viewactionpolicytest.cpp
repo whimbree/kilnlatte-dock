@@ -19,23 +19,23 @@ class ViewActionPolicyTest : public QObject
 
 private Q_SLOTS:
     void screenGroupOriginalRetainsIndependentDockActions();
-    void clonesCannotEscapeOriginalLifecyclePolicy();
+    void linkedReplicaCanCreateIndependentSnapshotOnly();
 };
 
 void ViewActionPolicyTest::screenGroupOriginalRetainsIndependentDockActions()
 {
     //! The policy role is Original for both a single-screen dock and an All
-    //! Screens original. The latter must remain duplicable so the new original
-    //! can establish a separate clone ensemble.
+    //! Screens original. Duplicate normalizes the copied relationship before
+    //! import, so the new dock remains one independent snapshot.
     QVERIFY(permits(Role::Original, Action::Duplicate));
     QVERIFY(permits(Role::Original, Action::ExportTemplate));
     QVERIFY(permits(Role::Original, Action::MoveToLayout));
     QVERIFY(permits(Role::Original, Action::Remove));
 }
 
-void ViewActionPolicyTest::clonesCannotEscapeOriginalLifecyclePolicy()
+void ViewActionPolicyTest::linkedReplicaCanCreateIndependentSnapshotOnly()
 {
-    QVERIFY(!permits(Role::Clone, Action::Duplicate));
+    QVERIFY(permits(Role::Clone, Action::Duplicate));
     QVERIFY(!permits(Role::Clone, Action::ExportTemplate));
     QVERIFY(!permits(Role::Clone, Action::MoveToLayout));
     QVERIFY(!permits(Role::Clone, Action::Remove));

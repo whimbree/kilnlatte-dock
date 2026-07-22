@@ -24,15 +24,16 @@ enum class Role
     Clone,
 };
 
-//! Screen-group clones are implementation members of an original dock. Their
-//! lifecycle and placement are controlled by that original, so actions that
-//! create, move, export, or destroy an independent dock apply only to original
-//! views. An All Screens original is still an original here: duplicating it
-//! creates a separate original and that original creates its own clone set.
+//! Screen-group clones are implementation members of an original dock. Moving,
+//! exporting, or removing one member would escape that relationship, so those
+//! actions stay owned by the original. Duplicate is intentionally different:
+//! it breaks the relationship and creates one independent snapshot, whether
+//! the visible source is the original or one of its linked replicas.
 constexpr bool permits(const Role role, const Action action)
 {
     switch (action) {
     case Action::Duplicate:
+        return true;
     case Action::ExportTemplate:
     case Action::MoveToLayout:
     case Action::Remove:

@@ -592,12 +592,12 @@ void View::duplicateView()
 {
     const auto role = isCloned() ? ViewActionPolicy::Role::Clone : ViewActionPolicy::Role::Original;
     if (!ViewActionPolicy::permits(role, ViewActionPolicy::Action::Duplicate)) {
-        qWarning() << "View::duplicateView refused for screen-group clone";
+        qWarning() << "View::duplicateView refused by the view relationship policy";
         return;
     }
 
     QString storedTmpViewFilepath = m_layout->storedView(containment()->id());
-    newView(storedTmpViewFilepath);
+    createViewFromTemplate(storedTmpViewFilepath, TemplateImportRelationship::IndependentSnapshot);
 }
 
 void View::exportTemplate()
@@ -614,6 +614,11 @@ void View::exportTemplate()
 
 void View::newView(const QString &templateFile)
 {
+    createViewFromTemplate(templateFile, TemplateImportRelationship::Preserve);
+}
+
+void View::createViewFromTemplate(const QString &templateFile, const TemplateImportRelationship relationship)
+{
     if (templateFile.isEmpty() || !m_layout) {
         return;
     }
@@ -625,6 +630,16 @@ void View::newView(const QString &templateFile)
     }
 
     Data::View nextdata = templateviews[0];
+
+    if (relationship == TemplateImportRelationship::IndependentSnapshot) {
+        //! Duplicate Dock copies configuration values, not the source's dock
+        //! relationship. Clearing both persisted relationship fields prevents
+        //! an All Screens source from spawning a new linked replica ensemble
+        //! and prevents a visible replica from retaining its original.
+        nextdata.isClonedFrom = Data::View::ISCLONEDNULL;
+        nextdata.screensGroup = Latte::Types::SingleScreenGroup;
+    }
+
     int scrId = onPrimary() ? m_corona->screenPool()->primaryScreenId() : m_positioner->currentScreenId();
 
     QList<Plasma::Types::Location> freeedges = m_layout->freeEdges(scrId);
