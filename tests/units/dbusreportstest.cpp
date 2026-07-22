@@ -39,6 +39,7 @@ private Q_SLOTS:
     void viewRecordKeySet();
     void emptyInputMaskSerializesAsEmptyRegion();
     void recordsSerializeAsCompactJsonArray();
+    void configureAppletsModeRequiresLocalEditMode();
 
     void appletRecordSerialization();
     void appletRecordKeySet();
@@ -358,6 +359,14 @@ void DbusReportsTest::recordsSerializeAsCompactJsonArray()
     QCOMPARE(document.array().at(1).toObject().value(QStringLiteral("containmentId")).toInt(), 2);
 
     QCOMPARE(serializeViewRecords({}), QStringLiteral("[]"));
+}
+
+void DbusReportsTest::configureAppletsModeRequiresLocalEditMode()
+{
+    static_assert(effectiveConfigureAppletsMode(true, true));
+    static_assert(!effectiveConfigureAppletsMode(true, false));
+    static_assert(!effectiveConfigureAppletsMode(false, true));
+    static_assert(!effectiveConfigureAppletsMode(false, false));
 }
 
 //! one fully populated applet record, pinning every field name and value

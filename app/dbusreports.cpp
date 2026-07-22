@@ -49,7 +49,7 @@ namespace {
 QVariant readLiveProperty(const QObject *object, const char *name);
 }
 
-ViewRecord collectViewRecord(const Latte::View *view, bool inConfigureAppletsMode)
+ViewRecord collectViewRecord(const Latte::View *view, bool globalConfigureAppletsMode)
 {
     //! views come from Synchronizer::currentViews(), not from outside the
     //! process, and a registered view always carries its containment and
@@ -88,7 +88,11 @@ ViewRecord collectViewRecord(const Latte::View *view, bool inConfigureAppletsMod
     record.inputMask = view->effects()->inputMask();
     record.appliedInputMask = view->effects()->appliedInputMask();
     record.editMode = view->inEditMode();
-    record.inConfigureAppletsMode = inConfigureAppletsMode;
+    //! QML's effective rearrange mode is root.editMode AND the global toggle.
+    //! Reporting the global bit on every view made unrelated docks appear to
+    //! enter applet configuration together.
+    record.inConfigureAppletsMode = effectiveConfigureAppletsMode(record.editMode,
+                                                                  globalConfigureAppletsMode);
     record.keyboardNavigation = view->keyboardNavigationIsActive();
 
     return record;
@@ -678,13 +682,13 @@ QString collectLayoutsData(Latte::Layouts::Manager *manager)
     return serializeLayoutsData(manager->memoryUsage(), records);
 }
 
-QString collectViewsData(const QList<Latte::View *> &views, bool inConfigureAppletsMode)
+QString collectViewsData(const QList<Latte::View *> &views, bool globalConfigureAppletsMode)
 {
     QList<ViewRecord> records;
     records.reserve(views.count());
 
     for (const auto view : views) {
-        records << collectViewRecord(view, inConfigureAppletsMode);
+        records << collectViewRecord(view, globalConfigureAppletsMode);
     }
 
     return serializeViewRecords(records);

@@ -239,6 +239,15 @@ struct ViewRecord {
     bool keyboardNavigation{false};
 };
 
+//! Applet rearrangement is process-global only while a particular dock is in
+//! edit mode. Keeping the expression in the value layer prevents reporting the
+//! global toggle as effective state for every unrelated dock.
+[[nodiscard]] constexpr bool effectiveConfigureAppletsMode(
+    bool editMode, bool globalConfigureAppletsMode) noexcept
+{
+    return editMode && globalConfigureAppletsMode;
+}
+
 //! The live C++-property half of viewConfigData() (the "view" object):
 //! settings-panel controls that write a View/VisibilityManager/Indicator
 //! property instead of a containment config key, so the edit-mode audit's
@@ -1020,10 +1029,10 @@ inline QString serializeAppletConfigData(uint containmentId, int appletId, const
 }
 
 //! snapshot one live view into a value record (dbusreports.cpp)
-ViewRecord collectViewRecord(const Latte::View *view, bool inConfigureAppletsMode);
+ViewRecord collectViewRecord(const Latte::View *view, bool globalConfigureAppletsMode);
 
 //! serialize a set of live views for the viewsData() D-Bus read
-QString collectViewsData(const QList<Latte::View *> &views, bool inConfigureAppletsMode);
+QString collectViewsData(const QList<Latte::View *> &views, bool globalConfigureAppletsMode);
 
 //! serialize one live view's applets for the viewAppletsData() D-Bus read
 QString collectAppletsData(const Latte::View *view);
