@@ -33,6 +33,7 @@
 #include "data/layoutdata.h"
 #include "data/layouticondata.h"
 #include "data/layoutstable.h"
+#include "data/linkedconfigurationpolicy.h"
 #include "data/screendata.h"
 #include "data/viewdata.h"
 #include "data/viewstable.h"
@@ -70,16 +71,29 @@ private Q_SLOTS:
     void view_alignmentNormalization_data();
     void view_alignmentNormalization();
     void view_operatorQStringMarkers();
+    void linkedConfigurationPolicy_keepsAppletGeometryLocal();
     void screen_serializeRoundTrip();
     void screen_isScreensGroup();
     void viewsTable_hasContainmentIdRecursion();
     void viewsTable_findsOnlyExplicitLinkedMembers();
+    void viewsTable_limitsCrossLayoutMovesToWholeLegacyGroups();
     void viewsTable_rejectsMalformedRelationshipGraphs_data();
     void viewsTable_rejectsMalformedRelationshipGraphs();
     void viewsTable_subtractedAndOnlyOriginals();
     void viewsTable_appendTemporaryView();
     void layoutsTable_subtractedAndFreeActivities();
 };
+
+void DataTypesTest::linkedConfigurationPolicy_keepsAppletGeometryLocal()
+{
+    using Latte::Data::LinkedConfigurationPolicy::isPerViewAppletConfigurationKey;
+
+    static_assert(isPerViewAppletConfigurationKey(std::string_view{"length"}));
+    static_assert(!isPerViewAppletConfigurationKey(std::string_view{"launchers59"}));
+
+    QVERIFY(isPerViewAppletConfigurationKey(QStringLiteral("length")));
+    QVERIFY(!isPerViewAppletConfigurationKey(QStringLiteral("icon")));
+}
 
 void DataTypesTest::generic_equality()
 {
@@ -710,11 +724,45 @@ void DataTypesTest::viewsTable_findsOnlyExplicitLinkedMembers()
     Data::ViewsTable views;
     views << root << derivedMember;
     QVERIFY(!views.hasExplicitLinkedMembers(root.id));
+    QCOMPARE(views.linkedMembersCount(root.id), 1);
+    QCOMPARE(views.explicitLinkedMembersCount(root.id), 0);
 
     views << explicitMember;
     QVERIFY(views.hasExplicitLinkedMembers(root.id));
+    QCOMPARE(views.linkedMembersCount(root.id), 2);
+    QCOMPARE(views.explicitLinkedMembersCount(root.id), 1);
     QVERIFY(!views.hasExplicitLinkedMembers(explicitMember.id));
     QVERIFY(!views.hasExplicitLinkedMembers(QStringLiteral("not-an-id")));
+}
+
+void DataTypesTest::viewsTable_limitsCrossLayoutMovesToWholeLegacyGroups()
+{
+    Data::View independent{QStringLiteral("1"), QStringLiteral("Independent")};
+    Data::ViewsTable independentViews;
+    independentViews << independent;
+    QVERIFY(independentViews.allowsMoveToAnotherLayout(independent.id));
+    QVERIFY(independentViews.participatesInLegacyLayoutMove(independent.id));
+    QVERIFY(!independentViews.allowsMoveToAnotherLayout(QStringLiteral("99")));
+    QVERIFY(!independentViews.participatesInLegacyLayoutMove(QStringLiteral("99")));
+
+    Data::View derivedMember{QStringLiteral("2"), QStringLiteral("Derived")};
+    derivedMember.isClonedFrom = 1;
+    derivedMember.linkPlacement = Data::View::LinkPlacement::ScreenGroupDerived;
+    independentViews << derivedMember;
+    QVERIFY(independentViews.allowsMoveToAnotherLayout(independent.id));
+    QVERIFY(!independentViews.allowsMoveToAnotherLayout(derivedMember.id));
+    QVERIFY(independentViews.participatesInLegacyLayoutMove(independent.id));
+    QVERIFY(independentViews.participatesInLegacyLayoutMove(derivedMember.id));
+
+    Data::View explicitMember{QStringLiteral("3"), QStringLiteral("Explicit")};
+    explicitMember.isClonedFrom = 1;
+    explicitMember.linkPlacement = Data::View::LinkPlacement::ExplicitTarget;
+    independentViews << explicitMember;
+    QVERIFY(!independentViews.allowsMoveToAnotherLayout(independent.id));
+    QVERIFY(!independentViews.allowsMoveToAnotherLayout(explicitMember.id));
+    QVERIFY(!independentViews.participatesInLegacyLayoutMove(independent.id));
+    QVERIFY(!independentViews.participatesInLegacyLayoutMove(derivedMember.id));
+    QVERIFY(!independentViews.participatesInLegacyLayoutMove(explicitMember.id));
 }
 
 void DataTypesTest::viewsTable_rejectsMalformedRelationshipGraphs_data()

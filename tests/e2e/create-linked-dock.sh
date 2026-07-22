@@ -71,6 +71,24 @@ sys.exit(0 if sw < sh and separated and sy != py else 1)
     return 1
 }
 
+wait_for_active_output_count() {
+    local expected="$1" i current
+    for ((i = 0; i < 120; ++i)); do
+        current="$(e2e_json screensData)"
+        if python3 -c '
+import json, sys
+expected = int(sys.argv[1])
+active = [screen for screen in json.load(sys.stdin) if screen["isActive"]]
+sys.exit(0 if len(active) == expected else 1)
+' "$expected" <<<"$current"; then
+            printf '%s\n' "$current"
+            return 0
+        fi
+        sleep 0.25
+    done
+    return 1
+}
+
 view_plugins() {
     e2e_json viewAppletsData u "$1" | python3 -c '
 import json, sys
@@ -111,6 +129,58 @@ config = json.load(sys.stdin)["config"]
 values = {key: value for key, value in config.items() if key.startswith("launchers")}
 print(json.dumps(values, sort_keys=True, separators=(",", ":")))
 '
+}
+
+tasks_local_length() {
+    local view="$1" applet
+    applet="$(tasks_applet_id "$view")" || return 1
+    e2e_json appletConfigData uu "$view" "$applet" | python3 -c '
+import json, sys
+config = json.load(sys.stdin)["config"]
+print(json.dumps(config.get("length", "absent"), separators=(",", ":")))
+'
+}
+
+stable_tasks_local_length() {
+    local view="$1" previous= current= stable=0
+    for _ in $(seq 1 80); do
+        if ! current="$(tasks_local_length "$view" 2>/dev/null)"; then
+            sleep 0.25
+            continue
+        fi
+        if [[ "$current" == "$previous" ]]; then
+            stable=$((stable + 1))
+        else
+            previous="$current"
+            stable=1
+        fi
+        if [[ "$stable" -ge 4 ]]; then
+            printf '%s\n' "$current"
+            return 0
+        fi
+        sleep 0.25
+    done
+    return 1
+}
+
+view_content_fingerprint() {
+    local view="$1" applets applet_id plugin config
+    applets="$(e2e_json viewAppletsData u "$view")" || return 1
+    while read -r applet_id plugin; do
+        config="$(e2e_json appletConfigData uu "$view" "$applet_id")" || return 1
+        python3 -c '
+import json, sys
+plugin = sys.argv[1]
+data = json.load(sys.stdin)
+data["config"].pop("length", None)
+print(json.dumps({"plugin": plugin, "config": data["config"]},
+                 sort_keys=True, separators=(",", ":")))
+' "$plugin" <<<"$config" || return 1
+    done < <(python3 -c '
+import json, sys
+for applet in json.load(sys.stdin):
+    print(applet["id"], applet["plugin"])
+' <<<"$applets")
 }
 
 read -r primary_id primary_name secondary_id secondary_name <<<"$(
@@ -208,6 +278,8 @@ v = next(v for v in json.load(sys.stdin)["views"] if v["persistentDockId"] == wa
 fields = (v["configuredIconSize"], v["effectiveIconSize"], v["availablePrimaryLength"])
 print(" ".join(str(value) for value in fields))
 ' "$remote_id" <<<"$metrics_state")" || e2e_fail "linked member metrics were unavailable"
+before_remote_local_length="$(stable_tasks_local_length "$remote_id")" \
+    || e2e_fail "remote member applet length did not settle before the alignment test"
 
 # Exact cross-dock sizing reproducer: changing the root bottom dock to start
 # alignment must not alter the separate vertical member's sizing inputs.
@@ -222,6 +294,8 @@ sys.exit(0 if root[\"alignment\"] == \"left\" and root[\"edge\"] == \"bottom\"
          and remote[\"edge\"] == \"left\" and \" \".join(str(v) for v in metrics) == \"$before_remote_metrics\"
          else 1)
 " 'root alignment changed the remote linked member sizing or placement' >/dev/null
+[[ "$(stable_tasks_local_length "$remote_id")" == "$before_remote_local_length" ]] \
+    || e2e_fail "root alignment copied applet-local length into the remote linked member"
 
 # Relocate the explicit member through both axes and outputs. The semantic end
 # alignment (2) normalizes to bottom on a vertical edge, while the root and the
@@ -334,6 +408,8 @@ for _ in $(seq 1 80); do
 done
 [[ "$config_sync" == true ]] \
     || e2e_fail "member-originated applet config did not converge across the linked group"
+[[ "$(stable_tasks_local_length "$remote_id")" == "$before_remote_local_length" ]] \
+    || e2e_fail "shared launcher configuration overwrote the remote member's local applet length"
 
 # Applet content remains linked. Add one resolvable plugin from a MEMBER and wait
 # until every member has the same plugin multiset with disjoint instance ids.
@@ -392,6 +468,83 @@ if [[ "$order_sync" != true ]]; then
     e2e_fail "member-originated applet order did not converge across the linked group"
 fi
 
+# Disconnect the explicit member's output while the root stays live, mutate
+# the root, then reconnect. The persistent member must remain present on disk
+# and its fresh runtime must reconcile exact applet structure, order, and
+# configuration before it can publish a settled state.
+kscreen-doctor "output.${secondary_name}.disable" >/dev/null \
+    || e2e_fail "could not disable the explicit member output"
+wait_for_active_output_count 1 >/dev/null \
+    || e2e_fail "Latte did not observe the explicit member output disconnect"
+wait_for_snapshot "
+import json, sys
+views = {v[\"persistentDockId\"] for v in json.load(sys.stdin)[\"views\"]}
+sys.exit(0 if views == {$root_id, $same_edge_id} else 1)
+" 'the disconnected-output member retained a runtime view' >/dev/null
+[[ "$(kreadconfig6 --file "$E2E_LAYOUT" --group Containments --group "$remote_id" --key isClonedFrom --default -1)" == "$root_id" ]] \
+    || e2e_fail "member output disconnect removed the persistent relationship"
+
+offline_added_plugin=org.kde.plasma.minimizeall
+e2e_call addApplet us "$root_id" "$offline_added_plugin" >/dev/null \
+    || e2e_fail "could not mutate linked applets while one member output was disconnected"
+offline_sync=false
+for _ in $(seq 1 120); do
+    root_plugins="$(view_plugins "$root_id")"
+    same_plugins="$(view_plugins "$same_edge_id")"
+    if [[ "$(tr ' ' '\n' <<<"$root_plugins" | grep -Fxc "$offline_added_plugin")" -eq 2 \
+            && "$root_plugins" == "$same_plugins" ]]; then
+        offline_sync=true
+        break
+    fi
+    sleep 0.25
+done
+[[ "$offline_sync" == true ]] \
+    || e2e_fail "live linked members did not converge during the output disconnect"
+offline_content_sync=false
+for _ in $(seq 1 160); do
+    offline_expected_content="$(view_content_fingerprint "$root_id")" \
+        || e2e_fail "could not fingerprint root content during the output disconnect"
+    same_edge_offline_content="$(view_content_fingerprint "$same_edge_id")" \
+        || e2e_fail "could not fingerprint the live member during the output disconnect"
+    if [[ "$same_edge_offline_content" == "$offline_expected_content" ]]; then
+        offline_content_sync=true
+        break
+    fi
+    sleep 0.25
+done
+if [[ "$offline_content_sync" != true ]]; then
+    printf 'root content:\n%s\nlive member content:\n%s\n' \
+        "$offline_expected_content" "$same_edge_offline_content" >&2
+    e2e_fail "live member content differed from the root during the output disconnect"
+fi
+
+kscreen-doctor "output.${secondary_name}.enable" \
+               "output.${secondary_name}.rotation.left" \
+               "output.${secondary_name}.position.2300,180" >/dev/null \
+    || e2e_fail "could not reconnect the explicit member output"
+wait_for_topology >/dev/null \
+    || e2e_fail "Latte did not observe the reconnected portrait output"
+wait_for_snapshot "
+import json, sys
+views = {v[\"persistentDockId\"]: v for v in json.load(sys.stdin)[\"views\"]}
+remote = views.get($remote_id)
+sys.exit(0 if set(views) == {$root_id, $same_edge_id, $remote_id}
+         and remote and remote[\"originalDockId\"] == $root_id
+         and remote[\"screenId\"] == $secondary_id and remote[\"edge\"] == \"left\" else 1)
+" 'explicit member did not return after its output reconnected' >/dev/null
+reconnect_sync=false
+for _ in $(seq 1 160); do
+    if [[ "$(view_content_fingerprint "$remote_id")" == "$offline_expected_content" ]]; then
+        reconnect_sync=true
+        break
+    fi
+    sleep 0.25
+done
+[[ "$reconnect_sync" == true ]] \
+    || e2e_fail "reconnected member did not reconcile exact root applet content"
+[[ "$(stable_tasks_local_length "$remote_id")" == "$before_remote_local_length" ]] \
+    || e2e_fail "output reconnection overwrote the remote member's local applet length"
+
 # Return the member to the already occupied edge. The relationship and content
 # operations above must not rewrite placement ownership.
 e2e_call setViewPlacement uiii "$same_edge_id" "$primary_id" 4 0 >/dev/null \
@@ -429,6 +582,132 @@ before = {int(v) for v in sys.argv[1].split()}
 print(next(v["persistentDockId"] for v in json.load(sys.stdin)["views"]
            if v["persistentDockId"] not in before))
 ' "$before_ids" <<<"$duplicate_state")"
+
+# Recreate the root runtime through the same path used when an installed
+# custom indicator changes. Every linked runtime must rotate to the new root
+# generation, preserve its containment identity, and converge to identical
+# content. The independent duplicate must remain untouched.
+before_reload_runtime="$(snapshot | python3 -c '
+import json, sys
+print(" ".join("%s:%s" % (v["persistentDockId"], v["runtimeViewId"])
+               for v in json.load(sys.stdin)["views"]))
+')"
+before_reload_content="$(view_content_fingerprint "$root_id")" \
+    || e2e_fail "could not fingerprint linked content before root recreation"
+e2e_call reloadView u "$root_id" >/dev/null \
+    || e2e_fail "could not request root runtime recreation"
+recreated="$(wait_for_snapshot "
+import json, sys
+before = {int(pair.split(\":\", 1)[0]): pair.split(\":\", 1)[1]
+          for pair in \"$before_reload_runtime\".split()}
+views = {v[\"persistentDockId\"]: v for v in json.load(sys.stdin)[\"views\"]}
+group = [$root_id, $same_edge_id, $remote_id]
+sys.exit(0 if set(views) == {$root_id, $same_edge_id, $remote_id, $duplicate_id}
+         and all(views[identity][\"runtimeViewId\"] != before[identity] for identity in group)
+         and views[$duplicate_id][\"runtimeViewId\"] == before[$duplicate_id]
+         and all(views[identity][\"originalDockId\"] == $root_id
+                 for identity in [$same_edge_id, $remote_id]) else 1)
+" 'root recreation did not replace and rebind the whole linked runtime group')" \
+    || e2e_fail "linked root runtime recreation did not settle"
+recreate_sync=false
+for _ in $(seq 1 160); do
+    if [[ "$(view_content_fingerprint "$root_id")" == "$before_reload_content" \
+            && "$(view_content_fingerprint "$same_edge_id")" == "$before_reload_content" \
+            && "$(view_content_fingerprint "$remote_id")" == "$before_reload_content" ]]; then
+        recreate_sync=true
+        break
+    fi
+    sleep 0.25
+done
+[[ "$recreate_sync" == true ]] \
+    || e2e_fail "linked content changed or failed to converge after root recreation"
+[[ "$(stable_tasks_local_length "$remote_id")" == "$before_remote_local_length" ]] \
+    || e2e_fail "root runtime recreation overwrote the remote member's local applet length"
+
+# Pin the unrelated duplicate to the primary output, move the root to the
+# secondary output, then disconnect the root output. All linked runtimes must
+# park together while every persistent containment survives. Reconnection
+# creates a fresh root generation first and rebinds both explicit members.
+e2e_call setViewPlacement uiii "$duplicate_id" "$primary_id" 3 0 >/dev/null \
+    || e2e_fail "could not pin the independent duplicate to the primary output"
+e2e_call setViewPlacement uiii "$remote_id" "$primary_id" 6 2 >/dev/null \
+    || e2e_fail "could not move the remote member off the root test output"
+e2e_call setViewPlacement uiii "$root_id" "$secondary_id" 4 1 >/dev/null \
+    || e2e_fail "could not pin the linked root to the secondary output"
+root_disconnect_ready="$(wait_for_snapshot "
+import json, sys
+views = {v[\"persistentDockId\"]: v for v in json.load(sys.stdin)[\"views\"]}
+sys.exit(0 if views[$root_id][\"screenId\"] == $secondary_id
+         and views[$remote_id][\"screenId\"] == $primary_id
+         and views[$same_edge_id][\"screenId\"] == $primary_id
+         and views[$duplicate_id][\"screenId\"] == $primary_id else 1)
+" 'views did not settle before the root-output disconnect')" \
+    || e2e_fail "root-output disconnect setup did not settle"
+before_root_disconnect_runtime="$(python3 -c '
+import json, sys
+print(" ".join("%s:%s" % (v["persistentDockId"], v["runtimeViewId"])
+               for v in json.load(sys.stdin)["views"]))
+' <<<"$root_disconnect_ready")"
+
+kscreen-doctor "output.${secondary_name}.disable" >/dev/null \
+    || e2e_fail "could not disable the linked root output"
+wait_for_active_output_count 1 >/dev/null \
+    || e2e_fail "Latte did not observe the linked root output disconnect"
+wait_for_snapshot "
+import json, sys
+views = json.load(sys.stdin)[\"views\"]
+sys.exit(0 if len(views) == 1 and views[0][\"persistentDockId\"] == $duplicate_id else 1)
+" 'linked member runtime survived without its root coordinator' >/dev/null
+for id in "$root_id" "$same_edge_id" "$remote_id"; do
+    grep -q "^\\[Containments\\]\\[$id\\]$" "$E2E_LAYOUT" \
+        || e2e_fail "root-output disconnect removed persistent containment $id"
+done
+
+kscreen-doctor "output.${secondary_name}.enable" \
+               "output.${secondary_name}.rotation.left" \
+               "output.${secondary_name}.position.2300,180" >/dev/null \
+    || e2e_fail "could not reconnect the linked root output"
+wait_for_topology >/dev/null \
+    || e2e_fail "Latte did not observe the reconnected root output"
+root_reconnected="$(wait_for_snapshot "
+import json, sys
+before = {int(pair.split(\":\", 1)[0]): pair.split(\":\", 1)[1]
+          for pair in \"$before_root_disconnect_runtime\".split()}
+views = {v[\"persistentDockId\"]: v for v in json.load(sys.stdin)[\"views\"]}
+group = [$root_id, $same_edge_id, $remote_id]
+sys.exit(0 if set(views) == {$root_id, $same_edge_id, $remote_id, $duplicate_id}
+         and all(views[identity][\"runtimeViewId\"] != before[identity] for identity in group)
+         and views[$duplicate_id][\"runtimeViewId\"] == before[$duplicate_id]
+         and all(views[identity][\"originalDockId\"] == $root_id
+                 for identity in [$same_edge_id, $remote_id]) else 1)
+" 'root-output reconnect did not create and rebind a fresh relationship generation')" \
+    || e2e_fail "linked root output reconnect did not settle"
+root_reconnect_sync=false
+for _ in $(seq 1 160); do
+    if [[ "$(view_content_fingerprint "$root_id")" == "$before_reload_content" \
+            && "$(view_content_fingerprint "$same_edge_id")" == "$before_reload_content" \
+            && "$(view_content_fingerprint "$remote_id")" == "$before_reload_content" ]]; then
+        root_reconnect_sync=true
+        break
+    fi
+    sleep 0.25
+done
+[[ "$root_reconnect_sync" == true ]] \
+    || e2e_fail "linked content failed to converge after the root output reconnected"
+
+# Restore the intended final placement before the process-reload assertion.
+e2e_call setViewPlacement uiii "$root_id" "$primary_id" 4 1 >/dev/null \
+    || e2e_fail "could not restore the root to the primary output"
+e2e_call setViewPlacement uiii "$remote_id" "$secondary_id" 5 1 >/dev/null \
+    || e2e_fail "could not restore the remote member to the portrait output"
+wait_for_snapshot "
+import json, sys
+views = {v[\"persistentDockId\"]: v for v in json.load(sys.stdin)[\"views\"]}
+sys.exit(0 if views[$root_id][\"screenId\"] == $primary_id
+         and views[$root_id][\"edge\"] == \"bottom\"
+         and views[$remote_id][\"screenId\"] == $secondary_id
+         and views[$remote_id][\"edge\"] == \"left\" else 1)
+" 'final linked placement did not settle after output lifecycle tests' >/dev/null
 
 expected_ids="$root_id $same_edge_id $remote_id $duplicate_id"
 e2e_dock_stop || e2e_fail "could not stop the dock for linked relationship persistence"

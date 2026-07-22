@@ -79,6 +79,10 @@ private Q_SLOTS:
     void appletMutationsUseRelationshipBoundary();
     void startupValidatesRelationshipGraphBeforeConstruction();
     void linkedRootRemovalIsRefusedAtEveryBoundary();
+    void runtimeRecreationRebindsWholeRelationship();
+    void crossLayoutMovesRevalidateBeforeImport();
+    void outputEligibilityUsesPersistentPlacementAuthority();
+    void linkedAppletGeometryRemainsPerView();
 };
 
 void DockIdentityContractTest::relationshipActionsGuardEveryProductionBoundary()
@@ -418,7 +422,8 @@ void DockIdentityContractTest::appletMutationsUseRelationshipBoundary()
     QVERIFY(!containmentInterface.contains(QStringLiteral("Q_EMITapplet->appletDeleted(applet)")));
     QVERIFY(containmentInterface.contains(QStringLiteral("QMetaObject::invokeMethod(applet,\"askDestroy\",Qt::DirectConnection)")));
     QVERIFY(linkedSource.contains(QStringLiteral("destroyAppletImmediately(memberId)")));
-    QVERIFY(linkedSource.contains(QStringLiteral("restoreAppletFrom(originalApplet.applet)")));
+    QVERIFY(linkedSource.contains(QStringLiteral(
+        "restoreAppletFrom(originalApplet.applet,locallyOwnedAppletConfigurationKeys())")));
 
     const QString add = normalized(functionBody(linkedRaw, QStringLiteral("bool ClonedView::addApplet")));
     const QString remove = normalized(functionBody(linkedRaw, QStringLiteral("bool ClonedView::removeApplet")));
@@ -469,6 +474,89 @@ void DockIdentityContractTest::linkedRootRemovalIsRefusedAtEveryBoundary()
         QStringLiteral("shell/package/contents/configuration/LatteDockConfiguration.qml")));
     QVERIFY(settingsQml.contains(QStringLiteral("enabled:dialog.advancedLevel&&latteView.canRemove")));
     QVERIFY(settingsQml.contains(QStringLiteral("Removelinkeddocksfirst")));
+}
+
+void DockIdentityContractTest::runtimeRecreationRebindsWholeRelationship()
+{
+    const QString layoutSource = readFile(QStringLiteral("app/layout/genericlayout.cpp"));
+    const QString recreate = normalized(functionBody(
+        layoutSource, QStringLiteral("void GenericLayout::recreateView")));
+    const int collectMembers = recreate.indexOf(
+        QStringLiteral("view->relationshipRootView()==relationshipRoot"));
+    const int removeMembers = recreate.indexOf(
+        QStringLiteral("m_latteViews.take(it->data())"), collectMembers);
+    const int removeRoot = recreate.indexOf(
+        QStringLiteral("m_latteViews.take(rootContainment.data())"), removeMembers);
+    const int addRelationship = recreate.indexOf(
+        QStringLiteral("for(intindex=0;index<containmentsToRecreate.size();++index)"), removeRoot);
+    const int finishReconciliation = recreate.indexOf(
+        QStringLiteral("root->synchronizeScreenGroupMembers()"), addRelationship);
+    QVERIFY2(collectMembers >= 0 && removeMembers > collectMembers && removeRoot > removeMembers
+                 && addRelationship > removeRoot && finishReconciliation > addRelationship,
+             "root recreation must replace members first, rebuild root first, then reconcile the complete group");
+
+    const QString rootSource = readFile(QStringLiteral("app/view/originalview.cpp"));
+    const QString synchronize = normalized(functionBody(
+        rootSource, QStringLiteral("void OriginalView::synchronizeScreenGroupMembers")));
+    QVERIFY(synchronize.contains(QStringLiteral("layout()->isRecreatingView(containment())")));
+    QVERIFY(rootSource.contains(QStringLiteral("OriginalView::~OriginalView() = default;")));
+
+    const QString coronaSource = readFile(QStringLiteral("app/lattecorona.cpp"));
+    const QString reload = normalized(functionBody(
+        coronaSource, QStringLiteral("void Corona::reloadView")));
+    QVERIFY(reload.contains(QStringLiteral("if(!m_debugDbusEnabled)")));
+    QVERIFY(reload.contains(QStringLiteral("LATTE_DEBUG_DBUS=1")));
+    QVERIFY(reload.contains(QStringLiteral("view->reloadRuntimeView()")));
+
+    QVERIFY(recreate.contains(QStringLiteral("constLayout::ViewsMapeligibleViews=validViewsMap()")));
+    QVERIFY(recreate.contains(QStringLiteral("mapContainsId(&eligibleViews,candidate->id())")));
+}
+
+void DockIdentityContractTest::crossLayoutMovesRevalidateBeforeImport()
+{
+    const QString source = readFile(QStringLiteral("app/settings/viewsdialog/viewscontroller.cpp"));
+    const QString validate = normalized(functionBody(
+        source, QStringLiteral("bool Views::canCommitMoveDestinations")));
+    QVERIFY(validate.contains(QStringLiteral("currentOriginViews.allowsMoveToAnotherLayout(originViewId)")));
+
+    const QString save = normalized(functionBody(source, QStringLiteral("void Views::save")));
+    const int guard = save.indexOf(QStringLiteral("if(!canCommitMoveDestinations(newViews))"));
+    const int importTemplate = save.indexOf(QStringLiteral("central->newView(newViews[i])"), guard);
+    const int importLayout = save.indexOf(QStringLiteral("central->newView(adjustedview)"), guard);
+    QVERIFY2(guard >= 0 && importTemplate > guard && importLayout > guard,
+             "the current origin graph must be revalidated before either destination import path");
+}
+
+void DockIdentityContractTest::outputEligibilityUsesPersistentPlacementAuthority()
+{
+    const QString source = readFile(QStringLiteral("app/layout/genericlayout.cpp"));
+    const QString map = normalized(functionBody(
+        source, QStringLiteral("Layout::ViewsMap GenericLayout::validViewsMap")));
+    QVERIFY(map.contains(QStringLiteral("m_pendingContainmentUpdates.containsId(containmentId)")));
+    QVERIFY(map.contains(QStringLiteral("Layouts::Storage::self()->view(containment->config())")));
+    QVERIFY(!map.contains(QStringLiteral("m_latteViews[containment]->data()")));
+    QVERIFY(map.contains(QStringLiteral("isScreenActive(view.screen)")));
+}
+
+void DockIdentityContractTest::linkedAppletGeometryRemainsPerView()
+{
+    const QString cloneSource = readFile(QStringLiteral("app/view/clonedview.cpp"));
+    const QString fromRoot = normalized(functionBody(
+        cloneSource, QStringLiteral("void ClonedView::onOriginalAppletConfigPropertyChanged")));
+    const QString toRoot = normalized(functionBody(
+        cloneSource, QStringLiteral("void ClonedView::updateOriginalAppletConfigProperty")));
+    const QString reconcile = normalized(functionBody(
+        cloneSource, QStringLiteral("bool ClonedView::reconcileAppletProjectionWithRoot")));
+
+    QVERIFY(fromRoot.contains(QStringLiteral("synchronizesAppletConfigurationKey(key)")));
+    QVERIFY(toRoot.contains(QStringLiteral("synchronizesAppletConfigurationKey(key)")));
+    QVERIFY(reconcile.contains(QStringLiteral("locallyOwnedAppletConfigurationKeys()")));
+
+    const QString storageSource = readFile(QStringLiteral("app/layouts/storage.cpp"));
+    const QString import = normalized(functionBody(
+        storageSource, QStringLiteral("Data::View Storage::newView")));
+    QVERIFY(import.contains(QStringLiteral("if(nextViewData.isCloned())")));
+    QVERIFY(import.contains(QStringLiteral("clearLinkedMemberLocalAppletConfiguration(temp2File)")));
 }
 
 QTEST_GUILESS_MAIN(DockIdentityContractTest)
