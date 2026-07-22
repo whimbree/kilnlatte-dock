@@ -250,7 +250,8 @@ void DockIdentityContractTest::persistentMenuIdentitySurvivesRuntimeGap()
 
     QVERIFY(parseView.contains(QStringLiteral("m_view=ViewTypeData{};")));
     QVERIFY(parseView.contains(QStringLiteral("returnfalse;")));
-    QVERIFY(populateTemplates.contains(QStringLiteral("if(m_contextDataValid&&!m_view.isCloned)")));
+    QVERIFY(populateTemplates.contains(QStringLiteral("if(m_contextDataValid)")));
+    QVERIFY(!populateTemplates.contains(QStringLiteral("!m_view.isCloned")));
     QVERIFY(visibleActions.contains(QStringLiteral("setVisible(m_contextDataValid&&!configuring)")));
 }
 
