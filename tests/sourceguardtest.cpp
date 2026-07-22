@@ -498,7 +498,13 @@ void SourceGuardTest::dockSystemCollection_sourceGuardsRejectControlledMutations
     directRelationship.replace(QStringLiteral("classifyDockRelationshipGraph("),
                                QStringLiteral("legacyDockRelationshipGraph("));
     QVERIFY2(!matchesDockRelationshipClassifierRoute(directRelationship),
-             "bypassing the relationship classifier must fail the collector guard");
+             "bypassing whole-graph relationship validation must fail the collector guard");
+
+    const QString dataCollector = normalizedCode(functionBody(
+        source, QStringLiteral("QString collectDockSystemData(")));
+    QVERIFY2(dataCollector.contains(QStringLiteral(
+                 "returnsnapshot?serializeDockSystemSnapshot(*snapshot):QString();")),
+             "malformed lineage must refuse the complete query instead of serializing partial JSON");
 }
 
 void SourceGuardTest::dockSystemIdentityRegistry_keepsLifetimeAndAffinityContract()
