@@ -803,6 +803,11 @@ ViewActionPolicy::Role View::actionRole() const
             : ViewActionPolicy::Role::ScreenGroupReplica;
 }
 
+bool View::ownsOutputPlacement() const
+{
+    return isOriginal() || linkPlacement() == Data::View::LinkPlacement::ExplicitTarget;
+}
+
 void View::showConfigurationInterface(Plasma::Applet *applet)
 {
     if (!applet || !applet->containment())

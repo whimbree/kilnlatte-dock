@@ -252,6 +252,7 @@ public:
     virtual bool isCloned() const = 0; //means that this view is a clone of an original view
     virtual bool isOriginal() const = 0; //means that this view is an original view that can be autocloned to other screens
     virtual bool isSingle() const = 0; //means that this view is not related to clones and screen groups in any way
+    [[nodiscard]] bool ownsOutputPlacement() const;
     virtual Latte::Types::ScreensGroup screensGroup() const = 0;
     virtual Latte::Data::View::LinkPlacement linkPlacement() const = 0;
     ViewActionPolicy::Role actionRole() const;

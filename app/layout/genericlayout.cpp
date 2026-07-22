@@ -1679,7 +1679,17 @@ Layout::ViewsMap GenericLayout::validViewsMap()
     for (const auto containment : m_containments) {
         if (Layouts::Storage::self()->isLatteContainment(containment)
                 && !Layouts::Storage::self()->isScreenGroupDerivedView(containment)) {
-            Data::View view = hasLatteView(containment) ? m_latteViews[containment]->data() : Latte::Layouts::Storage::self()->view(this, containment);
+            const QString containmentId = QString::number(containment->id());
+            //! Output removal can make Qt temporarily report the surviving
+            //! primary QScreen from a window that still targets the removed
+            //! connector. Runtime View::data() therefore cannot own placement:
+            //! using it here remapped an explicit linked member to primary and
+            //! kept a stale surface alive. Persisted placement is authoritative,
+            //! with the explicit pending transaction taking precedence until
+            //! Plasma commits the containment screen change.
+            Data::View view = m_pendingContainmentUpdates.containsId(containmentId)
+                ? m_pendingContainmentUpdates[containmentId]
+                : Latte::Layouts::Storage::self()->view(containment->config());
             view.screen = Layouts::Storage::self()->expectedViewScreenId(m_corona, view);
 
             if (view.onPrimary) {
@@ -1741,26 +1751,59 @@ void GenericLayout::syncLatteViewsToScreens()
     qDebug() << "PRIMARY SCREEN :: " << prmScreenName;
     qDebug() << "LATTEVIEWS MAP :: " << viewsMap;
 
-    //! add views
-    for (const auto containment : m_containments) {
-        if (!hasLatteView(containment) && mapContainsId(&viewsMap, containment->id())) {
-            qDebug() << "syncLatteViewsToScreens: view must be added... for containment:" << containment->id() << " at screen:" << mapScreenName(&viewsMap, containment->id());
+    //! Add roots before explicit members. A member whose output reconnects in
+    //! the same screen event cannot construct until its direct root exists.
+    for (int pass = 0; pass < 2; ++pass) {
+        for (const auto containment : m_containments) {
+            if (hasLatteView(containment) || !mapContainsId(&viewsMap, containment->id())) {
+                continue;
+            }
+
+            const bool isLinkedMember = Layouts::Storage::self()->isClonedView(containment);
+            if ((pass == 0 && isLinkedMember) || (pass == 1 && !isLinkedMember)) {
+                continue;
+            }
+
+            qDebug() << "syncLatteViewsToScreens: view must be added... for containment:" << containment->id() << "at screen:" << mapScreenName(&viewsMap, containment->id());
             addView(containment);
         }
     }
 
     //! remove views
-    QList<Plasma::Containment *> viewsToDelete;
-
-    for (auto view : m_latteViews) {
-        auto containment = view->containment();
-        if (containment && view->isOriginal() && !mapContainsId(&viewsMap, containment->id())) {
-            viewsToDelete << containment;
+    QSet<OriginalView *> rootsToUnload;
+    for (auto *const view : std::as_const(m_latteViews)) {
+        if (view && view->isOriginal() && view->containment()
+                && !mapContainsId(&viewsMap, view->containment()->id())) {
+            if (auto *const root = qobject_cast<OriginalView *>(view)) {
+                rootsToUnload.insert(root);
+            }
         }
     }
 
-    while(!viewsToDelete.isEmpty()) {
-        auto containment = viewsToDelete.takeFirst();
+    //! An explicit member cannot outlive its runtime root. Derived members are
+    //! disposable screen-group projections and are retired here so the root
+    //! can regenerate them when its output returns. Explicit member
+    //! containments remain persistent and are only parked below.
+    for (auto *const root : std::as_const(rootsToUnload)) {
+        root->retireScreenGroupDerivedClonesForRuntimeUnload();
+    }
+
+    QSet<Plasma::Containment *> viewsToDelete;
+
+    for (auto *const view : std::as_const(m_latteViews)) {
+        auto containment = view->containment();
+        if (containment && view->ownsOutputPlacement()
+                && !mapContainsId(&viewsMap, containment->id())) {
+            viewsToDelete.insert(containment);
+        }
+
+        if (containment && view->linkPlacement() == Data::View::LinkPlacement::ExplicitTarget
+                && rootsToUnload.contains(qobject_cast<OriginalView *>(view->relationshipRootView()))) {
+            viewsToDelete.insert(containment);
+        }
+    }
+
+    for (auto *const containment : std::as_const(viewsToDelete)) {
         auto view = m_latteViews.take(containment);
         qDebug() << "syncLatteViewsToScreens: view must be deleted... for containment:" << containment->id() << " at screen:" << view->positioner()->currentScreenName();
         view->disconnectSensitiveSignals();
@@ -1769,7 +1812,8 @@ void GenericLayout::syncLatteViewsToScreens()
 
     //! reconsider views
     for (const auto view : m_latteViews) {
-        if (view->containment() && view->isOriginal() && mapContainsId(&viewsMap, view->containment()->id())) {
+        if (view->containment() && view->ownsOutputPlacement()
+                && mapContainsId(&viewsMap, view->containment()->id())) {
             //! if the dock will not be deleted its a very good point to reconsider
             //! if the screen in which is running is the correct one
             qDebug() << "syncLatteViewsToScreens: view must consider its screen... for containment:" << view->containment()->id() << " at screen:" << view->positioner()->currentScreenName();
