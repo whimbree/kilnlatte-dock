@@ -1272,9 +1272,10 @@ multi-view, multi-monitor setup.
       canonical full gate remains required before push. Placement
       normalization and same-edge stacking remain separate unchecked work in
       `docs/tracking/DOCK_IDENTITY_HARDENING.md`.
-      Commits: 144022798, 1732a9b9a, 66d64541d, 5a3355190,
-      7232332ef, 9348674dd, 35beda6ba, 7ba95549f, 2cf2f6cb0,
-      34a94a935, 2e6e1c3e6, 672ec73cd, 61d07f23b, 7c95493de
+      Commits: a92d3b454, aad2f524f, 5de3f98d3, bf6602737,
+      b72c6147c, 103147995, eb5b6d47b, d819fbb91, 8082a504f,
+      d2772a5ca, 8828f1f2b, d3d0a170e, f63e555e5, a8bbe1b7e,
+      e2f8bd1d6, 8af5b7f6d, ac6a078be, a10356c44
 
 - [ ] Fix D83 (removed duplicate containment survives the undo window in
       persistent layout state). Baseline nested evidence at `16eb58ea4` shows

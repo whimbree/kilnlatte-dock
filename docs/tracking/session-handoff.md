@@ -181,23 +181,23 @@ limited to the first identity and lifecycle slice in
 `docs/tracking/DOCK_IDENTITY_HARDENING.md`; placement normalization and same-edge
 stacking remain separate open slices.
 
-The rewritten branch commits establish relationship capability policy
-(`1732a9b9a`), serialize settings-chrome ownership and linked-member edit
-targeting (`66d64541d`), retire replica membership during destruction
-(`5a3355190`), require exact Wayland window titles (`7232332ef`), count
-ignored-window owners (`9348674dd` plus caller contract `35beda6ba`), replace
-stale output geometry subscriptions (`7ba95549f`), and preserve persistent menu
-identity across runtime view recreation (`2cf2f6cb0`). The investigation and
-ownership model began at `144022798`.
+The rebased branch commits establish relationship capability policy
+(`aad2f524f`), serialize settings-chrome ownership and linked-member edit
+targeting (`5de3f98d3`), retire replica membership during destruction
+(`bf6602737`), require exact Wayland window titles (`b72c6147c`), count
+ignored-window owners (`103147995` plus caller contract `eb5b6d47b`), replace
+stale output geometry subscriptions (`d819fbb91`), and preserve persistent menu
+identity across runtime view recreation (`8082a504f`). The investigation and
+ownership model began at `a92d3b454`.
 
 The first independent review returned MERGE AFTER FIXES with one major finding:
 entering B and exiting B before the 400 ms retarget expired left the pending
 request alive because the shared chrome still had A as its parent. The review
 also required direct action-boundary guards, missing copyright lines, and a
 literal commit-message newline correction. Corrections cancel pending ownership
-by target (`34a94a935`), apply the relationship policy at Corona and View
-boundaries (`2e6e1c3e6`), and add the missing copyright attribution
-(`672ec73cd`). The branch history was rewritten to repair the commit message.
+by target (`8828f1f2b`), apply the relationship policy at Corona and View
+boundaries (`d3d0a170e`), and add the missing copyright attribution
+(`f63e555e5`). The branch history was rewritten to repair the commit message.
 Because the review found an ownership/lifecycle issue, one second independent
 cold review is mandatory after the corrected branch is pushed.
 
@@ -206,7 +206,7 @@ captured template copied `screensGroup=AllScreensGroup` from an ordinary source,
 so the new original immediately created a persisted replica ensemble and
 installed `ClonedView` synchronization. A linked-member source separately
 carried legacy `isClonedFrom`. Refusing that source did not satisfy the operation
-contract. `7c95493de` makes Duplicate Dock a relation-breaking snapshot from
+contract. `e2f8bd1d6` makes Duplicate Dock a relation-breaking snapshot from
 either role: both relationship fields are normalized before import, the action
 stays visible on linked-member menus, and export, move, and remove remain owned
 by the original. Existing persisted linked layouts are unchanged. Future
@@ -214,16 +214,17 @@ Create Linked Dock… is documented but not implemented.
 
 Focused sanitizer-backed action-policy and retarget-generation tests pass. The
 production source contract passes, and `latte-dock` plus the containment-actions
-plugin compile. The nested edit cancellation recipe (`61d07f23b`) completed the
+plugin compile. The nested edit cancellation recipe (`a8bbe1b7e`) completed the
 B enter/exit driver in 178 ms, kept both containments out of edit mode through
 the old timeout, and passed a later B round trip. The dual-output recipe in
-`7c95493de` made All Screens original 1 and linked replica 12 each create exactly
+`e2f8bd1d6` made All Screens original 1 and linked replica 12 each create exactly
 one independent dock (13 and 14), found disjoint containment and applet IDs,
 kept 1 -> 12 linked, propagated a visibility-mode change only inside 1 -> 12,
 and preserved all four identities across restart. The
-canonical full gate remains required before push. No live desktop run, runtime
-view ID, dock-system D-Bus snapshot, placement normalization, or same-edge stack
-coordinator was added.
+canonical full gate remains required before push. The branch now sits on C0
+(the atomic dock-system observability snapshot), whose runtime tokens and
+fail-closed relationship graph remain the diagnostic authority. No live desktop
+run, placement normalization, or same-edge stack coordinator was added.
 
 The baseline nested run also confirmed D83 (removed duplicate containment
 survives the undo window in persistent layout state), which is not fixed by this

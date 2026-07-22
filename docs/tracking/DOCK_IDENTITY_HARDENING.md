@@ -55,11 +55,11 @@ Corona
   +-- output-edge stack coordinator: missing
 ```
 
-`runtime OriginalView #A` is descriptive only. This slice adds no runtime view
-identifier or dock-system snapshot. Edit-chrome retargeting carries its own
-process-local request generation because that is the boundary with deferred
-work. Broader runtime identity diagnostics remain a separate observability
-decision.
+`runtime OriginalView #A` is descriptive only. C0 (the atomic dock-system
+observability snapshot) exposes an opaque process-local runtime token for this
+instance, while the persistent and logical identities remain containment based.
+Edit-chrome retargeting carries its own process-local request generation because
+that is the boundary with deferred work.
 
 ## Identity and ownership map
 
@@ -193,8 +193,9 @@ visible symptom.
    placement projections. Existing screen-group replicas may retain derived
    placement as a named policy; independent duplicates share no dock-owned
    mutable state.
-8. Keep broader runtime identity diagnostics in the observability track. This
-   repair does not add a runtime view ID or dock-system D-Bus snapshot.
+8. Keep runtime identity diagnostics in C0 (the atomic dock-system observability
+   snapshot). Relationship changes must preserve its fail-closed graph and
+   per-view ownership contract.
 
 ## Implementation and verification slices
 
@@ -219,7 +220,8 @@ one independent containment per call with disjoint applet IDs, and verified all
 four identities after restart. A visibility-mode change propagated from the
 original to its linked replica but bypassed both duplicates, proving the
 production synchronization connection retained only its intended members. The
-canonical repository gate remains required before push.
+canonical repository gate remains required on the final branch head before
+push.
 
 Each slice requires a failing regression first, pure-core ASan and UBSan tests
 where a value model can carry the invariant, nested-KWin state and render

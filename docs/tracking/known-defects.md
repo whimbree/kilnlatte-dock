@@ -783,10 +783,10 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   files without adding the current 2026 modification copyright line.
 - FIX: retain all existing SPDX lines and add Bree Spektor to both files.
 ### D77 - Dock duplication retains clone lineage and edit ownership
-- STATUS: FIXED on `fix/dock-identity-isolation` (`1732a9b9a`, `66d64541d`,
-  `5a3355190`, `7232332ef`, `9348674dd`, `7ba95549f`, `2cf2f6cb0`,
-  `34a94a935`, `2e6e1c3e6`, `7c95493de`; focused caller contract
-  `35beda6ba`; runtime recipes `61d07f23b`, `7c95493de`).
+- STATUS: FIXED on `fix/dock-identity-isolation` (`aad2f524f`, `5de3f98d3`,
+  `bf6602737`, `b72c6147c`, `103147995`, `d819fbb91`, `8082a504f`,
+  `8828f1f2b`, `d3d0a170e`, `e2f8bd1d6`, `ac6a078be`; focused caller
+  contract `eb5b6d47b`; runtime recipes `a8bbe1b7e`, `e2f8bd1d6`).
 - FOUND: 2026-07-21, dock duplication and edit-mode identity investigation.
 - SYMPTOM: Duplicate Dock on an ordinary All Screens source created another
   linked multi-output ensemble instead of one independent dock. Duplicating a
