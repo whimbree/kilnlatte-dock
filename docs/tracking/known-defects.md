@@ -658,6 +658,45 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   review and its MERGE AFTER FIXES result, the correction commits, and the end
   of the review sequence without a third review.
 
+### D79 - Alignment transitions preserve invalid length offsets and render offscreen
+- STATUS: FIXED (`d8bb1e21f`, `87ff11de0`).
+- FOUND: 2026-07-21, the dock placement and ownership investigation.
+- ROOT: the live View alignment handler wrote a new physical alignment directly
+  into the containment configuration. A negative Center offset remained valid
+  after a Start or End transition and became a negative edge margin in the QML
+  background and applet layout. Startup restoration, orientation changes, and
+  fine settings writes could bypass the existing length clamp in the same way.
+- FIX: one C++20 normalization transaction now owns semantic Start, Center, and
+  End translation across all four output edges plus minimum length, maximum
+  length, and offset bounds. Startup, orientation, the live alignment signal,
+  and every settings write enter that transaction. The containment commits the
+  normalized offset before the physical alignment, so no intermediate binding
+  evaluation can consume a centered negative offset as an edge margin.
+- EVIDENCE: the ASan and UBSan placement matrix covers four edges, both axes,
+  three semantic alignments, signed offsets, maximum values, nonzero output
+  origins, bounded absolute extents, and idempotence. Boundary tests cover QML
+  enum translation and loud refusal; sourceguardtest pins the real signal,
+  startup, orientation, and write ordering paths. Focused handlers and
+  qmlcompilegate pass. The touched settings page lowers its curated qmllint
+  count from 243 to 225.
+
+### D80 - Peer footprint changes resize another dock's local autosizer
+- STATUS: OPEN, CONFIRMED (2026-07-21 placement and ownership investigation).
+- SYMPTOM: changing the alignment of a bottom dock can shorten a same-output
+  vertical dock and reduce that vertical dock's effective icon size.
+- ROOT: the bottom dock's alignment changes its partial internal footprint. The
+  vertical dock receives an available-region invalidation, selects a shorter
+  rectangle, and its own AutoSize instance reduces the effective icon size. No
+  global icon cache or shared autosizer participates. The two reservation
+  models disagree: layer shell publishes an edge-wide scalar exclusive zone,
+  while Latte applies an alignment-aware partial peer footprint internally.
+- DISPOSITION: intentionally not changed by D79. The placement normalization
+  core owns one dock's persisted values and consumes no peer geometry. D80
+  depends on an explicit output-edge solver that gives same-edge membership,
+  stable rank, cumulative inset, compositor reservation, and internal peer
+  footprints one owner. Each AutoSize instance must consume only its view's
+  final solved primary length.
+
 ## Recorded elsewhere - indexed here so the flat scan is complete
 
 These predate the registry and are detailed in their source docs; indexed here
