@@ -505,6 +505,38 @@ void Storage::syncToLayoutFile(const Layout::GenericLayout *layout, bool removeL
         return;
     }
 
+    QList<Plasma::Containment *> retainedContainments;
+    retainedContainments.reserve(layout->containments()->size());
+
+    //! Validate the complete projection before deleting the old group. A
+    //! malformed ownership chain must leave the previous file intact rather
+    //! than turning one bad pointer into a truncated layout.
+    for (auto *const containment : *layout->containments()) {
+        if (!containment) {
+            qCritical() << "Storage::syncToLayoutFile refused a null containment in layout"
+                        << layout->name();
+            return;
+        }
+
+        const auto *const parentApplet = qobject_cast<const Plasma::Applet *>(containment->parent());
+        const auto *const owner = parentApplet ? parentApplet->containment() : nullptr;
+        if (parentApplet && !owner) {
+            qCritical() << "Storage::syncToLayoutFile refused subcontainment"
+                        << containment->id() << "with no owning containment in layout"
+                        << layout->name();
+            return;
+        }
+
+        //! Plasma keeps removed objects alive during its Undo window. The
+        //! destroyed state is a persistence tombstone for the whole owned
+        //! subtree; destroyedChanged(false) projects the live objects again.
+        const bool scheduledForDestruction = containment->destroyed()
+                || (parentApplet && (parentApplet->destroyed() || owner->destroyed()));
+        if (!scheduledForDestruction) {
+            retainedContainments.append(containment);
+        }
+    }
+
     KSharedConfigPtr filePtr = KSharedConfig::openConfig(layout->file());
 
     KConfigGroup oldContainments = KConfigGroup(filePtr, "Containments");
@@ -512,7 +544,7 @@ void Storage::syncToLayoutFile(const Layout::GenericLayout *layout, bool removeL
 
     qDebug() << " LAYOUT :: " << layout->name() << " is syncing its original file.";
 
-    for (const auto containment : *layout->containments()) {
+    for (auto *const containment : retainedContainments) {
         if (removeLayoutId) {
             containment->config().writeEntry("layoutId", "");
         }

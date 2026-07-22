@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2019 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
@@ -760,6 +761,13 @@ void GenericLayout::addContainment(Plasma::Containment *containment)
         }
 
         connect(containment, &QObject::destroyed, this, &GenericLayout::containmentDestroyed);
+        if (!Layouts::Storage::self()->isLatteContainment(containment)) {
+            //! Root view containments are connected by View::setLayout().
+            //! Subcontainments have no View, but their reversible destruction
+            //! still changes the persisted projection.
+            connect(containment, &Plasma::Applet::destroyedChanged,
+                    this, &GenericLayout::destroyedChanged, Qt::UniqueConnection);
+        }
     }
 }
 
@@ -839,20 +847,24 @@ void GenericLayout::destroyedChanged(bool destroyed)
     }
 
     qDebug() << "dock containment destroyed changed!!!!";
-    Plasma::Containment *sender = qobject_cast<Plasma::Containment *>(QObject::sender());
+    auto *const containment = qobject_cast<Plasma::Containment *>(QObject::sender());
 
-    if (!sender) {
+    if (!containment) {
         return;
     }
 
-    Latte::View *view;
+    Latte::View *view{nullptr};
 
     if (destroyed) {
-        view = m_latteViews.take(static_cast<Plasma::Containment *>(sender));
-        m_waitingLatteViews[sender] = view;
+        view = m_latteViews.take(containment);
+        if (view) {
+            m_waitingLatteViews[containment] = view;
+        }
     } else {
-        view = m_waitingLatteViews.take(static_cast<Plasma::Containment *>(sender));
-        m_latteViews[sender] =view;
+        view = m_waitingLatteViews.take(containment);
+        if (view) {
+            m_latteViews[containment] = view;
+        }
     }
 
     if (view) {
@@ -860,6 +872,15 @@ void GenericLayout::destroyedChanged(bool destroyed)
         Q_EMIT m_corona->availableScreenRegionChangedFrom(view);
         Q_EMIT viewEdgeChanged();
         Q_EMIT viewsCountChanged();
+    }
+
+    if (m_corona->layoutsManager()->memoryUsage() == MemoryUsage::MultipleLayouts) {
+        //! The per-layout file is Latte's restart authority. Commit both
+        //! sides of Plasma's undo transaction: Storage omits scheduled
+        //! containments while destroyed is true, then an undo signal writes
+        //! the still-live containment subtree back with its original ids and
+        //! configuration.
+        Layouts::Storage::self()->syncToLayoutFile(this, false);
     }
 }
 
