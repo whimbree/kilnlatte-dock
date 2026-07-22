@@ -73,6 +73,7 @@ class SettingsControlRecordsTest : public QObject
 private Q_SLOTS:
     void everyScalarAlternativeKeepsItsJsonType();
     void serializedScalarLocatorsMatchWireValues();
+    void popupLocatorIntegersStayWithinJsonSafeRange();
     void controlRecordPinsExactKeysTypesAndFractions();
     void nullOptionalsAndNonPopupAreExplicit();
     void emptyAggregateIsCompactArray();
@@ -119,6 +120,19 @@ void SettingsControlRecordsTest::serializedScalarLocatorsMatchWireValues()
     QVERIFY(boolLocator != integerLocator);
     QVERIFY(stringLocator != integerLocator);
     QVERIFY(!serializedScalarLocator(std::numeric_limits<double>::infinity()));
+}
+
+void SettingsControlRecordsTest::popupLocatorIntegersStayWithinJsonSafeRange()
+{
+    const auto positiveBoundary = serializedScalarLocator(MaximumJsonSafeInteger);
+    const auto negativeBoundary = serializedScalarLocator(-MaximumJsonSafeInteger);
+
+    QVERIFY(positiveBoundary);
+    QCOMPARE(*positiveBoundary, QByteArrayLiteral("9007199254740991"));
+    QVERIFY(negativeBoundary);
+    QCOMPARE(*negativeBoundary, QByteArrayLiteral("-9007199254740991"));
+    QVERIFY(!serializedScalarLocator(MaximumJsonSafeInteger + 1));
+    QVERIFY(!serializedScalarLocator(-MaximumJsonSafeInteger - 1));
 }
 
 void SettingsControlRecordsTest::controlRecordPinsExactKeysTypesAndFractions()

@@ -29,6 +29,8 @@ namespace Latte::SettingsControls {
 //! do not use this type because identity tokens serialize as decimal strings.
 using Scalar = std::variant<std::monostate, bool, qint64, double, QString>;
 
+inline constexpr qint64 MaximumJsonSafeInteger = 9007199254740991LL;
+
 struct HitRecord {
     QString role;
     QRectF globalGeometry;
@@ -91,6 +93,20 @@ inline bool scalarIsValid(const Scalar &value)
     return true;
 }
 
+//! Popup values are locators consumed by JSON implementations that commonly
+//! represent every number as IEEE-754 double precision. Integers outside this
+//! range cannot round-trip as exact locator identities across those consumers.
+inline bool scalarIsValidLocator(const Scalar &value)
+{
+    if (!scalarIsValid(value)) {
+        return false;
+    }
+    if (const auto *integer = std::get_if<qint64>(&value)) {
+        return *integer >= -MaximumJsonSafeInteger && *integer <= MaximumJsonSafeInteger;
+    }
+    return true;
+}
+
 inline QJsonValue serializeScalar(const Scalar &value)
 {
     return std::visit([](const auto &typed) -> QJsonValue {
@@ -113,7 +129,7 @@ inline QJsonValue serializeScalar(const Scalar &value)
 //! The one-element array is only a QJsonDocument container and is stripped.
 inline std::optional<QByteArray> serializedScalarLocator(const Scalar &value)
 {
-    if (!scalarIsValid(value)) {
+    if (!scalarIsValidLocator(value)) {
         return std::nullopt;
     }
 
@@ -227,7 +243,7 @@ inline QString validatePopup(PopupRecord &popup, const QString &path)
         }
         const auto valueLocator = serializedScalarLocator(row.value);
         if (!valueLocator) {
-            return path + QStringLiteral(" has a row with a non-finite stable value");
+            return path + QStringLiteral(" has a row value outside the interoperable locator scalar domain");
         }
 
         const QString stateRefusal = validateState(

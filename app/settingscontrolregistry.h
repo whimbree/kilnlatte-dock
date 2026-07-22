@@ -88,6 +88,16 @@ class SettingsControlRegistry : public QObject
         QList<HitDescriptor> hits;
     };
 
+    struct Diagnostics
+    {
+        int generations{0};
+        int controls{0};
+        int popupRows{0};
+        int popupRoutes{0};
+        int ownedConnections{0};
+        int invalidScopes{0};
+    };
+
     explicit SettingsControlRegistry(QObject *parent = nullptr);
 
     //! A valid replacement retires every previous generation for the same
@@ -101,6 +111,10 @@ class SettingsControlRegistry : public QObject
     //! Known-view validation belongs to Corona. A registry with no matching
     //! generation or no controls returns [] quietly.
     QString viewSettingsControlsData(uint containmentId);
+
+    //! Internal test diagnostics. This is deliberately not part of D-Bus and
+    //! exposes counts only, never QObject identities or settings content.
+    Diagnostics diagnostics() const;
 
   private Q_SLOTS:
     void onPopupOpenPropertyChanged();
@@ -164,12 +178,25 @@ class SettingsControlRegistry : public QObject
         QList<QMetaObject::Connection> connections;
     };
 
+    struct InvalidScopeEntry
+    {
+        quint64 generation{0};
+        uint containmentId{0};
+        QString surface;
+        std::optional<qint64> appletId;
+        QObject *ownerIdentity{nullptr};
+        QMetaObject::Connection ownerDestroyedConnection;
+    };
+
     bool requireGuiThread(const char *operation) const;
     std::optional<quint64> allocateGeneration();
     std::optional<quint64> allocateObjectToken();
     static void disconnectConnections(const QList<QMetaObject::Connection> &connections);
     bool objectLivesOnRegistryThread(QObject *object, const char *role, QString &refusal) const;
-    void retireGenerationAfterRegistrationRefusal(quint64 generation, const QString &refusal);
+    void poisonGenerationAfterRegistrationRefusal(quint64 generation, const QString &refusal);
+    void clearInvalidScopeForReplacement(const ScopeDescriptor &descriptor);
+    void clearInvalidScopesForDestroyedOwner(QObject *ownerIdentity);
+    bool generationIsInvalid(quint64 generation) const;
     void removeGenerationByToken(quint64 generation);
     void removeControlByToken(quint64 controlToken);
     void removeRowByToken(quint64 rowToken);
@@ -198,6 +225,7 @@ class SettingsControlRegistry : public QObject
     QHash<quint64, ControlEntry> m_controls;
     QHash<quint64, quint64> m_rowParents;
     QMultiHash<QObject *, quint64> m_popupTokensByStateObject;
+    QList<InvalidScopeEntry> m_invalidScopes;
 };
 
 } // namespace Latte

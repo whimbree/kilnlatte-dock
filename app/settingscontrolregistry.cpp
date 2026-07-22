@@ -177,11 +177,103 @@ bool SettingsControlRegistry::objectLivesOnRegistryThread(QObject *object, const
     return true;
 }
 
-void SettingsControlRegistry::retireGenerationAfterRegistrationRefusal(quint64 generation, const QString &refusal)
+void SettingsControlRegistry::poisonGenerationAfterRegistrationRefusal(quint64 generation, const QString &refusal)
 {
-    qWarning() << "settings control registry: registration refused and load generation retired" << generation << ":"
+    qWarning() << "settings control registry: registration refused and load generation poisoned" << generation << ":"
                << refusal;
-    removeGenerationByToken(generation);
+
+    auto scopeIt = m_scopes.find(generation);
+    if (scopeIt == m_scopes.end())
+    {
+        return;
+    }
+
+    ScopeEntry scope = std::move(scopeIt.value());
+    m_scopes.erase(scopeIt);
+    for (const quint64 token : scope.controlTokens)
+    {
+        removeControlByToken(token);
+    }
+    disconnectConnections(scope.connections);
+
+    for (auto invalidIt = m_invalidScopes.begin(); invalidIt != m_invalidScopes.end();)
+    {
+        if (invalidIt->containmentId == scope.containmentId && invalidIt->surface == scope.surface &&
+            invalidIt->appletId == scope.appletId)
+        {
+            const QMetaObject::Connection connection = invalidIt->ownerDestroyedConnection;
+            invalidIt = m_invalidScopes.erase(invalidIt);
+            QObject::disconnect(connection);
+        }
+        else
+        {
+            ++invalidIt;
+        }
+    }
+
+    QObject *ownerIdentity = scope.lifetimeObject.data();
+    if (!ownerIdentity)
+    {
+        return;
+    }
+
+    InvalidScopeEntry invalid;
+    invalid.generation = generation;
+    invalid.containmentId = scope.containmentId;
+    invalid.surface = scope.surface;
+    invalid.appletId = scope.appletId;
+    invalid.ownerIdentity = ownerIdentity;
+    invalid.ownerDestroyedConnection =
+        connect(ownerIdentity, &QObject::destroyed, this,
+                [this, ownerIdentity]() { clearInvalidScopesForDestroyedOwner(ownerIdentity); }, Qt::AutoConnection);
+    Q_ASSERT(invalid.ownerDestroyedConnection);
+    if (!invalid.ownerDestroyedConnection)
+    {
+        qCritical() << "settings control registry: invalid-scope owner cleanup connection failed";
+    }
+    m_invalidScopes.append(std::move(invalid));
+}
+
+void SettingsControlRegistry::clearInvalidScopeForReplacement(const ScopeDescriptor &descriptor)
+{
+    for (auto it = m_invalidScopes.begin(); it != m_invalidScopes.end();)
+    {
+        if (it->containmentId == descriptor.containmentId && it->surface == descriptor.surface &&
+            it->appletId == descriptor.appletId)
+        {
+            const QMetaObject::Connection connection = it->ownerDestroyedConnection;
+            it = m_invalidScopes.erase(it);
+            QObject::disconnect(connection);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void SettingsControlRegistry::clearInvalidScopesForDestroyedOwner(QObject *ownerIdentity)
+{
+    Q_ASSERT(QThread::currentThread() == thread());
+    for (auto it = m_invalidScopes.begin(); it != m_invalidScopes.end();)
+    {
+        if (it->ownerIdentity == ownerIdentity)
+        {
+            const QMetaObject::Connection connection = it->ownerDestroyedConnection;
+            it = m_invalidScopes.erase(it);
+            QObject::disconnect(connection);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+bool SettingsControlRegistry::generationIsInvalid(quint64 generation) const
+{
+    return std::any_of(m_invalidScopes.cbegin(), m_invalidScopes.cend(),
+                       [generation](const InvalidScopeEntry &entry) { return entry.generation == generation; });
 }
 
 bool SettingsControlRegistry::isVisualDescendant(QQuickItem *item, QQuickItem *ancestor)
@@ -318,7 +410,7 @@ std::optional<quint64> SettingsControlRegistry::replaceScope(const ScopeDescript
     {
         const QMetaObject::Connection connection =
             connect(object, &QObject::destroyed, this,
-                    [this, token = *generation]() { removeGenerationByToken(token); }, Qt::DirectConnection);
+                    [this, token = *generation]() { removeGenerationByToken(token); }, Qt::AutoConnection);
         if (!connection)
         {
             disconnectConnections(scope.connections);
@@ -328,6 +420,7 @@ std::optional<quint64> SettingsControlRegistry::replaceScope(const ScopeDescript
         scope.connections.append(connection);
     }
     m_scopes.insert(*generation, std::move(scope));
+    clearInvalidScopeForReplacement(descriptor);
     return generation;
 }
 
@@ -350,13 +443,13 @@ void SettingsControlRegistry::removeGenerationByToken(quint64 generation)
 
     ScopeEntry scope = std::move(scopeIt.value());
     m_scopes.erase(scopeIt);
-    disconnectConnections(scope.connections);
 
     const QList<quint64> controls = scope.controlTokens.values();
     for (const quint64 token : controls)
     {
         removeControlByToken(token);
     }
+    disconnectConnections(scope.connections);
 }
 
 std::optional<quint64> SettingsControlRegistry::registerControl(quint64 generation, const ControlDescriptor &descriptor)
@@ -369,13 +462,14 @@ std::optional<quint64> SettingsControlRegistry::registerControl(quint64 generati
     auto scopeIt = m_scopes.find(generation);
     if (scopeIt == m_scopes.end())
     {
-        qWarning() << "settings control registry: control registration used an already retired load generation"
-                   << generation;
+        qWarning() << "settings control registry: control registration used an already retired or invalid load "
+                      "generation"
+                   << generation << "invalid:" << generationIsInvalid(generation);
         return std::nullopt;
     }
 
     auto refuse = [this, generation](QString reason) -> std::optional<quint64> {
-        retireGenerationAfterRegistrationRefusal(generation, reason);
+        poisonGenerationAfterRegistrationRefusal(generation, reason);
         return std::nullopt;
     };
 
@@ -473,7 +567,7 @@ std::optional<quint64> SettingsControlRegistry::registerControl(quint64 generati
                 }
                 removeControlByToken(token);
             },
-            Qt::DirectConnection);
+            Qt::AutoConnection);
         if (!connection)
         {
             disconnectConnections(entry.connections);
@@ -488,7 +582,7 @@ std::optional<quint64> SettingsControlRegistry::registerControl(quint64 generati
         Q_ASSERT(slotIndex >= 0);
         const QMetaObject::Connection connection = QObject::connect(
             descriptor.popup->stateObject, popupOpenProperty.notifySignal(), this, metaObject()->method(slotIndex),
-            Qt::DirectConnection);
+            Qt::AutoConnection);
         if (!connection)
         {
             disconnectConnections(entry.connections);
@@ -521,7 +615,6 @@ void SettingsControlRegistry::removeControlByToken(quint64 controlToken)
 
     ControlEntry control = std::move(controlIt.value());
     m_controls.erase(controlIt);
-    disconnectConnections(control.connections);
 
     if (control.popup && control.popup->routingIdentity)
     {
@@ -529,13 +622,17 @@ void SettingsControlRegistry::removeControlByToken(quint64 controlToken)
     }
     for (const auto &row : control.rows)
     {
-        disconnectConnections(row.connections);
         m_rowParents.remove(row.token);
     }
     auto scopeIt = m_scopes.find(control.scopeGeneration);
     if (scopeIt != m_scopes.end())
     {
         scopeIt->controlTokens.remove(controlToken);
+    }
+    disconnectConnections(control.connections);
+    for (const auto &row : control.rows)
+    {
+        disconnectConnections(row.connections);
     }
 }
 
@@ -555,7 +652,7 @@ bool SettingsControlRegistry::registerPopupRow(quint64 controlToken, const Popup
     }
     const quint64 generation = controlIt->scopeGeneration;
     auto refuse = [this, generation](QString reason) {
-        retireGenerationAfterRegistrationRefusal(generation, reason);
+        poisonGenerationAfterRegistrationRefusal(generation, reason);
         return false;
     };
     if (!controlIt->popup)
@@ -627,7 +724,7 @@ bool SettingsControlRegistry::registerPopupRow(quint64 controlToken, const Popup
     {
         const QMetaObject::Connection connection =
             connect(object, &QObject::destroyed, this, [this, token = *token]() { removeRowByToken(token); },
-                    Qt::DirectConnection);
+                    Qt::AutoConnection);
         if (!connection)
         {
             disconnectConnections(row.connections);
@@ -685,6 +782,12 @@ void SettingsControlRegistry::updatePopupGeneration(quint64 controlToken)
         return;
     }
 
+    if (controlIt->popup->stateObject->thread() != thread())
+    {
+        qWarning() << "settings control registry: popup state moved off the registry GUI thread; update refused";
+        return;
+    }
+
     const QVariant value = controlIt->popup->stateObject->property(controlIt->popup->openProperty.constData());
     if (value.typeId() != QMetaType::Bool)
     {
@@ -703,8 +806,8 @@ void SettingsControlRegistry::updatePopupGeneration(quint64 controlToken)
         if (!generation)
         {
             const quint64 scopeGeneration = controlIt->scopeGeneration;
-            retireGenerationAfterRegistrationRefusal(scopeGeneration,
-                                                      QStringLiteral("popup generation allocation failed"));
+            poisonGenerationAfterRegistrationRefusal(scopeGeneration,
+                                                     QStringLiteral("popup generation allocation failed"));
             return;
         }
         controlIt->popup->generation = generation;
@@ -931,6 +1034,16 @@ QString SettingsControlRegistry::viewSettingsControlsData(uint containmentId)
         return QStringLiteral("[]");
     }
 
+    const bool invalidScopeExists =
+        std::any_of(m_invalidScopes.cbegin(), m_invalidScopes.cend(), [containmentId](const InvalidScopeEntry &entry) {
+            return entry.containmentId == containmentId;
+        });
+    if (invalidScopeExists)
+    {
+        qWarning() << "settings control registry: invalid scope tombstone refused complete view" << containmentId;
+        return QStringLiteral("[]");
+    }
+
     QList<SettingsControls::ControlRecord> records;
     for (auto scopeIt = m_scopes.begin(); scopeIt != m_scopes.end(); ++scopeIt)
     {
@@ -991,6 +1104,38 @@ QString SettingsControlRegistry::viewSettingsControlsData(uint containmentId)
         return QStringLiteral("[]");
     }
     return result.data;
+}
+
+SettingsControlRegistry::Diagnostics SettingsControlRegistry::diagnostics() const
+{
+    if (!requireGuiThread("diagnostics"))
+    {
+        return {};
+    }
+
+    Diagnostics result;
+    result.generations = static_cast<int>(m_scopes.size());
+    result.controls = static_cast<int>(m_controls.size());
+    result.popupRoutes = static_cast<int>(m_popupTokensByStateObject.size());
+    result.invalidScopes = static_cast<int>(m_invalidScopes.size());
+    for (const ScopeEntry &scope : m_scopes)
+    {
+        result.ownedConnections += static_cast<int>(scope.connections.size());
+    }
+    for (const ControlEntry &control : m_controls)
+    {
+        result.ownedConnections += static_cast<int>(control.connections.size());
+        result.popupRows += static_cast<int>(control.rows.size());
+        for (const PopupRowEntry &row : control.rows)
+        {
+            result.ownedConnections += static_cast<int>(row.connections.size());
+        }
+    }
+    for (const InvalidScopeEntry &invalid : m_invalidScopes)
+    {
+        result.ownedConnections += static_cast<bool>(invalid.ownerDestroyedConnection);
+    }
+    return result;
 }
 
 } // namespace Latte
