@@ -3,6 +3,41 @@
 Rolling handoff for the next session to pick up without re-deriving context.
 Last updated 2026-07-22.
 
+## 2026-07-21: D81 and D82 prerequisite corrections await second review
+
+PR #108 carries the standalone prerequisites discovered while gating C0 (the
+atomic dock-system observability snapshot): D81 (installed-package audit
+crossed its isolated package-root boundary and saw unrelated ancestor markers)
+and D82 (TaskItem Connections syntax exceeded the curated Qt 6 lint ratchet).
+Neither correction is merged. PR #110 remains based on PR #108's named
+`fix/deterministic-pinned-gates` branch and must continue to expose only the C0
+commits after that prerequisite branch advances.
+
+The initial independent review returned MERGE AFTER FIXES with a major
+test-meaning finding. The D81 live-root fixture invoked `--root /` from below
+`/tmp`, so the production host-root ancestry walk correctly saw an unrelated
+`/tmp/.git` and invalidated the claimed live-root evidence. Commit `29322fb93`
+makes the fixture environment explicit: it defaults to `XDG_RUNTIME_DIR` or
+`/var/tmp`, requires absolute writable marker-free ancestry, and leaves the
+production root boundary unchanged. The earlier `bd620c89b` provider fix still
+stops only isolated-root traversal at the package boundary.
+
+The committed fixture was driven by
+`nix develop --command tests/installed-package-gate-selftest.sh`. It exited 0
+with all 90 focused controls, including `isolated package provenance stops at
+the package root` and `live roots retain host-absolute symlink semantics`. The
+canonical fast gate then exited 0 and stamped exact executable head
+`29322fb937bb84cebadf3f8241189d4e5cb84185`: 100/100 CTest entries passed, the
+100-entry/32-header coverage ratchet passed, qmllint matched 5,832 curated
+warnings across 234 files, all 13 scene probes passed, and the package matrix
+passed. ASan e2e was intentionally skipped by `LATTE_GATE_FAST=1` and remains a
+merge-time gate.
+
+The major initial finding requires one second cold diff review of the corrected
+PR #108 branch. Do not merge PR #108 or PR #110 before that verdict. Replace
+the provisional branch hashes in the Phase 11 checklist with post-rebase hashes
+and tick D81/D82 only after PR #108 merges.
+
 ## 2026-07-22: SC-O1 settings-control registry merged
 
 PR #105 merged SC-O1 (the read-only settings-control D-Bus registry). Exact

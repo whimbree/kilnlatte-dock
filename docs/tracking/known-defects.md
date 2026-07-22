@@ -659,7 +659,8 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   of the review sequence without a third review.
 
 ### D81 - Installed-package audit crossed its isolated package-root boundary
-- STATUS: FIXED (`bd620c89b`; standalone package-provenance correction).
+- STATUS: FIXED IN PR #108 (`bd620c89b`, `29322fb93`; standalone
+  package-provenance and fixture corrections).
 - FOUND: 2026-07-21, the C0 (atomic dock-system observability snapshot) branch's
   required fast gate under a `/tmp` worktree.
 - ROOT: recursive package-link validation first proved a target belonged to the
@@ -668,15 +669,19 @@ outranks a sanitizer abort outranks a code-reading hypothesis.
   synthetic package beneath `/tmp` as a source tree.
 - FIX: development-provider traversal stops after checking the isolated
   package root. Live `--root /` validation still reaches `/`, and the existing
-  direct source/build markers inside a package remain refusals.
+  direct source/build markers inside a package remain refusals. The live-root
+  fixture starts below an explicit marker-free parent, defaults to
+  `XDG_RUNTIME_DIR` or `/var/tmp`, and refuses source/build-marked ancestry
+  before exercising the production host-root walk.
 - EVIDENCE: the focused installed-package self-test places a valid internally
   linked package beneath an external parent carrying `CMakeLists.txt` and
   requires acceptance. All 90 provenance, parser, link, ELF, loader, mapping,
-  signal, and cleanup controls pass with the real external `/tmp/.git` marker
-  also present.
+  signal, and cleanup controls pass. The same driven run also requires a
+  host-absolute live-root symlink to retain host semantics from marker-free
+  ancestry.
 
 ### D82 - TaskItem Connections syntax exceeded the curated Qt 6 lint ratchet
-- STATUS: FIXED (`4f90ed05f`; standalone QML syntax correction).
+- STATUS: FIXED IN PR #108 (`4f90ed05f`; standalone QML syntax correction).
 - FOUND: 2026-07-21, the C0 (atomic dock-system observability snapshot) branch's
   required fast gate under pinned Qt 6.11.1.
 - ROOT: `TaskItem.qml` retained the deprecated implicit `Connections` handler
