@@ -539,11 +539,14 @@ launcher edits, output reconnect, and root runtime recreation. The removal and
 Undo recipe, seed 127934575 operation storm, and independent Duplicate recipe
 also pass after these lifecycle changes.
 
-The final transaction review found that layouts-dialog Copy retained linked
-lineage and that a late cross-layout move refusal left relocation pending. The
-corrections normalize Copy through the independent-snapshot boundary and make
-every started relocation end in commit or cancel-and-reveal. Focused rereview
-then found transient Cut/Paste flags at the same snapshot boundary;
+The final transaction review found two transaction failures. Copying a dock in
+the layouts dialog kept the source dock's linked-group identity, so the pasted
+record was not independent. A move between layouts could also be refused after
+the dock had already hidden for relocation, but that refusal did not clear the
+pending target or reveal the dock. The corrections normalize Copy through the
+independent-snapshot boundary and make every started relocation end in commit
+or cancel-and-reveal. Focused rereview then found transient Cut/Paste flags at
+the same snapshot boundary;
 `b1c6d0573` clears both flags centrally. The independent rereview returned
 MERGE. The final canonical gate exited 0 at exact executable head
 `7ee36a32b83f060db727de6b8f9550f18cf58406` with all 104 CTest entries, the
