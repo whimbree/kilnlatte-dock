@@ -9,12 +9,15 @@ PR #113 merged the complete independent Duplicate Dock and Create Linked Dock
 slice. The exact GitHub rebase-merge head is
 `c3ca390c919d6d167014a453b18be39d6b9099cc`.
 
-The final cold review found D120 (Copy preserved stale linked lineage) and D121
-(late move refusal left relocation pending). Layouts-dialog Copy now uses the
-same independent-snapshot normalization as Duplicate Dock. The layout manager
-returns checked success and refuses before unassignment; a positioner that
-receives refusal clears the complete pending placement request and reveals the
-dock through normal generation settlement.
+The final cold review found D120 (Copy preserved stale linked lineage): Copying
+a dock in the layouts dialog kept the source dock's linked-group identity.
+D121 (late move refusal left relocation pending) meant a move could be refused
+after the dock had hidden for relocation without clearing its pending target or
+revealing it again. Layouts-dialog Copy now uses the same independent-snapshot
+normalization as Duplicate Dock. The layout manager returns checked success and
+refuses before unassignment; a positioner that receives refusal clears the
+complete pending placement request and reveals the dock through normal
+generation settlement.
 
 The focused rereview confirmed both transaction fixes, then found that the
 central independent-snapshot operation still retained transient Cut/Paste move
