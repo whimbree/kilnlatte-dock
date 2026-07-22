@@ -184,6 +184,10 @@ latte_add_unit_test(lengthoffsetclamptest
 target_include_directories(lengthoffsetclamptest PRIVATE
     ${CMAKE_SOURCE_DIR}/app
     ${CMAKE_BINARY_DIR}/app) # coretypes.h is generated there
+
+# PlacementState: normalized semantic placement plus absolute output-axis
+# extent solving. Header-only and QtCore-only.
+latte_add_unit_test(placementstatetest)
 # EX-11 LauncherListOps: header-only pure list algebra plus its QML-facing
 # wrappers compiled IN per the sanitized-core rule (the boundary refusals
 # and QVariant mapping run instrumented).

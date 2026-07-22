@@ -9,6 +9,7 @@ app/layouts/activitysetalgebra.h
 app/layouts/storageidremapper.h
 app/plasma/extended/panelbackgroundscan.h
 app/settings/lengthoffsetclamp.h
+app/settings/placementstate.h
 app/screengeometrycalculator.h
 app/view/inputmaskflush.h
 app/view/positionergeometry.h

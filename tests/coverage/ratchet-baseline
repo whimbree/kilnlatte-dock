@@ -1,4 +1,4 @@
-100
+101
 abstractlayouttest
 activitiesinfotest
 activitysetalgebratest
@@ -50,6 +50,7 @@ panelbackgroundtest
 parabolicmathtest
 parabolicroutertest
 popupplacementcontracttest
+placementstatetest
 positionergeometrytest
 previewcontractrules
 previewswitchenginetest
