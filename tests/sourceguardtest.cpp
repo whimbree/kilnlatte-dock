@@ -20,6 +20,8 @@
 //     changes publish directly while geometry churn stays throttled
 //   * Views reporting: global applet rearrangement is effective only for the
 //     dock that is locally in edit mode
+//   * Dock-system reporting: persistent-id ordering and original/clone
+//     relationship classification stay on their pure seams
 //   * SC-T3 (the D29 narrow middle-click dispatch readback): the production QML
 //     branch, stable identity, reporter aliases, and containment-lifecycle scope
 //
@@ -109,6 +111,51 @@ private:
         return code.count(effectiveAssignment) == 1
             && !code.contains(QStringLiteral(
                 "record.inConfigureAppletsMode=globalConfigureAppletsMode;"));
+    }
+
+    static bool matchesDockCollectionOrderingRoute(const QString &body)
+    {
+        const QString code = normalizedCode(body);
+        const int orderInput = code.indexOf(QStringLiteral(
+            "collectionOrder.append(DockCollectionOrderInput{persistentDockId,sourceIndex});"));
+        const int ordering = code.indexOf(QStringLiteral(
+            "orderDockCollectionByPersistentId(collectionOrder);"));
+        const int orderedLoop = code.indexOf(QStringLiteral(
+            "for(constqsizetypesourceIndex:orderedSourceIndexes)"), ordering);
+        const int firstIdentityLookup = code.indexOf(QStringLiteral("identities->"));
+
+        return orderInput != -1
+            && ordering > orderInput
+            && orderedLoop > ordering
+            && firstIdentityLookup > orderedLoop
+            && code.count(QStringLiteral(
+                "for(constqsizetypesourceIndex:orderedSourceIndexes)")) == 2
+            && !code.contains(QStringLiteral("for(auto*view:views)"));
+    }
+
+    static bool matchesDockRelationshipClassifierRoute(const QString &body)
+    {
+        const QString code = normalizedCode(body);
+        const int classification = code.indexOf(QStringLiteral(
+            "constautorelationship=classifyDockRelationship(DockLineageInput{"));
+        const int logicalAssignment = code.indexOf(QStringLiteral(
+            "record.logicalDockId=relationship->logicalDockId;"), classification);
+        const int originalAssignment = code.indexOf(QStringLiteral(
+            "record.originalDockId=relationship->originalDockId;"), logicalAssignment);
+        const int relationshipAssignment = code.indexOf(QStringLiteral(
+            "record.relationship=relationship->relationship;"), originalAssignment);
+        const int identityLookup = code.indexOf(QStringLiteral("identities->idFor(view);"));
+
+        return classification != -1
+            && logicalAssignment > classification
+            && originalAssignment > logicalAssignment
+            && relationshipAssignment > originalAssignment
+            && identityLookup > relationshipAssignment
+            && code.contains(QStringLiteral(
+                "qCritical()<<\"dbusreports:refusingmalformeddocklineageforcontainment\""))
+            && code.contains(QStringLiteral("Q_ASSERT(relationship.has_value());continue;"))
+            && !code.contains(QStringLiteral(
+                "record.logicalDockId=view->isCloned()?"));
     }
 
     static bool matchesMiddleClickCollectorBridge(const QString &body)
@@ -244,6 +291,8 @@ private Q_SLOTS:
     void visibilityManager_strutThicknessBypassesGeometryThrottle();
     void viewsDataConfigureMode_keepsPerViewContract();
     void viewsDataConfigureMode_sourceGuardRejectsGlobalLeak();
+    void dockSystemCollection_keepsPureRouting();
+    void dockSystemCollection_sourceGuardsRejectControlledMutations();
     void middleClickDispatch_keepsProductionRecordingContract();
     void middleClickDispatch_keepsContainmentLifecycleScope();
     void middleClickDispatch_sourceGuardsRejectControlledMutations();
@@ -388,6 +437,42 @@ void SourceGuardTest::viewsDataConfigureMode_sourceGuardRejectsGlobalLeak()
         "record.inConfigureAppletsMode=globalConfigureAppletsMode;"));
     QVERIFY2(!matchesEffectiveConfigureModeCollection(collector),
              "restoring the direct global D76 assignment must fail the collector guard");
+}
+
+void SourceGuardTest::dockSystemCollection_keepsPureRouting()
+{
+    const QString source = readFile(QStringLiteral("app/dbusreports.cpp"));
+    const QString systemCollector = functionBody(
+        source, QStringLiteral("DockSystemSnapshot collectDockSystemSnapshot"));
+    QVERIFY2(!systemCollector.isEmpty(), "collectDockSystemSnapshot not found");
+    QVERIFY2(matchesDockCollectionOrderingRoute(systemCollector),
+             "dock-system collection must order persistent ids before every identity lookup");
+    QVERIFY2(matchesDockRelationshipClassifierRoute(systemCollector),
+             "dock-system collection must route lineage through the tested classifier");
+}
+
+void SourceGuardTest::dockSystemCollection_sourceGuardsRejectControlledMutations()
+{
+    const QString source = readFile(QStringLiteral("app/dbusreports.cpp"));
+    const QString systemCollector = functionBody(
+        source, QStringLiteral("DockSystemSnapshot collectDockSystemSnapshot"));
+    QVERIFY(matchesDockCollectionOrderingRoute(systemCollector));
+    QString unorderedCollection = normalizedCode(systemCollector);
+    QCOMPARE(unorderedCollection.count(QStringLiteral(
+        "orderDockCollectionByPersistentId(collectionOrder)")), 1);
+    unorderedCollection.replace(QStringLiteral(
+                                    "orderDockCollectionByPersistentId(collectionOrder)"),
+                                QStringLiteral("QList<qsizetype>{}"));
+    QVERIFY2(!matchesDockCollectionOrderingRoute(unorderedCollection),
+             "bypassing persistent-id ordering must fail the collector guard");
+
+    QVERIFY(matchesDockRelationshipClassifierRoute(systemCollector));
+    QString directRelationship = normalizedCode(systemCollector);
+    QCOMPARE(directRelationship.count(QStringLiteral("classifyDockRelationship(")), 1);
+    directRelationship.replace(QStringLiteral("classifyDockRelationship("),
+                               QStringLiteral("legacyDockRelationship("));
+    QVERIFY2(!matchesDockRelationshipClassifierRoute(directRelationship),
+             "bypassing the relationship classifier must fail the collector guard");
 }
 
 void SourceGuardTest::middleClickDispatch_keepsProductionRecordingContract()

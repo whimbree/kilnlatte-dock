@@ -102,6 +102,7 @@ Corona::Corona(bool defaultLayoutOnStartup, QString layoutNameOnStartUp, QString
       m_activitiesConsumer(new KActivities::Consumer(this)),
       m_screenPool(new ScreenPool(KSharedConfig::openConfig(), this)),
       m_settingsControlRegistry(new SettingsControlRegistry(this)),
+      m_dbusObjectIdentities(new DbusReports::RuntimeObjectIdentityRegistry(this)),
       m_indicatorFactory(new Indicator::Factory(this)),
       m_universalSettings(new UniversalSettings(KSharedConfig::openConfig(), this)),
       m_globalShortcuts(new GlobalShortcuts(this)),
@@ -193,6 +194,10 @@ Corona::~Corona()
     //! calls into the wm/theme/indicator services below)
     delete m_layoutsManager;
     delete m_templatesManager;
+
+    //! every view and its controllers are gone, so their opaque process-local
+    //! identity retirement callbacks have completed
+    delete m_dbusObjectIdentities;
 
     //! settings/view lifetime objects are gone, so every destroyed callback has
     //! retired its generation; the registry can now leave before shared services
@@ -1535,6 +1540,15 @@ QString Corona::viewsData()
 {
     return DbusReports::collectViewsData(m_layoutsManager->synchronizer()->currentViews(),
                                          m_universalSettings->inConfigureAppletsMode());
+}
+
+QString Corona::dockSystemData()
+{
+    return DbusReports::collectDockSystemData(
+        m_layoutsManager->synchronizer()->currentViews(),
+        m_universalSettings->inConfigureAppletsMode(),
+        ++m_dockSystemSnapshotSequence,
+        m_dbusObjectIdentities);
 }
 
 QStringList Corona::viewTemplatesData()

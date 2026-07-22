@@ -57,6 +57,9 @@ class SettingsControlRegistry;
 class UniversalSettings;
 class View;
 class ViewSettingsFactory;
+namespace DbusReports {
+class RuntimeObjectIdentityRegistry;
+}
 namespace Indicator{
 class Factory;
 }
@@ -206,6 +209,12 @@ public:
     //! on containment id, documented in docs/reference/dbus-observability-interface.md.
     //! The serialization lives in dbusreports.h; this stays a delegation.
     QString viewsData();
+
+    //! D-Bus state readback (observability-first): one atomic, canonically
+    //! ordered snapshot of every current dock, its live relationship and
+    //! runtime-controller identities. This is the multi-dock topology surface;
+    //! viewsData() remains the compatibility geometry/visibility array.
+    QString dockSystemData();
 
     //! D-Bus state readback (observability-first): one view's applets as a
     //! compact JSON array (id, plugin, index, geometry, expanded and
@@ -448,6 +457,8 @@ private:
     //! Outlives settings factories and layouts so their QObject destruction
     //! synchronously retires every generation before the registry is deleted.
     SettingsControlRegistry *m_settingsControlRegistry{nullptr};
+    DbusReports::RuntimeObjectIdentityRegistry *m_dbusObjectIdentities{nullptr};
+    quint64 m_dockSystemSnapshotSequence{0};
     UniversalSettings *m_universalSettings{nullptr};
     ViewSettingsFactory *m_viewSettingsFactory{nullptr};
     GlobalShortcuts *m_globalShortcuts{nullptr};

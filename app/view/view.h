@@ -225,7 +225,7 @@ public:
     QStringList activities() const;
     void setActivities(const QStringList &ids);
 
-    bool settingsWindowIsShown();
+    bool settingsWindowIsShown() const;
     void showSettingsWindow();
 
     //! open this view's widget explorer, the exact "Add Widgets..." context
@@ -248,7 +248,7 @@ public:
 
     QVariantList containmentActions() const;
 
-    QQuickView *configView();
+    QQuickView *configView() const;
 
     virtual Latte::Data::View data() const;
 

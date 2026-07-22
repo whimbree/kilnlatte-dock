@@ -82,6 +82,13 @@
     <method name="viewsData">
         <arg name="data" type="s" direction="out"/>
     </method>
+    <!-- Atomic schema-versioned all-docks topology/runtime snapshot. The
+         stacking object deliberately reports available=false: the current
+         runtime has no authority for same-edge stack order or accumulation,
+         so canonical array order must never be interpreted as stack order. -->
+    <method name="dockSystemData">
+        <arg name="data" type="s" direction="out"/>
+    </method>
     <!-- D21: each applet's JSON payload adds colorizerActive (the colorizer
          scheme is EFFECTIVELY pushed into the applet's own colour group) and
          colorizerReason (applied / notEngaged / splitter / selfColored /

@@ -635,7 +635,7 @@ void View::removeView()
     }
 }
 
-bool View::settingsWindowIsShown()
+bool View::settingsWindowIsShown() const
 {
     return m_primaryConfigView && (m_primaryConfigView->parentView()==this) && m_primaryConfigView->isVisible();
 }
@@ -649,7 +649,7 @@ void View::showSettingsWindow()
     }
 }
 
-QQuickView *View::configView()
+QQuickView *View::configView() const
 {
     return m_primaryConfigView.data();
 }
