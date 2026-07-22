@@ -195,9 +195,9 @@ entering B and exiting B before the 400 ms retarget expired left the pending
 request alive because the shared chrome still had A as its parent. The review
 also required direct action-boundary guards, missing copyright lines, and a
 literal commit-message newline correction. Corrections cancel pending ownership
-by target (`8828f1f2b`), apply the relationship policy at Corona and View
-boundaries (`d3d0a170e`), and add the missing copyright attribution
-(`f63e555e5`). The branch history was rewritten to repair the commit message.
+by target (`c7568e90b`), apply the relationship policy at Corona and View
+boundaries (`8dbac9eb3`), and add the missing copyright attribution
+(`70df153cf`). The branch history was rewritten to repair the commit message.
 Because the review found an ownership/lifecycle issue, one second independent
 cold review is mandatory after the corrected branch is pushed.
 
@@ -206,22 +206,22 @@ captured template copied `screensGroup=AllScreensGroup` from an ordinary source,
 so the new original immediately created a persisted replica ensemble and
 installed `ClonedView` synchronization. A linked-member source separately
 carried legacy `isClonedFrom`. Refusing that source did not satisfy the operation
-contract. `e2f8bd1d6` makes Duplicate Dock a relation-breaking snapshot from
+contract. `d70f65cc9` makes Duplicate Dock a relation-breaking snapshot from
 either role: both relationship fields are normalized before import, the action
 stays visible on linked-member menus, and export, move, and remove remain owned
 by the original. The final cold review found that the layouts dialog had a
 second Duplicate implementation which bypassed that normalization. Commit
-`170c827ee` moves relationship breaking into the const
+`efe1ec216` moves relationship breaking into the const
 `Data::View::toIndependentSnapshot()` transformation and requires both entry
 paths to call it. Existing persisted linked layouts are unchanged. Future Create
 Linked Dock… is documented but not implemented.
 
 Focused sanitizer-backed action-policy and retarget-generation tests pass. The
 production source contract passes, and `latte-dock` plus the containment-actions
-plugin compile. The nested edit cancellation recipe (`a8bbe1b7e`) completed the
+plugin compile. The nested edit cancellation recipe (`84f476185`) completed the
 B enter/exit driver in 178 ms, kept both containments out of edit mode through
 the old timeout, and passed a later B round trip. The dual-output recipe in
-`e2f8bd1d6` made All Screens original 1 and linked replica 12 each create exactly
+`d70f65cc9` made All Screens original 1 and linked replica 12 each create exactly
 one independent dock (13 and 14), found disjoint containment and applet IDs,
 kept 1 -> 12 linked, propagated a visibility-mode change only inside 1 -> 12,
 and preserved all four identities across restart. The branch now sits on C0
@@ -240,22 +240,22 @@ was weakened.
 The second canonical run then passed all 104 CTest entries and stopped at D94
 (dock identity tests were absent from the coverage ratchet). The branch had
 registered four new targets without adding them to the exact target ledger.
-Commit `5efe665c2` adds all four in sorted order; the focused ratchet passes with
+Commit `a1304933b` adds all four in sorted order; the focused ratchet passes with
 104 CTest entries and 35 paired unit headers. The third canonical run passed at
-`81c15c789` with all 104 CTest entries, 104 coverage targets and 35 paired unit
+`fb7cd46e5` with all 104 CTest entries, 104 coverage targets and 35 paired unit
 headers, the 234-file QML ratchet, 13 scene probes, three sanitizer recipes, and
-the deterministic output matrix.
+the deterministic output matrix. Those intermediate gate heads were rewritten
+during the required pre-merge commit-message cleanup and are not retained as
+implementation references.
 
 The mandatory cold review of that exact head returned MERGE AFTER FIXES. D95
 (layouts-dialog Duplicate preserves linked relationship state) was the major
 finding: the distinct settings-dialog path copied `Data::View` without severing
-lineage. Commit `170c827ee` centralizes the const transformation, pins its value
+lineage. Commit `efe1ec216` centralizes the const transformation, pins its value
 semantics, and checks both callers. D96 (Duplicate settings inventory still
-claims linked exclusion) corrected the stale semantic row in `a009f8875`.
+claims linked exclusion) corrected the stale semantic row in `e50464334`.
 `datatypestest`, `dockidentitycontracttest`, and `settingsinventorytest` pass on
-the correction. The canonical gate also passes at `5f616abde` and exact
-documentation head `a99008468` with 104/104 CTest entries, both ratchets, 13
-scene probes, three sanitizer recipes, and the output matrix.
+the correction.
 
 The mandated second cold review found no surviving shallow Duplicate caller or
 production defect in the D95 correction. It did find D97 (independent snapshot
@@ -264,7 +264,10 @@ test ignores transient view fields): the preservation assertion reused
 test now seeds and compares `isActive`, both move flags, `errors`, and `warnings`
 directly. The focused `datatypestest` passes. The same pre-merge review found two
 commit-message conformance issues; both are corrected during branch-history
-cleanup before the final gate and verdict.
+cleanup. The final canonical gate passed at exact head `defaa0c7a` with 104/104
+CTest entries, both ratchets, 13 scene probes, three sanitizer recipes, and the
+deterministic output matrix. The following documentation-only hash finalization
+does not change the validated source or test tree.
 
 The baseline nested run also confirmed D83 (removed duplicate containment
 survives the undo window in persistent layout state), which is not fixed by this
