@@ -974,7 +974,8 @@ bool ContainmentInterface::destroyAppletImmediately(const int &id)
     return true;
 }
 
-int ContainmentInterface::restoreAppletFrom(const Plasma::Applet *sourceApplet)
+int ContainmentInterface::restoreAppletFrom(
+    const Plasma::Applet *sourceApplet, const QSet<QString> &excludedConfigurationKeys)
 {
     if (!sourceApplet || !m_view->containment()) {
         qCritical() << "ContainmentInterface: cannot restore a linked applet without source and target containments";
@@ -995,9 +996,86 @@ int ContainmentInterface::restoreAppletFrom(const Plasma::Applet *sourceApplet)
     const KConfigGroup sourceConfig = sourceApplet->config();
     KConfigGroup restoredConfig = restoredApplet->config();
     sourceConfig.copyTo(&restoredConfig);
+
+    KConfigGroup restoredGeneralConfig = restoredConfig.group(QStringLiteral("General"));
+    for (const QString &key : excludedConfigurationKeys) {
+        restoredGeneralConfig.deleteEntry(key);
+    }
     restoredConfig.sync();
 
     return static_cast<int>(restoredApplet->id());
+}
+
+bool ContainmentInterface::synchronizeAppletConfigurationFrom(
+    const int targetId, const Plasma::Applet *sourceApplet,
+    const QSet<QString> &excludedConfigurationKeys)
+{
+    if (!sourceApplet || !m_appletData.contains(targetId)) {
+        qCritical() << "ContainmentInterface: cannot reconcile linked applet configuration for target"
+                    << targetId;
+        return false;
+    }
+
+    const AppletInterfaceData &targetData = m_appletData[targetId];
+    if (!targetData.applet || !targetData.configuration) {
+        qCritical() << "ContainmentInterface: linked target applet is not configuration-ready"
+                    << targetId;
+        return false;
+    }
+
+    KConfigPropertyMap *const sourceConfiguration = appletConfiguration(sourceApplet);
+    KConfigPropertyMap *const targetConfiguration = targetData.configuration;
+    if (!sourceConfiguration) {
+        qCritical() << "ContainmentInterface: linked source applet exposes no configuration map"
+                    << sourceApplet->id();
+        return false;
+    }
+
+    KConfigGroup targetConfig = targetData.applet->config();
+    KConfigGroup targetGeneralConfig = targetConfig.group(QStringLiteral("General"));
+
+    QHash<QString, QVariant> preservedValues;
+    QSet<QString> absentKeys;
+    for (const QString &key : excludedConfigurationKeys) {
+        if (targetGeneralConfig.hasKey(key)) {
+            preservedValues.insert(key, targetGeneralConfig.readEntry(key, QVariant{}));
+        } else {
+            absentKeys.insert(key);
+        }
+    }
+
+    sourceApplet->config().copyTo(&targetConfig);
+    for (auto preserved = preservedValues.cbegin(); preserved != preservedValues.cend(); ++preserved) {
+        targetGeneralConfig.writeEntry(preserved.key(), preserved.value());
+    }
+    for (const QString &key : absentKeys) {
+        targetGeneralConfig.deleteEntry(key);
+    }
+    targetConfig.sync();
+
+    const QStringList targetKeyList = targetConfiguration->keys();
+    const QSet<QString> targetKeys{targetKeyList.cbegin(), targetKeyList.cend()};
+    bool complete{true};
+    for (const QString &key : sourceConfiguration->keys()) {
+        if (excludedConfigurationKeys.contains(key)) {
+            continue;
+        }
+
+        if (!targetKeys.contains(key)) {
+            qCritical() << "ContainmentInterface: linked target applet" << targetId
+                        << "does not expose source configuration key" << key;
+            complete = false;
+            continue;
+        }
+
+        const QVariant value = sourceConfiguration->value(key);
+        if (targetConfiguration->value(key) != value) {
+            targetConfiguration->insert(key, value);
+            Q_EMIT targetConfiguration->valueChanged(key, value);
+        }
+    }
+
+    return complete;
 }
 
 
@@ -1074,6 +1152,11 @@ void ContainmentInterface::updateAppletDelayedConfiguration()
             if (m_appletData[id].configuration) {
                 qDebug() << "org.kde.sync delayed applet configuration was successful for : " << id;
                 initAppletConfigurationSignals(id, m_appletData[id].configuration);
+                //! Relationship reconciliation may have paused at the
+                //! configuration-readiness barrier after the applet object
+                //! itself was announced. Reuse the data-ready signal so the
+                //! projection retries without polling.
+                Q_EMIT appletDataCreated(id);
             }
         }
     }

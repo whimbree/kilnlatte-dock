@@ -73,6 +73,9 @@ private Q_SLOTS:
 private:
     bool isTranslatableToClonesOrder(const QList<int> &originalOrder) const;
 
+    [[nodiscard]] static const QSet<QString> &locallyOwnedAppletConfigurationKeys();
+    [[nodiscard]] static bool synchronizesAppletConfigurationKey(const QString &key);
+
     bool hasOriginalAppletId(const int &clonedid) const;
     int originalAppletId(const int &clonedid) const;
 
@@ -82,6 +85,7 @@ private:
     bool applyOriginalAppletsOrder();
     bool applyOriginalAppletsInLockedZoom(const QList<int> &originalapplets);
     bool applyOriginalAppletsDisabledColoring(const QList<int> &originalapplets);
+    [[nodiscard]] bool reconcileAppletProjectionWithRoot();
     void retryPendingOriginalSyncs();
 
 private:
@@ -101,6 +105,8 @@ private:
     bool m_pendingOrderSync{false};
     bool m_initializationCompleted{false};
     bool m_applyingOriginalOrder{false};
+    bool m_reconcilingApplets{false};
+    bool m_reconciliationPending{false};
     std::optional<QList<int>> m_expectedOrderFromOriginal;
     std::optional<QList<int>> m_pendingLockedZoom;
     std::optional<QList<int>> m_pendingDisabledColoring;

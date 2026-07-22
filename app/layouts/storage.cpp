@@ -14,6 +14,7 @@
 #include "../lattecorona.h"
 #include "../screenpool.h"
 #include "../data/errordata.h"
+#include "../data/linkedconfigurationpolicy.h"
 #include "../data/viewdata.h"
 #include "../layout/abstractlayout.h"
 #include "../view/view.h"
@@ -701,6 +702,10 @@ Data::View Storage::newView(const Layout::GenericLayout *destinationLayout, cons
         lFile->reparseConfiguration();
     }
 
+    if (nextViewData.isCloned()) {
+        clearLinkedMemberLocalAppletConfiguration(temp2File);
+    }
+
     Data::ViewsTable updatedNextViews = views(temp2File);
 
     if (updatedNextViews.rowCount() <= 0) {
@@ -723,6 +728,30 @@ Data::View Storage::newView(const Layout::GenericLayout *destinationLayout, cons
     }
 
     return updatedNextViews[0];
+}
+
+void Storage::clearLinkedMemberLocalAppletConfiguration(const QString &layoutFile)
+{
+    const KSharedConfigPtr config = KSharedConfig::openConfig(layoutFile);
+    const KConfigGroup containments(config, QStringLiteral("Containments"));
+
+    for (const QString &containmentId : containments.groupList()) {
+        const KConfigGroup containment = containments.group(containmentId);
+        if (!isLatteContainment(containment)) {
+            continue;
+        }
+
+        const KConfigGroup applets = containment.group(QStringLiteral("Applets"));
+        for (const QString &appletId : applets.groupList()) {
+            KConfigGroup appletConfiguration = applets.group(appletId)
+                .group(QStringLiteral("Configuration"))
+                .group(QStringLiteral("General"));
+            appletConfiguration.deleteEntry(
+                Data::LinkedConfigurationPolicy::appletLengthKey());
+        }
+    }
+
+    config->sync();
 }
 
 void Storage::clearExportedLayoutSettings(KConfigGroup &layoutSettingsGroup)

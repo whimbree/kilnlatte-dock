@@ -16,6 +16,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QQuickItem>
+#include <QSet>
 #include <QTimer>
 #include <QUrl>
 
@@ -140,7 +141,11 @@ public:
     void addApplet(QObject *metadata, int x, int y);
     bool removeApplet(const int &id);
     bool destroyAppletImmediately(const int &id);
-    [[nodiscard]] int restoreAppletFrom(const Plasma::Applet *sourceApplet);
+    [[nodiscard]] int restoreAppletFrom(
+        const Plasma::Applet *sourceApplet, const QSet<QString> &excludedConfigurationKeys = {});
+    [[nodiscard]] bool synchronizeAppletConfigurationFrom(
+        int targetId, const Plasma::Applet *sourceApplet,
+        const QSet<QString> &excludedConfigurationKeys = {});
     void setAppletsOrder(const QList<int> &order);
     void setAppletsInLockedZoom(const QList<int> &applets);
     void setAppletsDisabledColoring(const QList<int> &applets);

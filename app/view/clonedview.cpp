@@ -5,6 +5,9 @@
 */
 
 #include "clonedview.h"
+
+// local
+#include "../data/linkedconfigurationpolicy.h"
 #include "containmentinterface.h"
 #include "visibilitymanager.h"
 #include "../data/viewdata.h"
@@ -14,6 +17,7 @@
 #include <utility>
 
 // Qt
+#include <QScopedValueRollback>
 #include <QSet>
 
 namespace Latte {
@@ -83,7 +87,10 @@ void ClonedView::initSync()
     connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletConfigPropertyChanged, this, &ClonedView::updateOriginalAppletConfigProperty);
     connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::initializationCompleted, this, [&]() {
         m_initializationCompleted = true;
+        m_reconciliationPending = true;
         m_pendingOrderSync = true;
+        m_pendingLockedZoom = m_originalView->extendedInterface()->appletsInLockedZoom();
+        m_pendingDisabledColoring = m_originalView->extendedInterface()->appletsDisabledColoring();
         onSyncProgress();
     });
     connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletsOrderChanged, this, [&]() {
@@ -393,7 +400,7 @@ void ClonedView::onOriginalAppletRemoved(const int &id)
 
 void ClonedView::onOriginalAppletConfigPropertyChanged(const int &id, const QString &key, const QVariant &value)
 {
-    if (!m_currentAppletIds.contains(id)) {
+    if (!m_currentAppletIds.contains(id) || !synchronizesAppletConfigurationKey(key)) {
         return;
     }
 
@@ -436,7 +443,8 @@ void ClonedView::onOriginalAppletInScheduledDestructionChanged(const int &id, co
     }
 
     m_pendingOrderSync = true;
-    const int memberId = extendedInterface()->restoreAppletFrom(originalApplet.applet);
+    const int memberId = extendedInterface()->restoreAppletFrom(
+        originalApplet.applet, locallyOwnedAppletConfigurationKeys());
     if (memberId <= 0) {
         return;
     }
@@ -458,11 +466,26 @@ void ClonedView::updateContainmentConfigProperty(const QString &key, const QVari
 
 void ClonedView::updateOriginalAppletConfigProperty(const int &clonedid, const QString &key, const QVariant &value)
 {
-    if (!hasOriginalAppletId(clonedid)) {
+    if (!m_initializationCompleted || m_reconciliationPending || m_reconcilingApplets) {
+        return;
+    }
+
+    if (!hasOriginalAppletId(clonedid) || !synchronizesAppletConfigurationKey(key)) {
         return;
     }
 
     m_originalView->extendedInterface()->updateAppletConfigProperty(originalAppletId(clonedid), key, value);
+}
+
+const QSet<QString> &ClonedView::locallyOwnedAppletConfigurationKeys()
+{
+    static const QSet<QString> keys{Data::LinkedConfigurationPolicy::appletLengthKey()};
+    return keys;
+}
+
+bool ClonedView::synchronizesAppletConfigurationKey(const QString &key)
+{
+    return !Data::LinkedConfigurationPolicy::isPerViewAppletConfigurationKey(key);
 }
 
 //! the deferred-sync gap fix (Phase 8): an original->clone sync arriving
@@ -474,13 +497,22 @@ void ClonedView::updateOriginalAppletConfigProperty(const int &clonedid, const Q
 //! time the ids hash gains entries.
 void ClonedView::onSyncProgress()
 {
+    if (m_reconcilingApplets) {
+        return;
+    }
+
+    if (m_reconciliationPending) {
+        m_reconciliationPending = !reconcileAppletProjectionWithRoot();
+    }
+
     updateAppletIdsHash();
     retryPendingOriginalSyncs();
 }
 
 void ClonedView::updateOriginalAppletsOrder()
 {
-    if (!m_initializationCompleted || !m_originalView) {
+    if (!m_initializationCompleted || m_reconciliationPending
+            || m_reconcilingApplets || !m_originalView) {
         return;
     }
 
@@ -516,6 +548,121 @@ void ClonedView::updateOriginalAppletsOrder()
     if (originalOrder != m_originalView->extendedInterface()->appletsOrder()) {
         m_originalView->extendedInterface()->setAppletsOrder(originalOrder);
     }
+}
+
+bool ClonedView::reconcileAppletProjectionWithRoot()
+{
+    if (!m_originalView || !m_originalView->extendedInterface() || !extendedInterface()) {
+        qCritical() << "ClonedView: cannot reconcile an applet projection without both relationship endpoints";
+        return false;
+    }
+
+    QScopedValueRollback reconciling(m_reconcilingApplets, true);
+    const QList<int> rootOrder = m_originalView->extendedInterface()->appletsOrder();
+    const QList<int> memberOrder = extendedInterface()->appletsOrder();
+
+    QSet<int> rootIds;
+    rootIds.reserve(rootOrder.size());
+    for (const int id : rootOrder) {
+        if (id > 0) {
+            rootIds.insert(id);
+        }
+    }
+
+    QSet<int> memberIds;
+    memberIds.reserve(memberOrder.size());
+    for (const int id : memberOrder) {
+        if (id > 0) {
+            memberIds.insert(id);
+        }
+    }
+
+    //! AppletQuickItems and their configuration maps can become ready after
+    //! initializationCompleted. Do not classify or destroy anything until
+    //! both complete endpoint inventories are observable.
+    for (const int id : rootIds) {
+        const ViewPart::AppletInterfaceData data =
+            m_originalView->extendedInterface()->appletDataForId(id);
+        if (data.id <= 0 || data.plugin.isEmpty() || !data.applet || !data.configuration) {
+            return false;
+        }
+    }
+    for (const int id : memberIds) {
+        const ViewPart::AppletInterfaceData data = extendedInterface()->appletDataForId(id);
+        if (data.id <= 0 || data.plugin.isEmpty() || !data.applet || !data.configuration) {
+            return false;
+        }
+    }
+
+    for (auto mapping = m_currentAppletIds.begin(); mapping != m_currentAppletIds.end();) {
+        if (!rootIds.contains(mapping.key()) || !memberIds.contains(mapping.value())) {
+            mapping = m_currentAppletIds.erase(mapping);
+        } else {
+            ++mapping;
+        }
+    }
+    updateAppletIdsHash();
+
+    bool complete{true};
+    QSet<int> mappedMemberIds;
+    mappedMemberIds.reserve(m_currentAppletIds.size());
+    for (const int id : std::as_const(m_currentAppletIds)) {
+        mappedMemberIds.insert(id);
+    }
+
+    for (const int memberId : memberIds) {
+        if (!mappedMemberIds.contains(memberId)) {
+            complete = false;
+            if (!extendedInterface()->destroyAppletImmediately(memberId)) {
+                qCritical() << "ClonedView: failed to retire stale applet" << memberId
+                            << "while reconnecting containment"
+                            << (containment() ? containment()->id() : 0);
+            }
+        }
+    }
+
+    for (const int rootId : rootIds) {
+        if (m_currentAppletIds.contains(rootId)) {
+            continue;
+        }
+
+        const ViewPart::AppletInterfaceData source =
+            m_originalView->extendedInterface()->appletDataForId(rootId);
+        if (source.id <= 0 || !source.applet) {
+            complete = false;
+            continue;
+        }
+
+        const int memberId = extendedInterface()->restoreAppletFrom(
+            source.applet, locallyOwnedAppletConfigurationKeys());
+        if (memberId <= 0) {
+            complete = false;
+            continue;
+        }
+
+        m_currentAppletIds.insert(rootId, memberId);
+        complete = false;
+    }
+
+    for (auto mapping = m_currentAppletIds.cbegin(); mapping != m_currentAppletIds.cend(); ++mapping) {
+        const ViewPart::AppletInterfaceData source =
+            m_originalView->extendedInterface()->appletDataForId(mapping.key());
+        const ViewPart::AppletInterfaceData target =
+            extendedInterface()->appletDataForId(mapping.value());
+        if (source.id <= 0 || !source.applet || target.id <= 0 || !target.applet) {
+            complete = false;
+            continue;
+        }
+
+        if (!extendedInterface()->synchronizeAppletConfigurationFrom(
+                mapping.value(), source.applet, locallyOwnedAppletConfigurationKeys())) {
+            complete = false;
+        }
+    }
+
+    return complete
+            && m_currentAppletIds.size() == rootIds.size()
+            && memberIds.size() == rootIds.size();
 }
 
 void ClonedView::retryPendingOriginalSyncs()

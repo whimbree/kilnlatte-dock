@@ -125,6 +125,7 @@ private:
     Storage();
 
     void clearExportedLayoutSettings(KConfigGroup &layoutSettingsGroup);
+    void clearLinkedMemberLocalAppletConfiguration(const QString &layoutFile);
     void importContainments(const QString &originFile, const QString &destinationFile);
     void syncContainmentConfig(Plasma::Containment *containment);
 
