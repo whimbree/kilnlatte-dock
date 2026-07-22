@@ -3740,6 +3740,29 @@ polished, distributable form of it.
       5c51ef221, 696d383db, 7463152e8, 625b6c2c0, dbba5ea48, ba32d824c,
       72796622b, 4eb2e3d67
 
+- [ ] Merge D81 (installed-package audit crossed its isolated package-root
+      boundary and saw unrelated ancestor markers) through PR #108. Isolated
+      package provenance now stops after checking the package root, while live
+      `--root /` validation keeps its complete host-root walk. The initial
+      independent review found that the live-root self-test itself lived below
+      `/tmp` and could inherit an unrelated `/tmp/.git`, so that fixture now
+      starts below a validated marker-free runtime parent. The driven focused
+      self-test exits 0 with all 90 controls, including isolated-root acceptance
+      beneath an explicitly marked external parent and live-root host-absolute
+      symlink semantics. The canonical fast gate exits 0 at exact executable
+      head `29322fb937bb84cebadf3f8241189d4e5cb84185`. Keep this item unchecked
+      until the required second independent review accepts the correction and
+      PR #108 merges.
+      Commits: pending PR #108 merge; branch commits `bd620c89b`, `29322fb93`
+- [ ] Merge D82 (TaskItem Connections syntax exceeded the curated Qt 6 lint
+      ratchet) through PR #108. The PulseAudio stream handler uses explicit
+      function syntax without changing its target, optional-signal contract, or
+      `updateAudioStreams()` action. The QML compile gate accepts every staged
+      package file and qmllint returns `TaskItem.qml` to the checked-in
+      211-warning ceiling. Keep this item unchecked until the required second
+      independent review accepts the prerequisite branch and PR #108 merges.
+      Commits: pending PR #108 merge; branch commit `4f90ed05f`
+
 - [ ] Write `default.nix` (Qt6/KF6 dependency list, matching Phase 1-3
       framework choices). Use `lib.cleanSource ./.` for `src`, not bare
       `./.` - a plain `./.` copies the *entire* working tree into the
