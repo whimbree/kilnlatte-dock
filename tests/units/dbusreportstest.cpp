@@ -18,6 +18,10 @@
 #include <QTest>
 #include <QVariantMap>
 
+// C++
+#include <cstddef>
+#include <memory>
+
 using namespace Latte;
 using namespace Latte::DbusReports;
 
@@ -32,6 +36,12 @@ private Q_SLOTS:
     void edgeNames();
     void alignmentNames_data();
     void alignmentNames();
+    void orientationNames_data();
+    void orientationNames();
+    void screensGroupNames_data();
+    void screensGroupNames();
+    void dockRelationshipNames_data();
+    void dockRelationshipNames();
     void visibilityModeNames_data();
     void visibilityModeNames();
     void rectSerialization();
@@ -40,6 +50,13 @@ private Q_SLOTS:
     void emptyInputMaskSerializesAsEmptyRegion();
     void recordsSerializeAsCompactJsonArray();
     void configureAppletsModeRequiresLocalEditMode();
+    void runtimeObjectIdentitiesAreOpaqueStableAndMonotonic();
+    void dockCollectionOrderingStabilizesViewAndControllerTokens();
+    void dockRelationshipClassification_data();
+    void dockRelationshipClassification();
+    void dockSystemSnapshotSerializesTypedRuntimeState();
+    void dockSystemSnapshotCanonicalizesShuffledViewsAndCloneIds();
+    void dockSystemSnapshotKeepsConfigureModeIsolatedToEditedView();
 
     void appletRecordSerialization();
     void appletRecordKeySet();
@@ -192,6 +209,67 @@ void DbusReportsTest::alignmentNames()
     QFETCH(QString, name);
 
     QCOMPARE(alignmentName(static_cast<Types::Alignment>(alignment)), name);
+}
+
+void DbusReportsTest::orientationNames_data()
+{
+    QTest::addColumn<Plasma::Types::FormFactor>("orientation");
+    QTest::addColumn<QString>("name");
+
+    QTest::newRow("planar") << Plasma::Types::Planar << QStringLiteral("planar");
+    QTest::newRow("mediaCenter") << Plasma::Types::MediaCenter << QStringLiteral("mediaCenter");
+    QTest::newRow("horizontal") << Plasma::Types::Horizontal << QStringLiteral("horizontal");
+    QTest::newRow("vertical") << Plasma::Types::Vertical << QStringLiteral("vertical");
+    QTest::newRow("application") << Plasma::Types::Application << QStringLiteral("application");
+}
+
+void DbusReportsTest::orientationNames()
+{
+    QFETCH(Plasma::Types::FormFactor, orientation);
+    QFETCH(QString, name);
+
+    QCOMPARE(orientationName(orientation), name);
+}
+
+void DbusReportsTest::screensGroupNames_data()
+{
+    QTest::addColumn<int>("group"); //! int: see viewTypeNames_data
+    QTest::addColumn<QString>("name");
+
+    QTest::newRow("single") << static_cast<int>(Types::SingleScreenGroup) << QStringLiteral("single");
+    QTest::newRow("allScreens") << static_cast<int>(Types::AllScreensGroup) << QStringLiteral("allScreens");
+    QTest::newRow("allSecondaryScreens") << static_cast<int>(Types::AllSecondaryScreensGroup)
+                                          << QStringLiteral("allSecondaryScreens");
+}
+
+void DbusReportsTest::screensGroupNames()
+{
+    QFETCH(int, group);
+    QFETCH(QString, name);
+
+    QCOMPARE(screensGroupName(static_cast<Types::ScreensGroup>(group)), name);
+}
+
+void DbusReportsTest::dockRelationshipNames_data()
+{
+    QTest::addColumn<int>("relationship");
+    QTest::addColumn<QString>("name");
+
+    QTest::newRow("single") << static_cast<int>(DockRelationship::Single) << QStringLiteral("single");
+    QTest::newRow("screensGroupOriginal")
+        << static_cast<int>(DockRelationship::ScreensGroupOriginal)
+        << QStringLiteral("screensGroupOriginal");
+    QTest::newRow("screensGroupClone")
+        << static_cast<int>(DockRelationship::ScreensGroupClone)
+        << QStringLiteral("screensGroupClone");
+}
+
+void DbusReportsTest::dockRelationshipNames()
+{
+    QFETCH(int, relationship);
+    QFETCH(QString, name);
+
+    QCOMPARE(dockRelationshipName(static_cast<DockRelationship>(relationship)), name);
 }
 
 void DbusReportsTest::visibilityModeNames_data()
@@ -367,6 +445,361 @@ void DbusReportsTest::configureAppletsModeRequiresLocalEditMode()
     static_assert(!effectiveConfigureAppletsMode(true, false));
     static_assert(!effectiveConfigureAppletsMode(false, true));
     static_assert(!effectiveConfigureAppletsMode(false, false));
+}
+
+void DbusReportsTest::runtimeObjectIdentitiesAreOpaqueStableAndMonotonic()
+{
+    RuntimeObjectIdentityRegistry identities;
+    alignas(QObject) std::byte objectStorage[sizeof(QObject)];
+    auto *const objectAddress = reinterpret_cast<QObject *>(objectStorage);
+    auto *const first = std::construct_at(objectAddress);
+    QObject second;
+
+    const quint64 firstId = identities.idFor(first);
+    const quint64 secondId = identities.idFor(&second);
+
+    QVERIFY(firstId > 0);
+    QVERIFY(secondId > firstId);
+    QCOMPARE(identities.idFor(first), firstId);
+    QCOMPARE(identities.tokenFor(first), QStringLiteral("object-%1").arg(firstId));
+    QVERIFY(!identities.tokenFor(first).contains(QStringLiteral("0x")));
+
+    void *const reusedAddress = first;
+    std::destroy_at(first);
+    auto *const replacement = std::construct_at(objectAddress);
+    QCOMPARE(static_cast<void *>(replacement), reusedAddress);
+
+    const quint64 replacementId = identities.idFor(replacement);
+    QVERIFY(replacementId > secondId);
+    QVERIFY(replacementId != firstId);
+
+    std::destroy_at(replacement);
+}
+
+void DbusReportsTest::dockCollectionOrderingStabilizesViewAndControllerTokens()
+{
+    struct LiveIdentityInput {
+        uint persistentDockId;
+        const QObject *view;
+        const QObject *controller;
+    };
+
+    QObject view7;
+    QObject view30;
+    QObject view41;
+    QObject controller7;
+    QObject sharedController;
+
+    const auto collectAssignments = [](const QList<LiveIdentityInput> &source,
+                                       RuntimeObjectIdentityRegistry &identities) {
+        QList<DockCollectionOrderInput> ordering;
+        ordering.reserve(source.size());
+        for (qsizetype sourceIndex = 0; sourceIndex < source.size(); ++sourceIndex) {
+            ordering.append(DockCollectionOrderInput{
+                source.at(sourceIndex).persistentDockId,
+                sourceIndex});
+        }
+
+        QStringList assignments;
+        for (const qsizetype sourceIndex : orderDockCollectionByPersistentId(ordering)) {
+            const auto &input = source.at(sourceIndex);
+            assignments.append(QStringLiteral("%1:%2:%3")
+                                   .arg(input.persistentDockId)
+                                   .arg(identities.tokenFor(input.view))
+                                   .arg(identities.tokenFor(input.controller)));
+        }
+        return assignments;
+    };
+
+    const QList<LiveIdentityInput> firstSource{
+        {41, &view41, &sharedController},
+        {7, &view7, &controller7},
+        {30, &view30, &sharedController}};
+    const QList<LiveIdentityInput> shuffledSource{
+        {30, &view30, &sharedController},
+        {41, &view41, &sharedController},
+        {7, &view7, &controller7}};
+
+    RuntimeObjectIdentityRegistry firstRegistry;
+    RuntimeObjectIdentityRegistry shuffledRegistry;
+    const QStringList firstAssignments = collectAssignments(firstSource, firstRegistry);
+    const QStringList shuffledAssignments = collectAssignments(shuffledSource, shuffledRegistry);
+
+    QCOMPARE(shuffledAssignments, firstAssignments);
+    QCOMPARE(firstAssignments, (QStringList{
+        QStringLiteral("7:object-1:object-2"),
+        QStringLiteral("30:object-3:object-4"),
+        QStringLiteral("41:object-5:object-4")}));
+}
+
+void DbusReportsTest::dockRelationshipClassification_data()
+{
+    QTest::addColumn<uint>("persistentDockId");
+    QTest::addColumn<int>("groupId");
+    QTest::addColumn<bool>("isOriginal");
+    QTest::addColumn<bool>("isCloned");
+    QTest::addColumn<bool>("isSingle");
+    QTest::addColumn<bool>("valid");
+    QTest::addColumn<uint>("logicalDockId");
+    QTest::addColumn<int>("originalDockId");
+    QTest::addColumn<int>("relationship");
+
+    QTest::newRow("standalone")
+        << 7U << 7 << true << false << true << true
+        << 7U << -1 << static_cast<int>(DockRelationship::Single);
+    QTest::newRow("screens-group original")
+        << 30U << 30 << true << false << false << true
+        << 30U << -1 << static_cast<int>(DockRelationship::ScreensGroupOriginal);
+    QTest::newRow("valid clone")
+        << 41U << 30 << false << true << false << true
+        << 30U << 30 << static_cast<int>(DockRelationship::ScreensGroupClone);
+
+    const int ignoredRelationship = static_cast<int>(DockRelationship::Single);
+    QTest::newRow("zero persistent id")
+        << 0U << 0 << true << false << true << false << 0U << -1 << ignoredRelationship;
+    QTest::newRow("neither original nor clone")
+        << 7U << 7 << false << false << true << false << 0U << -1 << ignoredRelationship;
+    QTest::newRow("both original and clone")
+        << 7U << 7 << true << true << false << false << 0U << -1 << ignoredRelationship;
+    QTest::newRow("original points elsewhere")
+        << 30U << 7 << true << false << false << false << 0U << -1 << ignoredRelationship;
+    QTest::newRow("clone marked single")
+        << 41U << 30 << false << true << true << false << 0U << -1 << ignoredRelationship;
+    QTest::newRow("clone missing original")
+        << 41U << -1 << false << true << false << false << 0U << -1 << ignoredRelationship;
+    QTest::newRow("self-referential clone cycle")
+        << 41U << 41 << false << true << false << false << 0U << -1 << ignoredRelationship;
+}
+
+void DbusReportsTest::dockRelationshipClassification()
+{
+    QFETCH(uint, persistentDockId);
+    QFETCH(int, groupId);
+    QFETCH(bool, isOriginal);
+    QFETCH(bool, isCloned);
+    QFETCH(bool, isSingle);
+    QFETCH(bool, valid);
+    QFETCH(uint, logicalDockId);
+    QFETCH(int, originalDockId);
+    QFETCH(int, relationship);
+
+    const auto classification = classifyDockRelationship(DockLineageInput{
+        persistentDockId, groupId, isOriginal, isCloned, isSingle});
+    QCOMPARE(classification.has_value(), valid);
+
+    if (!classification) {
+        return;
+    }
+
+    QCOMPARE(classification->logicalDockId, logicalDockId);
+    QCOMPARE(classification->originalDockId, originalDockId);
+    QCOMPARE(static_cast<int>(classification->relationship), relationship);
+}
+
+void DbusReportsTest::dockSystemSnapshotSerializesTypedRuntimeState()
+{
+    DockSystemViewRecord record;
+    record.runtimeViewId = 19;
+    record.persistentDockId = 7;
+    record.logicalDockId = 3;
+    record.originalDockId = 3;
+    record.relationship = DockRelationship::ScreensGroupClone;
+    record.screensGroup = Types::AllScreensGroup;
+    record.layout = QStringLiteral("Work");
+    record.screenId = 2;
+    record.screen = QStringLiteral("DP-2");
+    record.onPrimary = false;
+    record.type = Types::DockView;
+    record.edge = Plasma::Types::LeftEdge;
+    record.orientation = Plasma::Types::Vertical;
+    record.alignment = Types::Top;
+    record.maximumLengthRatio = 0.8F;
+    record.offsetRatio = 0.1F;
+    record.configuredIconSize = 64;
+    record.effectiveIconSize = 52;
+    record.availablePrimaryLength = 900;
+    record.normalThickness = 72;
+    record.maximumNormalThickness = 96;
+    record.windowGeometry = QRect(1, 2, 3, 4);
+    record.absoluteGeometry = QRect(5, 6, 7, 8);
+    record.localGeometry = QRect(9, 10, 11, 12);
+    record.screenGeometry = QRect(0, 0, 2560, 1440);
+    record.canvasGeometry = QRect(13, 14, 15, 16);
+    record.effectsRect = QRect(17, 18, 19, 20);
+    record.appletsLayoutGeometry = QRect(21, 22, 23, 24);
+    record.maskRect = QRect(25, 26, 27, 28);
+    record.inputMask = QRect(29, 30, 31, 32);
+    record.appliedInputMask = QRect(33, 34, 35, 36);
+    record.strutsThickness = 48;
+    record.publishedStruts = QRect(0, 0, 48, 1440);
+    record.visibilityMode = Types::DodgeActive;
+    record.isHidden = true;
+    record.inStartup = true;
+    record.isOffScreen = true;
+    record.inRelocationAnimation = true;
+    record.inDelete = true;
+    record.inReadyState = true;
+    record.editMode = true;
+    record.settingsWindowShown = true;
+    record.objects.view = QStringLiteral("object-19");
+    record.objects.containment = QStringLiteral("object-20");
+    record.objects.configuration = QStringLiteral("object-21");
+    record.objects.layout = QStringLiteral("object-22");
+    record.objects.layoutController = QStringLiteral("object-23");
+    record.objects.geometryController = QStringLiteral("object-24");
+    record.objects.editController = QStringLiteral("object-25");
+    record.objects.configWindow = QStringLiteral("object-26");
+
+    DockSystemSnapshot snapshot;
+    snapshot.snapshotSequence = 41;
+    snapshot.globalConfigureAppletsMode = true;
+    snapshot.views = {record};
+
+    const QString data = serializeDockSystemSnapshot(snapshot);
+    QVERIFY(!data.contains(QLatin1Char('\n')));
+    const QJsonObject root = QJsonDocument::fromJson(data.toUtf8()).object();
+
+    QCOMPARE(sortedKeys(root), (QStringList{
+        QStringLiteral("globalConfigureAppletsMode"), QStringLiteral("schemaVersion"),
+        QStringLiteral("snapshotSequence"), QStringLiteral("stacking"), QStringLiteral("views")}));
+    QCOMPARE(root.value(QStringLiteral("schemaVersion")).toInt(), DockSystemSnapshot::SchemaVersion);
+    QCOMPARE(root.value(QStringLiteral("snapshotSequence")).toString(), QStringLiteral("41"));
+    QCOMPARE(root.value(QStringLiteral("globalConfigureAppletsMode")).toBool(), true);
+    const QJsonValue stackingValue = root.value(QStringLiteral("stacking"));
+    QCOMPARE(stackingValue.type(), QJsonValue::Object);
+    const QJsonObject stacking = stackingValue.toObject();
+    QCOMPARE(sortedKeys(stacking), (QStringList{
+        QStringLiteral("available"), QStringLiteral("reason")}));
+    QCOMPARE(stacking.value(QStringLiteral("available")).type(), QJsonValue::Bool);
+    QCOMPARE(stacking.value(QStringLiteral("reason")).type(), QJsonValue::String);
+    QCOMPARE(stacking.value(QStringLiteral("available")).toBool(), false);
+    QVERIFY(!stacking.value(QStringLiteral("reason")).toString().isEmpty());
+
+    const QJsonObject view = root.value(QStringLiteral("views")).toArray().at(0).toObject();
+    QCOMPARE(sortedKeys(view), (QStringList{
+        QStringLiteral("absoluteGeometry"), QStringLiteral("alignment"),
+        QStringLiteral("appletsLayoutGeometry"),
+        QStringLiteral("appliedInputMask"), QStringLiteral("availablePrimaryLength"),
+        QStringLiteral("canvasGeometry"), QStringLiteral("cloneDockIds"),
+        QStringLiteral("configuredIconSize"), QStringLiteral("edge"),
+        QStringLiteral("editMode"), QStringLiteral("effectiveConfigureAppletsMode"),
+        QStringLiteral("effectiveIconSize"), QStringLiteral("effectsRect"),
+        QStringLiteral("inDelete"), QStringLiteral("inReadyState"),
+        QStringLiteral("inRelocationAnimation"), QStringLiteral("inStartup"),
+        QStringLiteral("inputMask"), QStringLiteral("isHidden"),
+        QStringLiteral("isOffScreen"), QStringLiteral("layout"),
+        QStringLiteral("localGeometry"), QStringLiteral("logicalDockId"),
+        QStringLiteral("maskRect"), QStringLiteral("maximumLengthRatio"),
+        QStringLiteral("maximumNormalThickness"), QStringLiteral("normalThickness"),
+        QStringLiteral("objects"), QStringLiteral("offsetRatio"),
+        QStringLiteral("onPrimary"), QStringLiteral("orientation"),
+        QStringLiteral("originalDockId"), QStringLiteral("persistentDockId"),
+        QStringLiteral("publishedStruts"), QStringLiteral("relationship"),
+        QStringLiteral("runtimeViewId"), QStringLiteral("screen"),
+        QStringLiteral("screenGeometry"), QStringLiteral("screenId"),
+        QStringLiteral("screensGroup"), QStringLiteral("settingsWindowShown"),
+        QStringLiteral("strutsThickness"), QStringLiteral("type"),
+        QStringLiteral("visibilityMode"), QStringLiteral("windowGeometry")}));
+    QCOMPARE(view.value(QStringLiteral("runtimeViewId")).toString(), QStringLiteral("19"));
+    QCOMPARE(view.value(QStringLiteral("persistentDockId")).toInt(), 7);
+    QCOMPARE(view.value(QStringLiteral("logicalDockId")).toInt(), 3);
+    QCOMPARE(view.value(QStringLiteral("originalDockId")).toInt(), 3);
+    QCOMPARE(view.value(QStringLiteral("relationship")).toString(), QStringLiteral("screensGroupClone"));
+    QCOMPARE(view.value(QStringLiteral("screensGroup")).toString(), QStringLiteral("allScreens"));
+    QCOMPARE(view.value(QStringLiteral("orientation")).toString(), QStringLiteral("vertical"));
+    QCOMPARE(view.value(QStringLiteral("configuredIconSize")).toInt(), 64);
+    QCOMPARE(view.value(QStringLiteral("effectiveIconSize")).toInt(), 52);
+    QCOMPARE(view.value(QStringLiteral("availablePrimaryLength")).toInt(), 900);
+    QCOMPARE(view.value(QStringLiteral("effectsRect")).toArray(), serializeRect(record.effectsRect));
+    QCOMPARE(view.value(QStringLiteral("appletsLayoutGeometry")).toArray(), serializeRect(record.appletsLayoutGeometry));
+    QCOMPARE(view.value(QStringLiteral("visibilityMode")).toString(), QStringLiteral("dodgeActive"));
+    QCOMPARE(view.value(QStringLiteral("isHidden")).toBool(), true);
+    QCOMPARE(view.value(QStringLiteral("inRelocationAnimation")).toBool(), true);
+    QCOMPARE(view.value(QStringLiteral("inReadyState")).toBool(), true);
+    QCOMPARE(view.value(QStringLiteral("effectiveConfigureAppletsMode")).toBool(), true);
+    const QJsonObject objects = view.value(QStringLiteral("objects")).toObject();
+    QCOMPARE(sortedKeys(objects), (QStringList{
+        QStringLiteral("configWindow"), QStringLiteral("configuration"),
+        QStringLiteral("containment"), QStringLiteral("editController"),
+        QStringLiteral("geometryController"), QStringLiteral("layout"),
+        QStringLiteral("layoutController"), QStringLiteral("view")}));
+    QCOMPARE(objects.value(QStringLiteral("layoutController")).toString(),
+             QStringLiteral("object-23"));
+}
+
+void DbusReportsTest::dockSystemSnapshotCanonicalizesShuffledViewsAndCloneIds()
+{
+    DockSystemViewRecord original;
+    original.runtimeViewId = 30;
+    original.persistentDockId = 30;
+    original.logicalDockId = 30;
+    original.relationship = DockRelationship::ScreensGroupOriginal;
+    original.screensGroup = Types::AllScreensGroup;
+
+    DockSystemViewRecord highClone;
+    highClone.runtimeViewId = 51;
+    highClone.persistentDockId = 51;
+    highClone.logicalDockId = 30;
+    highClone.originalDockId = 30;
+    highClone.relationship = DockRelationship::ScreensGroupClone;
+    highClone.screensGroup = Types::AllScreensGroup;
+
+    DockSystemViewRecord lowClone = highClone;
+    lowClone.runtimeViewId = 41;
+    lowClone.persistentDockId = 41;
+
+    DockSystemViewRecord independent;
+    independent.runtimeViewId = 7;
+    independent.persistentDockId = 7;
+    independent.logicalDockId = 7;
+
+    DockSystemSnapshot first;
+    first.snapshotSequence = 9;
+    first.views = {highClone, original, independent, lowClone};
+    DockSystemSnapshot shuffled = first;
+    shuffled.views = {lowClone, independent, highClone, original};
+
+    QCOMPARE(serializeDockSystemSnapshot(first), serializeDockSystemSnapshot(shuffled));
+
+    const QJsonArray views = QJsonDocument::fromJson(serializeDockSystemSnapshot(first).toUtf8())
+                                 .object().value(QStringLiteral("views")).toArray();
+    QCOMPARE(views.at(0).toObject().value(QStringLiteral("persistentDockId")).toInt(), 7);
+    QCOMPARE(views.at(1).toObject().value(QStringLiteral("persistentDockId")).toInt(), 30);
+    QCOMPARE(views.at(2).toObject().value(QStringLiteral("persistentDockId")).toInt(), 41);
+    QCOMPARE(views.at(3).toObject().value(QStringLiteral("persistentDockId")).toInt(), 51);
+    QCOMPARE(views.at(1).toObject().value(QStringLiteral("cloneDockIds")).toArray(),
+             (QJsonArray{41, 51}));
+}
+
+void DbusReportsTest::dockSystemSnapshotKeepsConfigureModeIsolatedToEditedView()
+{
+    DockSystemViewRecord edited;
+    edited.runtimeViewId = 1;
+    edited.persistentDockId = 1;
+    edited.logicalDockId = 1;
+    edited.editMode = true;
+
+    DockSystemViewRecord unrelated;
+    unrelated.runtimeViewId = 2;
+    unrelated.persistentDockId = 2;
+    unrelated.logicalDockId = 2;
+    unrelated.editMode = false;
+
+    DockSystemSnapshot snapshot;
+    snapshot.snapshotSequence = 1;
+    snapshot.globalConfigureAppletsMode = true;
+    snapshot.views = {unrelated, edited};
+
+    const QJsonArray views = QJsonDocument::fromJson(serializeDockSystemSnapshot(snapshot).toUtf8())
+                                 .object().value(QStringLiteral("views")).toArray();
+    QCOMPARE(views.at(0).toObject().value(QStringLiteral("effectiveConfigureAppletsMode")).toBool(), true);
+    QCOMPARE(views.at(1).toObject().value(QStringLiteral("effectiveConfigureAppletsMode")).toBool(), false);
+
+    snapshot.globalConfigureAppletsMode = false;
+    const QJsonArray disabled = QJsonDocument::fromJson(serializeDockSystemSnapshot(snapshot).toUtf8())
+                                    .object().value(QStringLiteral("views")).toArray();
+    QCOMPARE(disabled.at(0).toObject().value(QStringLiteral("effectiveConfigureAppletsMode")).toBool(), false);
+    QCOMPARE(disabled.at(1).toObject().value(QStringLiteral("effectiveConfigureAppletsMode")).toBool(), false);
 }
 
 //! one fully populated applet record, pinning every field name and value

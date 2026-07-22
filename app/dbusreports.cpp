@@ -544,7 +544,7 @@ namespace {
 //! default-deletion trap the audit's snapshot-diff would otherwise hit: the
 //! file drops a key whose value returned to its default, but the map keeps it,
 //! so a key at its default reads as its default value here, not as "missing".
-QVariantMap readConfigMap(const QObject *configOwner)
+QQmlPropertyMap *configurationMapFor(const QObject *configOwner)
 {
     auto map = qobject_cast<QQmlPropertyMap *>(configOwner->property("configuration").value<QObject *>());
 
@@ -554,6 +554,17 @@ QVariantMap readConfigMap(const QObject *configOwner)
         //! rather than reported as a silently empty config
         qWarning() << "dbusreports: object" << configOwner
                    << "exposes no configuration property map; its config values cannot be read";
+        return nullptr;
+    }
+
+    return map;
+}
+
+QVariantMap readConfigMap(const QObject *configOwner)
+{
+    auto map = configurationMapFor(configOwner);
+
+    if (!map) {
         return {};
     }
 
@@ -692,6 +703,177 @@ QString collectViewsData(const QList<Latte::View *> &views, bool globalConfigure
     }
 
     return serializeViewRecords(records);
+}
+
+DockSystemSnapshot collectDockSystemSnapshot(const QList<Latte::View *> &views,
+                                              bool globalConfigureAppletsMode,
+                                              quint64 snapshotSequence,
+                                              RuntimeObjectIdentityRegistry *identities)
+{
+    Q_ASSERT(identities);
+
+    DockSystemSnapshot snapshot;
+    snapshot.snapshotSequence = snapshotSequence;
+    snapshot.globalConfigureAppletsMode = globalConfigureAppletsMode;
+    snapshot.views.reserve(views.count());
+
+    //! Synchronizer stores current views in a QHash-derived container. Resolve
+    //! the persistent containment order before the first registry lookup, so
+    //! runtime view ids and shared-controller tokens do not depend on hash
+    //! iteration order.
+    QList<DockCollectionOrderInput> collectionOrder;
+    collectionOrder.reserve(views.size());
+    for (qsizetype sourceIndex = 0; sourceIndex < views.size(); ++sourceIndex) {
+        const auto *view = views.at(sourceIndex);
+        Q_ASSERT(view);
+        Q_ASSERT(view->containment());
+        const uint persistentDockId = view->containment()->id();
+        Q_ASSERT(persistentDockId > 0);
+        collectionOrder.append(DockCollectionOrderInput{persistentDockId, sourceIndex});
+    }
+    const QList<qsizetype> orderedSourceIndexes =
+        orderDockCollectionByPersistentId(collectionOrder);
+
+    //! ClonedView::screensGroup() intentionally reports SingleScreenGroup.
+    //! Resolve the live group's policy from its original, the authority that
+    //! owns and persists that policy, before collecting clone records.
+    QHash<uint, Types::ScreensGroup> originalScreensGroups;
+    for (const qsizetype sourceIndex : orderedSourceIndexes) {
+        const auto *view = views.at(sourceIndex);
+        if (view->isOriginal()) {
+            originalScreensGroups.insert(view->containment()->id(), view->screensGroup());
+        }
+    }
+
+    for (const qsizetype sourceIndex : orderedSourceIndexes) {
+        const auto *view = views.at(sourceIndex);
+        Q_ASSERT(view->positioner() && view->effects() && view->visibility()
+                 && view->extendedInterface());
+
+        DockSystemViewRecord record;
+        record.persistentDockId = view->containment()->id();
+        const auto relationship = classifyDockRelationship(DockLineageInput{
+            record.persistentDockId,
+            view->groupId(),
+            view->isOriginal(),
+            view->isCloned(),
+            view->isSingle()});
+        if (!relationship) {
+            qCritical() << "dbusreports: refusing malformed dock lineage for containment"
+                        << record.persistentDockId << "group" << view->groupId()
+                        << "original" << view->isOriginal() << "clone" << view->isCloned()
+                        << "single" << view->isSingle();
+            Q_ASSERT(relationship.has_value());
+            continue;
+        }
+        record.logicalDockId = relationship->logicalDockId;
+        record.originalDockId = relationship->originalDockId;
+        record.relationship = relationship->relationship;
+
+        if (record.relationship == DockRelationship::ScreensGroupClone) {
+            const auto group = originalScreensGroups.constFind(record.logicalDockId);
+            if (group == originalScreensGroups.constEnd()) {
+                qWarning() << "dbusreports: clone" << record.persistentDockId
+                           << "has no current original" << record.logicalDockId
+                           << "in the atomic dock-system snapshot";
+                record.screensGroup.reset();
+            } else {
+                record.screensGroup = group.value();
+            }
+        } else if (record.relationship == DockRelationship::Single) {
+            record.screensGroup = Types::SingleScreenGroup;
+        } else {
+            record.screensGroup = view->screensGroup();
+        }
+
+        record.runtimeViewId = identities->idFor(view);
+
+        record.layout = view->layout() ? view->layout()->name() : QString();
+        record.screenId = view->positioner()->currentScreenId();
+        record.screen = view->positioner()->currentScreenName();
+        record.onPrimary = view->onPrimary();
+        record.type = view->type();
+        record.edge = view->location();
+        record.orientation = view->formFactor();
+        record.alignment = static_cast<Types::Alignment>(view->alignment());
+        record.maximumLengthRatio = view->maxLength();
+        record.offsetRatio = view->offset();
+
+        const auto *const configuration = configurationMapFor(view->containment());
+        if (configuration) {
+            const QVariant configuredIconSize = configuration->value(QStringLiteral("iconSize"));
+            if (configuredIconSize.isValid()) {
+                record.configuredIconSize = configuredIconSize.toInt();
+            } else {
+                qWarning() << "dbusreports: containment" << record.persistentDockId
+                           << "configuration exposes no iconSize";
+            }
+        }
+
+        if (const auto *metrics = view->metrics()) {
+            const QVariant effectiveIconSize = readLiveProperty(metrics, "iconSize");
+            if (effectiveIconSize.isValid()) {
+                record.effectiveIconSize = effectiveIconSize.toInt();
+            }
+        }
+
+        const auto *const editController = view->rootObject();
+        if (editController) {
+            const QVariant availableLength = readLiveProperty(editController, "maxLength");
+            if (availableLength.isValid()) {
+                record.availablePrimaryLength = availableLength.toInt();
+            }
+        }
+
+        record.normalThickness = view->normalThickness();
+        record.maximumNormalThickness = view->maxNormalThickness();
+        record.windowGeometry = view->geometry();
+        record.absoluteGeometry = view->absoluteGeometry();
+        record.localGeometry = view->localGeometry();
+        record.screenGeometry = view->screenGeometry();
+        record.canvasGeometry = view->positioner()->canvasGeometry();
+        record.effectsRect = view->effects()->rect();
+        record.appletsLayoutGeometry = view->effects()->appletsLayoutGeometry();
+        record.maskRect = view->effects()->mask();
+        record.inputMask = view->effects()->inputMask();
+        record.appliedInputMask = view->effects()->appliedInputMask();
+        record.strutsThickness = view->visibility()->strutsThickness();
+        record.publishedStruts = view->visibility()->publishedStruts();
+
+        record.visibilityMode = view->visibility()->mode();
+        record.isHidden = view->visibility()->isHidden();
+        record.inStartup = view->positioner()->inStartup();
+        record.isOffScreen = view->positioner()->isOffScreen();
+        record.inRelocationAnimation = view->positioner()->inRelocationAnimation();
+        record.inDelete = view->inDelete();
+        record.inReadyState = view->inReadyState();
+        record.editMode = view->inEditMode();
+        record.settingsWindowShown = view->settingsWindowIsShown();
+
+        record.objects.view = identities->tokenFor(view);
+        record.objects.containment = identities->tokenFor(view->containment());
+        record.objects.configuration = identities->tokenFor(configuration);
+        record.objects.layout = identities->tokenFor(view->layout());
+        record.objects.layoutController = identities->tokenFor(view->extendedInterface()->layoutManager());
+        record.objects.geometryController = identities->tokenFor(view->positioner());
+        record.objects.editController = identities->tokenFor(editController);
+        record.objects.configWindow = identities->tokenFor(view->configView());
+
+        snapshot.views.append(record);
+    }
+
+    return snapshot;
+}
+
+QString collectDockSystemData(const QList<Latte::View *> &views,
+                              bool globalConfigureAppletsMode,
+                              quint64 snapshotSequence,
+                              RuntimeObjectIdentityRegistry *identities)
+{
+    return serializeDockSystemSnapshot(collectDockSystemSnapshot(views,
+                                                                  globalConfigureAppletsMode,
+                                                                  snapshotSequence,
+                                                                  identities));
 }
 
 QString collectScreensData(Latte::ScreenPool *pool)

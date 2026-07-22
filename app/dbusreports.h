@@ -19,18 +19,24 @@
 
 // Qt
 #include <QColor>
+#include <QCoreApplication>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QList>
+#include <QObject>
+#include <QPointer>
 #include <QRect>
 #include <QSet>
 #include <QString>
+#include <QThread>
 #include <QVariant>
 #include <QVariantMap>
 
 // C++
+#include <algorithm>
 #include <array>
 #include <optional>
 
@@ -54,6 +60,85 @@ namespace DbusReports {
 //! viewsData() reports and the inline name/serialize functions below are
 //! pure (unit-tested without a corona in tests/units/dbusreportstest.cpp);
 //! only the collect* functions in dbusreports.cpp read live View objects.
+
+//! Opaque process-local QObject identities for the dock-system snapshot.
+//! Addresses never cross D-Bus: the first observed object receives the next
+//! monotonic id and keeps it for its lifetime. Entries carry a QPointer and a
+//! generation-checked direct destruction connection, so reconstructing a
+//! QObject at the same address cannot inherit the retired object's identity.
+//! The numeric namespace is shared across every reported object kind so equal
+//! tokens mean the same live QObject without exposing an address.
+//!
+//! The live dock graph is GUI-thread-owned. Keeping lookup, registration, and
+//! direct retirement on that thread makes each registry operation atomic with
+//! respect to QObject destruction instead of adding cross-thread races.
+class RuntimeObjectIdentityRegistry final : public QObject
+{
+public:
+    explicit RuntimeObjectIdentityRegistry(QObject *parent = nullptr)
+        : QObject(parent)
+    {
+    }
+
+    [[nodiscard]] quint64 idFor(const QObject *object)
+    {
+        if (!object) {
+            return 0;
+        }
+
+        assertGuiThreadAffinity(object);
+        auto existing = m_ids.find(object);
+
+        if (existing != m_ids.end()) {
+            if (existing->object.data() == object) {
+                return existing->id;
+            }
+
+            //! A cleared QPointer under the same address is a retired
+            //! generation. This fallback makes address reuse safe even if an
+            //! entry survives an unusual destruction path.
+            m_ids.erase(existing);
+        }
+
+        const quint64 id = m_nextId++;
+        auto *const trackedObject = const_cast<QObject *>(object);
+        m_ids.insert(object, IdentityEntry{trackedObject, id});
+        const QMetaObject::Connection retirement =
+            QObject::connect(trackedObject, &QObject::destroyed, this,
+                             [this, object, id]() {
+                                 Q_ASSERT(QThread::currentThread() == thread());
+                                 auto entry = m_ids.find(object);
+                                 if (entry != m_ids.end() && entry->id == id) {
+                                     m_ids.erase(entry);
+                                 }
+                             }, Qt::DirectConnection);
+        Q_ASSERT(retirement);
+        return id;
+    }
+
+    [[nodiscard]] QString tokenFor(const QObject *object)
+    {
+        const quint64 id = idFor(object);
+        return id == 0 ? QString() : QStringLiteral("object-%1").arg(id);
+    }
+
+private:
+    struct IdentityEntry {
+        QPointer<QObject> object;
+        quint64 id{0};
+    };
+
+    void assertGuiThreadAffinity(const QObject *object) const
+    {
+        Q_ASSERT(QCoreApplication::instance());
+        Q_ASSERT(thread() == QCoreApplication::instance()->thread());
+        Q_ASSERT(QThread::currentThread() == thread());
+        Q_ASSERT(object->thread() == thread());
+    }
+
+    quint64 m_nextId{1};
+    QHash<const QObject *, IdentityEntry> m_ids;
+};
 
 //! One view's windows-tracker facts as trackerData() reports them
 //! (docs/reference/dbus-observability-interface.md, step 3)
@@ -248,6 +333,173 @@ struct ViewRecord {
     return editMode && globalConfigureAppletsMode;
 }
 
+enum class DockRelationship {
+    Single,
+    ScreensGroupOriginal,
+    ScreensGroupClone
+};
+
+//! The value-only part of live collection ordering. sourceIndex points back to
+//! Synchronizer::currentViews(); persistentDockId is read before the identity
+//! registry is touched, then becomes the sole ordering authority.
+struct DockCollectionOrderInput {
+    uint persistentDockId{0};
+    qsizetype sourceIndex{-1};
+};
+
+[[nodiscard]] inline QList<qsizetype> orderDockCollectionByPersistentId(
+    QList<DockCollectionOrderInput> inputs)
+{
+    std::ranges::sort(inputs, {}, &DockCollectionOrderInput::persistentDockId);
+
+    QList<qsizetype> sourceIndexes;
+    sourceIndexes.reserve(inputs.size());
+    for (qsizetype index = 0; index < inputs.size(); ++index) {
+        const auto &input = inputs.at(index);
+        Q_ASSERT(input.persistentDockId > 0);
+        Q_ASSERT(input.sourceIndex >= 0);
+        //! Sorting once makes forbidden duplicate identities adjacent, avoiding
+        //! a second allocation solely for debug-time uniqueness validation.
+        Q_ASSERT(index == 0
+                 || inputs.at(index - 1).persistentDockId != input.persistentDockId);
+        sourceIndexes.append(input.sourceIndex);
+    }
+    return sourceIndexes;
+}
+
+//! Live lineage facts needed to classify one dock without a View dependency.
+//! Original views identify themselves as their group; clones must point to a
+//! distinct positive original, which keeps the relationship graph acyclic.
+struct DockLineageInput {
+    uint persistentDockId{0};
+    int groupId{-1};
+    bool isOriginal{false};
+    bool isCloned{false};
+    bool isSingle{false};
+};
+
+struct DockRelationshipClassification {
+    uint logicalDockId{0};
+    int originalDockId{-1};
+    DockRelationship relationship{DockRelationship::Single};
+};
+
+[[nodiscard]] constexpr std::optional<DockRelationshipClassification>
+classifyDockRelationship(const DockLineageInput &lineage) noexcept
+{
+    if (lineage.persistentDockId == 0 || lineage.isOriginal == lineage.isCloned) {
+        return std::nullopt;
+    }
+
+    if (lineage.isOriginal) {
+        if (lineage.groupId != static_cast<int>(lineage.persistentDockId)) {
+            return std::nullopt;
+        }
+
+        return DockRelationshipClassification{
+            lineage.persistentDockId,
+            -1,
+            lineage.isSingle ? DockRelationship::Single
+                             : DockRelationship::ScreensGroupOriginal};
+    }
+
+    if (lineage.isSingle || lineage.groupId <= 0
+        || lineage.groupId == static_cast<int>(lineage.persistentDockId)) {
+        return std::nullopt;
+    }
+
+    return DockRelationshipClassification{
+        static_cast<uint>(lineage.groupId),
+        lineage.groupId,
+        DockRelationship::ScreensGroupClone};
+}
+
+//! The live QObject graph behind one dock. Tokens are opaque, process-local,
+//! and comparable within and across dockSystemData() snapshots. An empty token
+//! means that optional controller does not currently exist.
+struct DockObjectIdentities {
+    QString view;
+    QString containment;
+    QString configuration;
+    QString layout;
+    QString layoutController;
+    QString geometryController;
+    QString editController;
+    QString configWindow;
+};
+
+//! One dock in the atomic dockSystemData() snapshot. persistentDockId is the
+//! Plasma containment id. logicalDockId is the original containment for a
+//! screens-group clone and otherwise equals persistentDockId. Duplication does
+//! not establish a relationship and therefore has no source field here.
+struct DockSystemViewRecord {
+    quint64 runtimeViewId{0};
+    uint persistentDockId{0};
+    uint logicalDockId{0};
+    int originalDockId{-1};
+    DockRelationship relationship{DockRelationship::Single};
+    std::optional<Types::ScreensGroup> screensGroup;
+    QList<uint> cloneDockIds;
+
+    QString layout;
+    int screenId{-1};
+    QString screen;
+    bool onPrimary{false};
+    Types::ViewType type{Types::DockView};
+    Plasma::Types::Location edge{Plasma::Types::Floating};
+    Plasma::Types::FormFactor orientation{Plasma::Types::Planar};
+    Types::Alignment alignment{Types::NoneAlignment};
+    float maximumLengthRatio{1.0F};
+    float offsetRatio{0.0F};
+
+    std::optional<int> configuredIconSize;
+    std::optional<int> effectiveIconSize;
+    std::optional<int> availablePrimaryLength;
+    int normalThickness{0};
+    int maximumNormalThickness{0};
+
+    QRect windowGeometry;
+    QRect absoluteGeometry;
+    QRect localGeometry;
+    QRect screenGeometry;
+    QRect canvasGeometry;
+    QRect effectsRect;
+    QRect appletsLayoutGeometry;
+    QRect maskRect;
+    QRect inputMask;
+    QRect appliedInputMask;
+    int strutsThickness{0};
+    QRect publishedStruts;
+
+    Types::Visibility visibilityMode{Types::None};
+    bool isHidden{false};
+    bool inStartup{false};
+    bool isOffScreen{false};
+    bool inRelocationAnimation{false};
+    bool inDelete{false};
+    bool inReadyState{false};
+    bool editMode{false};
+    bool settingsWindowShown{false};
+    DockObjectIdentities objects;
+};
+
+//! Same-edge stacking has no explicit authority in the current runtime. This
+//! typed negative capability is part of the schema so a consumer cannot infer
+//! an order from the canonical JSON array or from QObject creation order.
+struct DockStackModelRecord {
+    bool available{false};
+    QString reason{QStringLiteral("No runtime authority models same-edge stack order or accumulated offsets.")};
+};
+
+struct DockSystemSnapshot {
+    static constexpr int SchemaVersion = 1;
+
+    quint64 snapshotSequence{0};
+    bool globalConfigureAppletsMode{false};
+    DockStackModelRecord stacking;
+    QList<DockSystemViewRecord> views;
+};
+
 //! The live C++-property half of viewConfigData() (the "view" object):
 //! settings-panel controls that write a View/VisibilityManager/Indicator
 //! property instead of a containment config key, so the edit-mode audit's
@@ -322,6 +574,52 @@ inline QString alignmentName(Types::Alignment alignment)
     case Types::Top: return QStringLiteral("top");
     case Types::Bottom: return QStringLiteral("bottom");
     case Types::Justify: return QStringLiteral("justify");
+    }
+
+    Q_UNREACHABLE();
+}
+
+inline QString orientationName(Plasma::Types::FormFactor orientation)
+{
+    switch (orientation) {
+    case Plasma::Types::Planar:
+        return QStringLiteral("planar");
+    case Plasma::Types::MediaCenter:
+        return QStringLiteral("mediaCenter");
+    case Plasma::Types::Horizontal:
+        return QStringLiteral("horizontal");
+    case Plasma::Types::Vertical:
+        return QStringLiteral("vertical");
+    case Plasma::Types::Application:
+        return QStringLiteral("application");
+    }
+
+    Q_UNREACHABLE();
+}
+
+inline QString screensGroupName(Types::ScreensGroup group)
+{
+    switch (group) {
+    case Types::SingleScreenGroup:
+        return QStringLiteral("single");
+    case Types::AllScreensGroup:
+        return QStringLiteral("allScreens");
+    case Types::AllSecondaryScreensGroup:
+        return QStringLiteral("allSecondaryScreens");
+    }
+
+    Q_UNREACHABLE();
+}
+
+inline QString dockRelationshipName(DockRelationship relationship)
+{
+    switch (relationship) {
+    case DockRelationship::Single:
+        return QStringLiteral("single");
+    case DockRelationship::ScreensGroupOriginal:
+        return QStringLiteral("screensGroupOriginal");
+    case DockRelationship::ScreensGroupClone:
+        return QStringLiteral("screensGroupClone");
     }
 
     Q_UNREACHABLE();
@@ -934,6 +1232,148 @@ inline QString serializeViewRecords(const QList<ViewRecord> &records)
     return QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact));
 }
 
+inline QJsonValue serializeOptionalInt(const std::optional<int> &value)
+{
+    return value ? QJsonValue(*value) : QJsonValue(QJsonValue::Null);
+}
+
+inline QJsonValue serializeOptionalObjectToken(const QString &token)
+{
+    return token.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(token);
+}
+
+inline QJsonObject serializeDockObjectIdentities(const DockObjectIdentities &objects)
+{
+    QJsonObject json;
+    json[QStringLiteral("view")] = serializeOptionalObjectToken(objects.view);
+    json[QStringLiteral("containment")] = serializeOptionalObjectToken(objects.containment);
+    json[QStringLiteral("configuration")] = serializeOptionalObjectToken(objects.configuration);
+    json[QStringLiteral("layout")] = serializeOptionalObjectToken(objects.layout);
+    json[QStringLiteral("layoutController")] = serializeOptionalObjectToken(objects.layoutController);
+    json[QStringLiteral("geometryController")] = serializeOptionalObjectToken(objects.geometryController);
+    json[QStringLiteral("editController")] = serializeOptionalObjectToken(objects.editController);
+    json[QStringLiteral("configWindow")] = serializeOptionalObjectToken(objects.configWindow);
+    return json;
+}
+
+inline QList<DockSystemViewRecord> canonicalizeDockSystemViews(QList<DockSystemViewRecord> records)
+{
+    QHash<uint, QList<uint>> clonesByOriginal;
+
+    for (const auto &record : records) {
+        if (record.relationship == DockRelationship::ScreensGroupClone) {
+            clonesByOriginal[record.logicalDockId].append(record.persistentDockId);
+        }
+    }
+
+    for (auto it = clonesByOriginal.begin(); it != clonesByOriginal.end(); ++it) {
+        std::sort(it.value().begin(), it.value().end());
+    }
+
+    for (auto &record : records) {
+        if (record.relationship == DockRelationship::ScreensGroupOriginal) {
+            record.cloneDockIds = clonesByOriginal.value(record.persistentDockId);
+        } else {
+            record.cloneDockIds.clear();
+        }
+    }
+
+    std::sort(records.begin(), records.end(), [](const auto &left, const auto &right) {
+        if (left.persistentDockId != right.persistentDockId) {
+            return left.persistentDockId < right.persistentDockId;
+        }
+
+        return left.runtimeViewId < right.runtimeViewId;
+    });
+    return records;
+}
+
+inline QJsonObject serializeDockSystemViewRecord(const DockSystemViewRecord &record,
+                                                 bool globalConfigureAppletsMode)
+{
+    QJsonObject json;
+    json[QStringLiteral("runtimeViewId")] = QString::number(record.runtimeViewId);
+    json[QStringLiteral("persistentDockId")] = static_cast<qint64>(record.persistentDockId);
+    json[QStringLiteral("logicalDockId")] = static_cast<qint64>(record.logicalDockId);
+    json[QStringLiteral("originalDockId")] = record.originalDockId < 0
+        ? QJsonValue(QJsonValue::Null) : QJsonValue(record.originalDockId);
+    json[QStringLiteral("relationship")] = dockRelationshipName(record.relationship);
+    json[QStringLiteral("screensGroup")] = record.screensGroup
+        ? QJsonValue(screensGroupName(*record.screensGroup)) : QJsonValue(QJsonValue::Null);
+
+    QJsonArray cloneDockIds;
+    for (const uint id : record.cloneDockIds) {
+        cloneDockIds.append(static_cast<qint64>(id));
+    }
+    json[QStringLiteral("cloneDockIds")] = cloneDockIds;
+
+    json[QStringLiteral("layout")] = record.layout;
+    json[QStringLiteral("screenId")] = record.screenId;
+    json[QStringLiteral("screen")] = record.screen;
+    json[QStringLiteral("onPrimary")] = record.onPrimary;
+    json[QStringLiteral("type")] = viewTypeName(record.type);
+    json[QStringLiteral("edge")] = edgeName(record.edge);
+    json[QStringLiteral("orientation")] = orientationName(record.orientation);
+    json[QStringLiteral("alignment")] = alignmentName(record.alignment);
+    json[QStringLiteral("maximumLengthRatio")] = record.maximumLengthRatio;
+    json[QStringLiteral("offsetRatio")] = record.offsetRatio;
+
+    json[QStringLiteral("configuredIconSize")] = serializeOptionalInt(record.configuredIconSize);
+    json[QStringLiteral("effectiveIconSize")] = serializeOptionalInt(record.effectiveIconSize);
+    json[QStringLiteral("availablePrimaryLength")] = serializeOptionalInt(record.availablePrimaryLength);
+    json[QStringLiteral("normalThickness")] = record.normalThickness;
+    json[QStringLiteral("maximumNormalThickness")] = record.maximumNormalThickness;
+
+    json[QStringLiteral("windowGeometry")] = serializeRect(record.windowGeometry);
+    json[QStringLiteral("absoluteGeometry")] = serializeRect(record.absoluteGeometry);
+    json[QStringLiteral("localGeometry")] = serializeRect(record.localGeometry);
+    json[QStringLiteral("screenGeometry")] = serializeRect(record.screenGeometry);
+    json[QStringLiteral("canvasGeometry")] = serializeRect(record.canvasGeometry);
+    json[QStringLiteral("effectsRect")] = serializeRect(record.effectsRect);
+    json[QStringLiteral("appletsLayoutGeometry")] = serializeRect(record.appletsLayoutGeometry);
+    json[QStringLiteral("maskRect")] = serializeRect(record.maskRect);
+    json[QStringLiteral("inputMask")] = serializeRect(record.inputMask);
+    json[QStringLiteral("appliedInputMask")] = serializeRect(record.appliedInputMask);
+    json[QStringLiteral("strutsThickness")] = record.strutsThickness;
+    json[QStringLiteral("publishedStruts")] = serializeRect(record.publishedStruts);
+
+    json[QStringLiteral("visibilityMode")] = visibilityModeName(record.visibilityMode);
+    json[QStringLiteral("isHidden")] = record.isHidden;
+    json[QStringLiteral("inStartup")] = record.inStartup;
+    json[QStringLiteral("isOffScreen")] = record.isOffScreen;
+    json[QStringLiteral("inRelocationAnimation")] = record.inRelocationAnimation;
+    json[QStringLiteral("inDelete")] = record.inDelete;
+    json[QStringLiteral("inReadyState")] = record.inReadyState;
+    json[QStringLiteral("editMode")] = record.editMode;
+    json[QStringLiteral("effectiveConfigureAppletsMode")] =
+        effectiveConfigureAppletsMode(record.editMode, globalConfigureAppletsMode);
+    json[QStringLiteral("settingsWindowShown")] = record.settingsWindowShown;
+    json[QStringLiteral("objects")] = serializeDockObjectIdentities(record.objects);
+    return json;
+}
+
+inline QString serializeDockSystemSnapshot(const DockSystemSnapshot &snapshot)
+{
+    QJsonObject json;
+    json[QStringLiteral("schemaVersion")] = DockSystemSnapshot::SchemaVersion;
+    json[QStringLiteral("snapshotSequence")] = QString::number(snapshot.snapshotSequence);
+    json[QStringLiteral("globalConfigureAppletsMode")] = snapshot.globalConfigureAppletsMode;
+
+    QJsonObject stacking;
+    stacking[QStringLiteral("available")] = snapshot.stacking.available;
+    stacking[QStringLiteral("reason")] = snapshot.stacking.reason;
+    json[QStringLiteral("stacking")] = stacking;
+
+    QJsonArray views;
+    const auto canonicalViews = canonicalizeDockSystemViews(snapshot.views);
+    for (const auto &record : canonicalViews) {
+        views.append(serializeDockSystemViewRecord(record, snapshot.globalConfigureAppletsMode));
+    }
+    json[QStringLiteral("views")] = views;
+
+    return QString::fromUtf8(QJsonDocument(json).toJson(QJsonDocument::Compact));
+}
+
 //! One config value as a STABLE, comparable JSON scalar for viewConfigData()
 //! and appletConfigData() (docs/reference/dbus-observability-interface.md). Config
 //! values are the user's own dock settings - almost all are int/double/bool/
@@ -1033,6 +1473,20 @@ ViewRecord collectViewRecord(const Latte::View *view, bool globalConfigureApplet
 
 //! serialize a set of live views for the viewsData() D-Bus read
 QString collectViewsData(const QList<Latte::View *> &views, bool globalConfigureAppletsMode);
+
+//! Snapshot every live dock synchronously from its current runtime authorities.
+//! The caller owns the process-local sequence and identity registry so tokens
+//! remain comparable across D-Bus calls without adding identity state to View.
+DockSystemSnapshot collectDockSystemSnapshot(const QList<Latte::View *> &views,
+                                              bool globalConfigureAppletsMode,
+                                              quint64 snapshotSequence,
+                                              RuntimeObjectIdentityRegistry *identities);
+
+//! Collect and compact-serialize dockSystemData() in one synchronous call.
+QString collectDockSystemData(const QList<Latte::View *> &views,
+                              bool globalConfigureAppletsMode,
+                              quint64 snapshotSequence,
+                              RuntimeObjectIdentityRegistry *identities);
 
 //! serialize one live view's applets for the viewAppletsData() D-Bus read
 QString collectAppletsData(const Latte::View *view);
