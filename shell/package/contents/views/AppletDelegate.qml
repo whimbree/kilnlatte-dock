@@ -2,6 +2,7 @@
     SPDX-FileCopyrightText: 2011 Marco Martin <mart@kde.org>
     SPDX-FileCopyrightText: 2015 Kai Uwe Broulik <kde@privat.broulik.de>
     SPDX-FileCopyrightText: 2021 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
 
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
@@ -50,7 +51,7 @@ Item {
     //! adds this widget to the dock - the one body shared by the tap
     //! handler and the screen-reader press action
     function addWidget() {
-        widgetExplorer.addApplet(delegate.pluginName);
+        latteView.addApplet(delegate.pluginName);
         main.scheduleRunningCountRefresh();
     }
 

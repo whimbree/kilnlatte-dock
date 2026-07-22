@@ -193,8 +193,10 @@ DragDrop.DropArea {
             }
 
             containmentItem.processMimeData(event.mimeData, eventx, eventy);
-            //! inform others what plasmoid was drag n' dropped to be added
-            latteView.extendedInterface.appletDropped(event.mimeData, eventx, eventy);
+            //! The source containment has already processed the drop. Route
+            //! the structural synchronization through the view relationship
+            //! root so linked members receive distinct local instances.
+            latteView.synchronizeDroppedApplet(event.mimeData, eventx, eventy);
             event.accept(event.proposedAction);
         }
 

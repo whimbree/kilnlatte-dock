@@ -41,7 +41,9 @@ public:
 
     void addClone(Latte::ClonedView *view);
     void setNextLocationForClones(const QString layoutName, int edge, int alignment);
-    [[nodiscard]] bool addApplet(const QString &pluginId, uint excludedContainmentId);
+    [[nodiscard]] bool addApplet(const QString &pluginId) override;
+    [[nodiscard]] bool removeApplet(int appletId) override;
+    void synchronizeDroppedApplet(QObject *mimeData, int x, int y) override;
     void addApplet(QObject *mimedata, int x, int y, uint excludedContainmentId);
 
     void reconsiderScreen() override;

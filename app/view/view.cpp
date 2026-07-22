@@ -770,6 +770,23 @@ View *View::relationshipRootView()
     return this;
 }
 
+bool View::addApplet(const QString &pluginId)
+{
+    return m_interface && m_interface->addApplet(pluginId);
+}
+
+bool View::removeApplet(const int appletId)
+{
+    return m_interface && m_interface->removeApplet(appletId);
+}
+
+void View::synchronizeDroppedApplet(QObject *mimeData, const int x, const int y)
+{
+    Q_UNUSED(mimeData)
+    Q_UNUSED(x)
+    Q_UNUSED(y)
+}
+
 ViewActionPolicy::Role View::actionRole() const
 {
     if (isOriginal()) {

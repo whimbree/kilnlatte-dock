@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2022 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -512,7 +513,7 @@ void ContextMenuLayerQuickItem::addAppletActions(QMenu *desktopMenu, Plasma::App
 
     if (m_latteView->containment()->immutability() == Plasma::Types::Mutable &&
             (m_latteView->containment()->containmentType() != Plasma::Containment::Type::Panel || m_latteView->containment()->isUserConfiguring())) {
-        QAction *closeApplet = applet->internalAction(QStringLiteral("remove"));
+        const QAction *const closeApplet = applet->internalAction(QStringLiteral("remove"));
 
         //qDebug() << "checking for removal" << closeApplet;
         if (closeApplet) {
@@ -521,7 +522,16 @@ void ContextMenuLayerQuickItem::addAppletActions(QMenu *desktopMenu, Plasma::App
             }
 
             //qDebug() << "adding close action" << closeApplet->isEnabled() << closeApplet->isVisible();
-            desktopMenu->addAction(closeApplet);
+            auto *const relationshipAwareRemove = new QAction(closeApplet->icon(), closeApplet->text(), desktopMenu);
+            relationshipAwareRemove->setEnabled(closeApplet->isEnabled());
+            const int appletId = static_cast<int>(applet->id());
+            connect(relationshipAwareRemove, &QAction::triggered, this, [this, appletId]() {
+                if (!m_latteView || !m_latteView->removeApplet(appletId)) {
+                    qCritical() << "ContextMenuLayerQuickItem: relationship-aware removal failed for applet"
+                                << appletId;
+                }
+            });
+            desktopMenu->addAction(relationshipAwareRemove);
         }
     }
 }

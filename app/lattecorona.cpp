@@ -1680,7 +1680,7 @@ void Corona::addApplet(const uint &containmentId, const QString &pluginId)
     //! (end-appended, Qt5-faithful). A plugin id matching no installed
     //! plasmoid is outside input refused loudly here, not the historical
     //! silent no-op inside ContainmentInterface::addApplet.
-    if (!view->extendedInterface()->addAppletAndNotify(pluginId)) {
+    if (!view->addApplet(pluginId)) {
         qWarning() << "corona: addApplet found no installed plasmoid named" << pluginId
                    << "for containment" << containmentId << "; no applet created";
     }
@@ -1706,7 +1706,7 @@ void Corona::removeApplet(const uint &containmentId, const uint &appletId)
     //! timer fires, exactly the removeView undo trap. An applet id that names
     //! no applet on this view is outside input refused loudly here, not the
     //! historical silent no-op inside ContainmentInterface::removeApplet.
-    if (!view->extendedInterface()->removeApplet((int)appletId)) {
+    if (!view->removeApplet(static_cast<int>(appletId))) {
         qWarning() << "corona: removeApplet found no applet" << appletId
                    << "on containment" << containmentId << "; no applet removed";
     }

@@ -165,7 +165,8 @@ QString collectAppletsData(const Latte::View *view)
         record.isExpanded = interface->appletIsExpanded(data.id);
         //! Plasma::Applet::destroyed() is the scheduled-destruction bit the
         //! interface already forwards as appletInScheduledDestructionChanged
-        record.inScheduledDestruction = data.applet->destroyed();
+        record.inScheduledDestruction = data.applet->destroyed()
+                || interface->appletInScheduledDestruction(data.id);
         record.lockedZoom = interface->appletsInLockedZoom().contains(data.id);
         record.colorizingBlocked = interface->appletsDisabledColoring().contains(data.id);
 

@@ -261,6 +261,13 @@ public:
     //! here while keeping their own edit presentation.
     virtual Latte::View *relationshipRootView();
 
+    //! Relationship-aware structural applet mutations. Applet instances stay
+    //! containment-local, while linked views route the transaction through
+    //! their direct root so every member observes one authoritative change.
+    Q_INVOKABLE virtual bool addApplet(const QString &pluginId);
+    Q_INVOKABLE virtual bool removeApplet(int appletId);
+    Q_INVOKABLE virtual void synchronizeDroppedApplet(QObject *mimeData, int x, int y);
+
     QVariantList containmentActions() const;
 
     QQuickView *configView() const;

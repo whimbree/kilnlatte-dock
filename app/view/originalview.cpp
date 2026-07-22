@@ -13,6 +13,7 @@
 
 // C++
 #include <algorithm>
+#include <utility>
 
 // KDE
 #include <KLocalizedString>
@@ -217,31 +218,19 @@ void OriginalView::setNextLocationForClones(const QString layoutName, int edge, 
     }
 }
 
-bool OriginalView::addApplet(const QString &pluginId, const uint excludedContainmentId)
+bool OriginalView::addApplet(const QString &pluginId)
 {
-    if (m_clones.count() == 0) {
-        qCritical() << "OriginalView: linked applet addition has no registered linked member";
-        Q_ASSERT(!m_clones.isEmpty());
-        return false;
-    }
-
-    // add applet in original view
     if (!extendedInterface()->addApplet(pluginId)) {
-        qCritical() << "OriginalView: failed to add linked applet" << pluginId << "to the relationship root";
+        qCritical() << "OriginalView: failed to add applet" << pluginId
+                    << "to relationship root" << (containment() ? containment()->id() : 0);
         return false;
     }
 
     bool addedToEveryMember{true};
 
-    // add applet in clones and exclude the one that probably produced this triggering
-    for (const auto &clone : m_clones) {
+    for (const auto &clone : std::as_const(m_clones)) {
         if (!clone) {
             qWarning() << "OriginalView: skipped a destroyed clone while adding an applet";
-            continue;
-        }
-
-        if (clone->containment()->id() == excludedContainmentId) {
-            // this way we make sure that an applet will not be double added
             continue;
         }
 
@@ -255,6 +244,25 @@ bool OriginalView::addApplet(const QString &pluginId, const uint excludedContain
     return addedToEveryMember;
 }
 
+bool OriginalView::removeApplet(const int appletId)
+{
+    return extendedInterface()->removeApplet(appletId);
+}
+
+void OriginalView::synchronizeDroppedApplet(QObject *mimeData, const int x, const int y)
+{
+    //! The root containment has already processed the drop. Only the linked
+    //! members need local applet instances.
+    for (const auto &clone : std::as_const(m_clones)) {
+        if (!clone) {
+            qWarning() << "OriginalView: skipped a destroyed clone while mirroring a dropped applet";
+            continue;
+        }
+
+        clone->extendedInterface()->addApplet(mimeData, x, y);
+    }
+}
+
 void OriginalView::addApplet(QObject *mimedata, const int x, const int y, const uint excludedContainmentId)
 {
     if (m_clones.count() == 0) {
@@ -265,7 +273,7 @@ void OriginalView::addApplet(QObject *mimedata, const int x, const int y, const 
     extendedInterface()->addApplet(mimedata, x, y);
 
     // add applet in clones and exclude the one that probably produced this triggering
-    for (const auto &clone : m_clones) {
+    for (const auto &clone : std::as_const(m_clones)) {
         if (!clone) {
             qWarning() << "OriginalView: skipped a destroyed clone while dropping an applet";
             continue;

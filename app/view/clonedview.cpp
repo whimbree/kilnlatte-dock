@@ -10,9 +10,13 @@
 #include "../data/viewdata.h"
 #include "../layouts/storage.h"
 
-namespace Latte {
+// C++
+#include <utility>
 
-const int ClonedView::ERRORAPPLETID;
+// Qt
+#include <QSet>
+
+namespace Latte {
 
 QStringList ClonedView::CONTAINMENTMANUALSYNCEDPROPERTIES = QStringList()
         << QString("appletOrder")
@@ -77,19 +81,22 @@ void ClonedView::initSync()
     //! every point where the ids hash can gain entries goes through
     //! onSyncProgress so deferred original->clone syncs get their retry
     connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletConfigPropertyChanged, this, &ClonedView::updateOriginalAppletConfigProperty);
-    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::initializationCompleted, this, &ClonedView::onSyncProgress);
-    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletsOrderChanged, this, &ClonedView::onSyncProgress);
-    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletDataCreated, this, &ClonedView::onSyncProgress);
-    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletCreated, this, [&](const QString &pluginId) {
-        if (!m_originalView->addApplet(pluginId, containment()->id())) {
-            qCritical() << "ClonedView: linked applet addition from containment" << containment()->id()
-                        << "did not reach every relationship member";
+    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::initializationCompleted, this, [&]() {
+        m_initializationCompleted = true;
+        m_pendingOrderSync = true;
+        onSyncProgress();
+    });
+    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletsOrderChanged, this, [&]() {
+        //! A root structural change updates the member's order before the new
+        //! applet's data object is ready. That intermediate member signal is
+        //! progress for the pending root transaction, not a member edit.
+        const bool rootOrderWasPending = m_pendingOrderSync;
+        onSyncProgress();
+        if (!rootOrderWasPending) {
+            updateOriginalAppletsOrder();
         }
     });
-
-    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletDropped, this, [&](QObject *data, int x, int y) {
-        m_originalView->addApplet(data, x, y, containment()->id());
-    });
+    connect(extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletDataCreated, this, &ClonedView::onSyncProgress);
 
     //! Update Applets and Containment from OrigalView -> Clone
     if (m_linkPlacement == Data::View::LinkPlacement::ScreenGroupDerived) {
@@ -102,15 +109,6 @@ void ClonedView::initSync()
     connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletsInLockedZoomChanged, this, &ClonedView::onOriginalAppletsInLockedZoomChanged);
     connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletsDisabledColoringChanged, this, &ClonedView::onOriginalAppletsDisabledColoringChanged);
     connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletDataCreated, this, &ClonedView::onSyncProgress);
-    connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletCreated, this->extendedInterface(), [&](const QString &pluginId) {
-        if (!extendedInterface()->addApplet(pluginId)) {
-            qCritical() << "ClonedView: linked applet addition" << pluginId
-                        << "failed for containment" << containment()->id();
-        }
-    });
-    connect(m_originalView->extendedInterface(), &Latte::ViewPart::ContainmentInterface::appletDropped, this->extendedInterface(), [&](QObject *data, int x, int y) {
-        extendedInterface()->addApplet(data, x, y);
-    });
 
     if (m_linkPlacement == Data::View::LinkPlacement::ScreenGroupDerived) {
         connect(m_originalView, &Latte::View::indicatorChanged, this, &ClonedView::indicatorChanged);
@@ -170,6 +168,47 @@ View *ClonedView::relationshipRootView()
     return m_originalView.data();
 }
 
+bool ClonedView::addApplet(const QString &pluginId)
+{
+    if (!m_originalView) {
+        qCritical() << "ClonedView: cannot add an applet after its relationship root was destroyed";
+        return false;
+    }
+
+    return m_originalView->addApplet(pluginId);
+}
+
+bool ClonedView::removeApplet(const int appletId)
+{
+    if (!m_originalView) {
+        qCritical() << "ClonedView: cannot remove an applet after its relationship root was destroyed";
+        return false;
+    }
+
+    updateAppletIdsHash();
+    const int originalId = originalAppletId(appletId);
+    if (originalId <= 0) {
+        qCritical() << "ClonedView: cannot translate applet" << appletId
+                    << "from containment" << (containment() ? containment()->id() : 0)
+                    << "to its relationship root";
+        return false;
+    }
+
+    return m_originalView->removeApplet(originalId);
+}
+
+void ClonedView::synchronizeDroppedApplet(QObject *mimeData, const int x, const int y)
+{
+    if (!m_originalView || !containment()) {
+        qCritical() << "ClonedView: cannot synchronize a dropped applet without a valid relationship root";
+        return;
+    }
+
+    //! This member has already processed the drop. The root owns the shared
+    //! transaction and creates instances in itself and every other member.
+    m_originalView->addApplet(mimeData, x, y, containment()->id());
+}
+
 ViewPart::Indicator *ClonedView::indicator() const
 {
     return m_linkPlacement == Data::View::LinkPlacement::ExplicitTarget
@@ -178,7 +217,7 @@ ViewPart::Indicator *ClonedView::indicator() const
 }
 
 
-bool ClonedView::hasOriginalAppletId(const int &clonedid)
+bool ClonedView::hasOriginalAppletId(const int &clonedid) const
 {
     if (clonedid < 0) {
         return false;
@@ -196,7 +235,7 @@ bool ClonedView::hasOriginalAppletId(const int &clonedid)
     return false;
 }
 
-int ClonedView::originalAppletId(const int &clonedid)
+int ClonedView::originalAppletId(const int &clonedid) const
 {
     if (clonedid < 0) {
         return -1;
@@ -215,7 +254,7 @@ int ClonedView::originalAppletId(const int &clonedid)
 }
 
 
-bool ClonedView::isTranslatableToClonesOrder(const QList<int> &originalOrder)
+bool ClonedView::isTranslatableToClonesOrder(const QList<int> &originalOrder) const
 {
     for(int i=0; i<originalOrder.count(); ++i) {
         int oid = originalOrder[i];
@@ -241,28 +280,46 @@ Latte::Data::View ClonedView::data() const
 
 void ClonedView::updateAppletIdsHash()
 {
-    QList<int> originalids = m_originalView->extendedInterface()->appletsOrder();
-    QList<int> clonedids = extendedInterface()->appletsOrder();
+    const QList<int> originalIds = m_originalView->extendedInterface()->appletsOrder();
+    const QList<int> clonedIds = extendedInterface()->appletsOrder();
+    QSet<int> registeredCloneIds;
+    registeredCloneIds.reserve(m_currentAppletIds.size());
+    for (const int clonedId : std::as_const(m_currentAppletIds)) {
+        registeredCloneIds.insert(clonedId);
+    }
 
-    for (int i=0; i<originalids.count(); ++i) {
-        int oid = originalids[i];
-        if (oid < 0 || (m_currentAppletIds.contains(oid) && m_currentAppletIds[oid] > 0)) {
+    //! Applet ids are containment-local. Match each still-unpaired root applet
+    //! to the first still-unpaired member applet with the same plugin. Index
+    //! matching is invalid once either containment has been reordered, and was
+    //! the cause of member-originated order changes losing their new applet.
+    for (const int originalId : originalIds) {
+        if (originalId < 0 || m_currentAppletIds.contains(originalId)) {
             continue;
         }
 
-        int oindex = m_originalView->extendedInterface()->indexOfApplet(oid);
-        ViewPart::AppletInterfaceData originalapplet = m_originalView->extendedInterface()->appletDataForId(oid);
-        ViewPart::AppletInterfaceData clonedapplet = extendedInterface()->appletDataAtIndex(oindex);
+        const ViewPart::AppletInterfaceData originalApplet =
+            m_originalView->extendedInterface()->appletDataForId(originalId);
+        if (originalApplet.id <= 0 || originalApplet.plugin.isEmpty()) {
+            continue;
+        }
 
-        bool registeredclonedid = (originalAppletId(clonedapplet.id) > 0);
+        for (const int clonedId : clonedIds) {
+            if (clonedId < 0 || registeredCloneIds.contains(clonedId)) {
+                continue;
+            }
 
-        if (originalapplet.id>0 && clonedapplet.id>0 && originalapplet.plugin == clonedapplet.plugin && !registeredclonedid) {
-            m_currentAppletIds[originalapplet.id] = clonedapplet.id;
+            const ViewPart::AppletInterfaceData clonedApplet =
+                extendedInterface()->appletDataForId(clonedId);
+            if (clonedApplet.id > 0 && clonedApplet.plugin == originalApplet.plugin) {
+                m_currentAppletIds.insert(originalId, clonedId);
+                registeredCloneIds.insert(clonedId);
+                break;
+            }
         }
     }
 }
 
-QList<int> ClonedView::translateToClonesOrder(const QList<int> &originalIds)
+QList<int> ClonedView::translateToClonesOrder(const QList<int> &originalIds) const
 {
     QList<int> ids;
 
@@ -278,6 +335,24 @@ QList<int> ClonedView::translateToClonesOrder(const QList<int> &originalIds)
         } else {
             ids << ERRORAPPLETID; //error
         }
+    }
+
+    return ids;
+}
+
+QList<int> ClonedView::translateToOriginalsOrder(const QList<int> &clonedIds) const
+{
+    QList<int> ids;
+    ids.reserve(clonedIds.size());
+
+    for (const int clonedId : clonedIds) {
+        if (clonedId < 0) {
+            ids << clonedId;
+            continue;
+        }
+
+        const int originalId = originalAppletId(clonedId);
+        ids << (originalId > 0 ? originalId : ERRORAPPLETID);
     }
 
     return ids;
@@ -309,7 +384,10 @@ void ClonedView::onOriginalAppletRemoved(const int &id)
         return;
     }
 
-    extendedInterface()->removeApplet(m_currentAppletIds[id]);
+    if (!extendedInterface()->destroyAppletImmediately(m_currentAppletIds[id])) {
+        qCritical() << "ClonedView: failed to finalize linked applet" << m_currentAppletIds[id]
+                    << "after root applet" << id << "expired";
+    }
     m_currentAppletIds.remove(id);
 }
 
@@ -362,6 +440,46 @@ void ClonedView::onSyncProgress()
     retryPendingOriginalSyncs();
 }
 
+void ClonedView::updateOriginalAppletsOrder()
+{
+    if (!m_initializationCompleted || !m_originalView) {
+        return;
+    }
+
+    const QList<int> clonedOrder = extendedInterface()->appletsOrder();
+    if (m_expectedOrderFromOriginal) {
+        const bool reachedExpectedOrder = clonedOrder == *m_expectedOrderFromOriginal;
+        m_expectedOrderFromOriginal.reset();
+        if (reachedExpectedOrder) {
+            return;
+        }
+    }
+
+    if (m_applyingOriginalOrder) {
+        return;
+    }
+
+    if (clonedOrder.size() != m_originalView->extendedInterface()->appletsOrder().size()) {
+        //! A coordinated add/drop/remove can expose the member's intermediate
+        //! local order before the root has completed the structural change.
+        return;
+    }
+
+    const QList<int> originalOrder = translateToOriginalsOrder(clonedOrder);
+    if (originalOrder.contains(ERRORAPPLETID)) {
+        qCritical() << "ClonedView: cannot translate the complete applet order for containment"
+                    << (containment() ? containment()->id() : 0)
+                    << "member order" << clonedOrder
+                    << "root order" << m_originalView->extendedInterface()->appletsOrder()
+                    << "root-to-member ids" << m_currentAppletIds;
+        return;
+    }
+
+    if (originalOrder != m_originalView->extendedInterface()->appletsOrder()) {
+        m_originalView->extendedInterface()->setAppletsOrder(originalOrder);
+    }
+}
+
 void ClonedView::retryPendingOriginalSyncs()
 {
     //! clear each flag BEFORE applying: a successful apply emits the clone's
@@ -404,7 +522,7 @@ bool ClonedView::applyOriginalAppletsOrder()
 {
     //! order is re-read from the original at apply time, so a deferred order
     //! sync always applies the CURRENT order, not the one that failed
-    QList<int> originalorder = m_originalView->extendedInterface()->appletsOrder();
+    const QList<int> originalorder = m_originalView->extendedInterface()->appletsOrder();
 
     if (originalorder.count() != extendedInterface()->appletsOrder().count()) {
         //probably an applet was removed or added and clone has not been updated yet
@@ -415,13 +533,16 @@ bool ClonedView::applyOriginalAppletsOrder()
         return false;
     }
 
-    QList<int> newclonesorder = translateToClonesOrder(originalorder);
+    const QList<int> newclonesorder = translateToClonesOrder(originalorder);
 
     if (newclonesorder.contains(ERRORAPPLETID)) {
         return false;
     }
 
+    m_expectedOrderFromOriginal = newclonesorder;
+    m_applyingOriginalOrder = true;
     extendedInterface()->setAppletsOrder(newclonesorder);
+    m_applyingOriginalOrder = false;
     return true;
 }
 

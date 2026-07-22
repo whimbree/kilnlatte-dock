@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2019 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -119,6 +120,7 @@ public:
     int readDropMarkerIndex();
     QList<int> appletsInLockedZoom() const;
     QList<int> appletsDisabledColoring() const;
+    [[nodiscard]] bool appletInScheduledDestruction(int id) const;
     ViewPart::AppletInterfaceData appletDataAtIndex(const int &index);
     ViewPart::AppletInterfaceData appletDataForId(const int &id);
 
@@ -131,6 +133,20 @@ public:
     QAbstractListModel *latteTasksModel() const;
     QAbstractListModel *plasmaTasksModel() const;
 
+    //! Low-level containment-local mutations. These deliberately are not Qt
+    //! slots: QML and external callers must use View's relationship-aware
+    //! boundary so a linked member cannot be mutated independently.
+    [[nodiscard]] bool addApplet(const QString &pluginId);
+    void addApplet(QObject *metadata, int x, int y);
+    bool removeApplet(const int &id);
+    bool destroyAppletImmediately(const int &id);
+    void setAppletsOrder(const QList<int> &order);
+    void setAppletsInLockedZoom(const QList<int> &applets);
+    void setAppletsDisabledColoring(const QList<int> &applets);
+    void setAppletInScheduledDestruction(const int &id, const bool &enabled);
+    void updateContainmentConfigProperty(const QString &key, const QVariant &value);
+    void updateAppletConfigProperty(const int &id, const QString &key, const QVariant &value);
+
 public Q_SLOTS:
     Q_INVOKABLE void deactivateApplets();
     Q_INVOKABLE void toggleAppletExpanded(const int id);
@@ -140,29 +156,6 @@ public Q_SLOTS:
     Q_INVOKABLE bool appletIsActivationTogglesExpanded(const int id) const;
 
     Q_INVOKABLE bool isApplication(const QUrl &url) const;
-
-    //! add an installed plasmoid by plugin id (end-appended via
-    //! Plasma::Containment::createApplet). Returns whether a plugin was
-    //! found and created, so the coarse addApplet D-Bus action can refuse a
-    //! bad plugin id loudly instead of the historical silent no-op.
-    [[nodiscard]] bool addApplet(const QString &pluginId);
-    //! Create locally, then announce the external action to the relationship
-    //! coordinator. Coordinator-driven copies use addApplet() so the
-    //! announcement cannot feed back through the linked group.
-    [[nodiscard]] bool addAppletAndNotify(const QString &pluginId);
-    void addApplet(QObject *metadata, int x, int y);
-    //! trigger the same coarse "Remove this Widget" the applet context menu
-    //! does (Applet::destroy(), which enters the libplasma undo window).
-    //! Returns whether an applet with that instance id existed, so the coarse
-    //! removeApplet D-Bus action can refuse a bad id loudly instead of the
-    //! historical silent no-op.
-    bool removeApplet(const int &id);
-    void setAppletsOrder(const QList<int> &order);
-    void setAppletsInLockedZoom(const QList<int> &applets);
-    void setAppletsDisabledColoring(const QList<int> &applets);
-    void setAppletInScheduledDestruction(const int &id, const bool &enabled);
-    void updateContainmentConfigProperty(const QString &key, const QVariant &value);
-    void updateAppletConfigProperty(const int &id, const QString &key, const QVariant &value);    
 
 Q_SIGNALS:
     void expandedAppletStateChanged();
@@ -179,9 +172,7 @@ Q_SIGNALS:
     void appletRemoved(const int &id);
 
     void appletConfigPropertyChanged(const int &id, const QString &key, const QVariant &value);
-    void appletCreated(const QString &pluginId);
     void appletDataCreated(const int &id);
-    void appletDropped(QObject *data, int x, int y);
     void containmentConfigPropertyChanged(const QString &key, const QVariant &value);
     void appletsOrderChanged();
     void appletsInLockedZoomChanged(const QList<int> &applets);

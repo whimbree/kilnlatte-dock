@@ -1,6 +1,7 @@
 /*
     SPDX-FileCopyrightText: 2011 Marco Martin <mart@kde.org>
     SPDX-FileCopyrightText: 2021 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
 
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
@@ -104,8 +105,8 @@ PC3.Page {
 
     function addCurrentApplet() {
         var pluginName = list.currentItem ? list.currentItem.pluginName : ""
-        if (pluginName && widgetExplorer && typeof widgetExplorer.addApplet === "function") {
-            widgetExplorer.addApplet(pluginName);
+        if (pluginName && latteView && typeof latteView.addApplet === "function") {
+            latteView.addApplet(pluginName);
             scheduleRunningCountRefresh();
         }
     }

@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2021 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -18,6 +19,10 @@ AbilityDefinition.MyView {
 
     function action(name) {
         return view ? view.action(name) : null;
+    }
+
+    function removeApplet(appletId) {
+        return view ? view.removeApplet(appletId) : false;
     }
 
     readonly property Item publicApi: Item {
@@ -63,6 +68,10 @@ AbilityDefinition.MyView {
 
         function inCurrentLayout() {
             return apis.inCurrentLayout();
+        }
+
+        function removeApplet(appletId) {
+            return apis.removeApplet(appletId);
         }
     }
 }

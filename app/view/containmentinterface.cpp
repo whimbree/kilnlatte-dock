@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2019 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -711,16 +712,6 @@ bool ContainmentInterface::addApplet(const QString &pluginId)
     return true;
 }
 
-bool ContainmentInterface::addAppletAndNotify(const QString &pluginId)
-{
-    if (!addApplet(pluginId)) {
-        return false;
-    }
-
-    Q_EMIT appletCreated(pluginId);
-    return true;
-}
-
 void ContainmentInterface::addApplet(QObject *metadata, int x, int y)
 {
     int processmimedataindex = m_plasmoid->metaObject()->indexOfMethod("processMimeData(QObject*,int,int)");
@@ -835,6 +826,18 @@ QList<int> ContainmentInterface::appletsDisabledColoring() const
     return m_appletsDisabledColoring;
 }
 
+bool ContainmentInterface::appletInScheduledDestruction(const int id) const
+{
+    if (!m_layoutManager) {
+        qCritical() << "ContainmentInterface: cannot read scheduled applet destruction without a layout manager";
+        return false;
+    }
+
+    return m_layoutManager->property("appletsInScheduledDestruction")
+        .value<QList<int>>()
+        .contains(id);
+}
+
 void ContainmentInterface::updateAppletsOrder()
 {
     if (!m_layoutManager) {
@@ -947,9 +950,26 @@ bool ContainmentInterface::removeApplet(const int &id)
         return false;
     }
 
-    auto applet = m_appletData[id].applet;
-    Q_EMIT applet->appletDeleted(applet); //! this signal should be part of Plasma Frameworks AppletPrivate::destroy() function...
-    applet->destroy();
+    Plasma::Applet *const applet = m_appletData[id].applet;
+    //! This is the same private slot the applet's Remove action invokes.
+    //! libplasma owns the notification, destroyedChanged, containment removal,
+    //! and Undo ordering. Applet::destroy() bypasses that transaction.
+    if (!QMetaObject::invokeMethod(applet, "askDestroy", Qt::DirectConnection)) {
+        qCritical() << "ContainmentInterface: libplasma refused the removal transaction for applet" << id;
+        return false;
+    }
+
+    return true;
+}
+
+bool ContainmentInterface::destroyAppletImmediately(const int &id)
+{
+    if (!m_appletData.contains(id)) {
+        qCritical() << "ContainmentInterface: cannot finalize missing linked applet" << id;
+        return false;
+    }
+
+    m_appletData[id].applet->destroy();
     return true;
 }
 

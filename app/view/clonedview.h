@@ -23,7 +23,7 @@ class ClonedView : public View
     Q_OBJECT
 
 public:
-    static const int ERRORAPPLETID = -999;
+    static constexpr int ERRORAPPLETID{-999};
 
     ClonedView(Plasma::Corona *corona,
                Latte::OriginalView *originalView,
@@ -45,6 +45,10 @@ public:
     Latte::View *configurationTargetView() override;
     Latte::View *relationshipRootView() override;
 
+    [[nodiscard]] bool addApplet(const QString &pluginId) override;
+    [[nodiscard]] bool removeApplet(int appletId) override;
+    void synchronizeDroppedApplet(QObject *mimeData, int x, int y) override;
+
     ViewPart::Indicator *indicator() const override;
     Latte::Data::View data() const override;
 
@@ -62,16 +66,18 @@ private Q_SLOTS:
 
     void updateContainmentConfigProperty(const QString &key, const QVariant &value);
     void updateOriginalAppletConfigProperty(const int &clonedid, const QString &key, const QVariant &value);
+    void updateOriginalAppletsOrder();
 
     void updateAppletIdsHash();
     void onSyncProgress();
 private:
-    bool isTranslatableToClonesOrder(const QList<int> &originalOrder);
+    bool isTranslatableToClonesOrder(const QList<int> &originalOrder) const;
 
-    bool hasOriginalAppletId(const int &clonedid);
-    int originalAppletId(const int &clonedid);
+    bool hasOriginalAppletId(const int &clonedid) const;
+    int originalAppletId(const int &clonedid) const;
 
-    QList<int> translateToClonesOrder(const QList<int> &originalIds);
+    QList<int> translateToClonesOrder(const QList<int> &originalIds) const;
+    QList<int> translateToOriginalsOrder(const QList<int> &clonedIds) const;
 
     bool applyOriginalAppletsOrder();
     bool applyOriginalAppletsInLockedZoom(const QList<int> &originalapplets);
@@ -93,6 +99,9 @@ private:
     //! optional distinguishes "nothing pending" from a pending EMPTY list
     //! (empty means unlock/recolor everything - a valid payload).
     bool m_pendingOrderSync{false};
+    bool m_initializationCompleted{false};
+    bool m_applyingOriginalOrder{false};
+    std::optional<QList<int>> m_expectedOrderFromOriginal;
     std::optional<QList<int>> m_pendingLockedZoom;
     std::optional<QList<int>> m_pendingDisabledColoring;
 };
