@@ -75,6 +75,130 @@ Landed before or during the 2026-07-16 stabilization session:
   lock/unlock "is it actually visible" question, and the
   startup-stranding watchdog's state dump (inStartup/isOffScreen are
   exactly the stranded bits).
+  `inConfigureAppletsMode` is the effective per-view value, matching QML's
+  `editMode && universalSettings.inConfigureAppletsMode`, not the raw global
+  toggle. A global rearrange session therefore does not report unrelated docks
+  as configuring applets.
+- `dockSystemData() -> s` (compact JSON object, schema version 1; added by C0
+  (the atomic dock-system observability snapshot)). This is the relational
+  all-docks read. One synchronous call captures the global configuration mode
+  and every current dock, then serializes docks in ascending
+  `persistentDockId` order. `snapshotSequence` is a process-local monotonic
+  decimal string; it identifies calls, not state changes.
+  ```json
+  {
+    "schemaVersion": 1,
+    "snapshotSequence": "14",
+    "globalConfigureAppletsMode": true,
+    "stacking": {
+      "available": false,
+      "reason": "No runtime authority models same-edge stack order or accumulated offsets."
+    },
+    "views": [{
+      "runtimeViewId": "9",
+      "persistentDockId": 17,
+      "logicalDockId": 4,
+      "originalDockId": 4,
+      "relationship": "screensGroupClone",
+      "screensGroup": "allScreens",
+      "cloneDockIds": [],
+      "layout": "My Layout",
+      "screenId": 2,
+      "screen": "DP-2",
+      "onPrimary": false,
+      "type": "dock",
+      "edge": "left",
+      "orientation": "vertical",
+      "alignment": "top",
+      "maximumLengthRatio": 0.8,
+      "offsetRatio": 0.0,
+      "configuredIconSize": 64,
+      "effectiveIconSize": 52,
+      "availablePrimaryLength": 900,
+      "normalThickness": 72,
+      "maximumNormalThickness": 96,
+      "windowGeometry": [x, y, w, h],
+      "absoluteGeometry": [x, y, w, h],
+      "localGeometry": [x, y, w, h],
+      "screenGeometry": [x, y, w, h],
+      "canvasGeometry": [x, y, w, h],
+      "effectsRect": [x, y, w, h],
+      "appletsLayoutGeometry": [x, y, w, h],
+      "maskRect": [x, y, w, h],
+      "inputMask": [x, y, w, h],
+      "appliedInputMask": [x, y, w, h],
+      "strutsThickness": 48,
+      "publishedStruts": [x, y, w, h],
+      "visibilityMode": "dodgeActive",
+      "isHidden": false,
+      "inStartup": false,
+      "isOffScreen": false,
+      "inRelocationAnimation": false,
+      "inDelete": false,
+      "inReadyState": true,
+      "editMode": true,
+      "effectiveConfigureAppletsMode": true,
+      "settingsWindowShown": true,
+      "objects": {
+        "view": "object-9",
+        "containment": "object-10",
+        "configuration": "object-11",
+        "layout": "object-12",
+        "layoutController": "object-13",
+        "geometryController": "object-14",
+        "editController": "object-15",
+        "configWindow": "object-16"
+      }
+    }]
+  }
+  ```
+  `persistentDockId` is the Plasma containment id. `logicalDockId` is the
+  original containment id for a screens-group clone and otherwise equals the
+  persistent id. `originalDockId` is null except on clones. Duplication carries
+  no durable relation to its source. Under the current behavior, duplicating an
+  all-screens policy creates a new screens-group original and that new group's
+  own clones; duplicating a single-screen dock creates a `single` record.
+  Screens-group originals carry their canonically sorted clone ids in
+  `cloneDockIds`; other records carry an empty array.
+
+  `runtimeViewId` and every `objects` value are opaque process-local identities.
+  They are assigned monotonically on first observation, remain stable for the
+  QObject's lifetime, and never expose an address. Null controller tokens mean
+  that authority is not live. The configuration authority is required, so a
+  null configuration token or `configuredIconSize` is a logged defect rather
+  than an ordinary startup state. The configuration window is legitimately
+  null while closed; QML controllers and their `effectiveIconSize` or
+  `availablePrimaryLength` values may be null during startup or teardown.
+  `configuredIconSize` comes from the containment's live configuration map;
+  `effectiveIconSize` comes from the live Metrics object;
+  `availablePrimaryLength` is the containment root's current logical-pixel
+  `maxLength`, the length the autosizer consumes.
+  `screensGroup` can be null only during an invalid or transitional state where
+  a current clone's original is absent from the same atomic snapshot; inventing
+  a single-screen policy would hide that missing authority. The visibility,
+  startup, relocation, deletion, and ready fields come directly from View,
+  Positioner, and VisibilityManager and make unsettled records explicit.
+
+  The object identities name, respectively, the View window, Plasma
+  containment, live KConfig property map, GenericLayout, QML layout manager,
+  Positioner, containment root that owns edit state, and shared configuration
+  window. Equal tokens prove shared ownership or accidental cross-dock reuse.
+  `effectiveConfigureAppletsMode` is derived from the same per-view expression
+  as QML. The raw global bit appears only once at the snapshot root.
+
+  Every geometry array is `[x,y,w,h]` in Qt logical pixels, before any output
+  device-pixel scaling. `windowGeometry`, `absoluteGeometry`, `screenGeometry`,
+  `canvasGeometry`, and `publishedStruts` use virtual-desktop coordinates.
+  `localGeometry`, `effectsRect`, `appletsLayoutGeometry`, `maskRect`,
+  `inputMask`, and `appliedInputMask` use dock-window-local coordinates.
+  `normalThickness`, `maximumNormalThickness`, and `strutsThickness` use the
+  same logical-pixel unit.
+
+  `stacking.available` is deliberately false. The current runtime has no
+  explicit same-edge stack-order or accumulated-offset model. Canonical array
+  order is serialization order only and must never be treated as layer-shell
+  stack order. A later stack model requires a new authoritative runtime record,
+  not inference from containment ids, pointers, or creation order.
 - `viewAppletsData(u containmentId) -> s` (JSON array, in visual order).
   Per applet: id, plugin, index in layout, geometry within the view,
   expanded state, inScheduledDestruction, lockedZoom, colorizingBlocked,
@@ -326,7 +450,8 @@ Landed before or during the 2026-07-16 stabilization session:
   when the target view is not already in edit mode (rearrange only runs
   inside an open edit session; the boundary refusal is also the action's
   observes-a-rejection self-test); exiting is always honored. Readback:
-  viewsData()'s inConfigureAppletsMode field.
+  viewsData()'s effective per-view inConfigureAppletsMode field and
+  dockSystemData()'s top-level raw global plus per-view effective fields.
 - `addApplet(u containmentId, s pluginId)` (added 2026-07-18 with the
   e2e interaction suite, C-I3/P3) - the deterministic sibling of a
   widget-explorer drop: validate that pluginId names an INSTALLED

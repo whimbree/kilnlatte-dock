@@ -90,8 +90,10 @@ phases, one commit-traceable checklist item per task. The coarse picture:
       units executed; a tail of live verification recipes is tracked in
       the plan's executed notes
 - [x] D-Bus observability and driving surface: any view's runtime state
-      is pull-queryable as JSON and the coarse user actions are callable,
-      so tests and tooling inspect state instead of peeping pixels
+      is pull-queryable as JSON, including an atomic canonically ordered
+      all-docks topology snapshot with stable process-local object identities,
+      and the coarse user actions are callable, so tests and tooling inspect
+      state instead of peeping pixels
 - [x] Headless visual-regression testing: real-pixel scene rendering on
       pure CPU under a nested compositor, bit-exact committed goldens,
       shader/validation/blank-frame gates; an opt-in GPU device mode

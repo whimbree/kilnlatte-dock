@@ -3,6 +3,39 @@
 Rolling handoff for the next session to pick up without re-deriving context.
 Last updated 2026-07-22.
 
+## 2026-07-22: PR #110 observability rewrite awaits its final gate and rereview
+
+PR #110 now separates D76 (global applet-configure readback marked unrelated
+docks active) from C0 (the atomic dock-system observability snapshot). Commit
+`fb81c297c` derives the effective configure state from each dock's edit mode and
+the one global rearrange toggle. Commit `f41dfff03` adds the schema-versioned
+`dockSystemData()` query and its deterministic value-layer tests. The public
+contract and this traceability update remain a separate documentation commit.
+
+The initial independent review returned MERGE AFTER FIXES. It found that
+runtime tokens were assigned before sorting QHash-derived views, the lifetime
+test did not force address reuse, GUI-thread affinity was implicit, live
+collection did not route through tested seams, stacking keys were not pinned,
+D76 and C0 shared one commit, public identity and coordinate-space semantics
+were incomplete, and enum/relationship mappings lacked exhaustive coverage.
+
+The rewrite sorts persistent containment ids before the first identity lookup,
+uses a generation-checked QPointer registry with synchronous GUI-thread
+retirement, reconstructs QObjects at an exact reused address in the unit test,
+routes collection through pure ordering and constexpr lineage seams, refuses
+malformed lineage loudly, pins the production routes with controlled-mutation
+source guards, and defines stacking as an exact unavailable capability rather
+than inventing an order. Geometry coordinate spaces, logical-pixel units,
+nullable controller states, and the current screen-group duplication behavior
+are explicit in the public reference.
+
+A fresh Nix development build completed `lattedock-core`, `latte-dock`,
+`dbusreportstest`, and `sourceguardtest`; both focused tests passed. The first
+compile exposed two observational View getters that lacked const qualification;
+their declarations and definitions are now const-correct. The canonical
+`scripts/gate-all.sh` run and the required cold follow-up review remain before
+the PR can leave draft state or merge.
+
 ## 2026-07-21: D81 and D82 prerequisite corrections merged
 
 PR #108 merged the standalone prerequisites discovered while gating C0 (the

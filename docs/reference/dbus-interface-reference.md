@@ -57,10 +57,85 @@ sidebarOnDemand|sidebarAutoHide|normalWindow), `isHidden`,
 to `QWindow::setMask`, kept wide across a length shrink and collapsing
 back to `inputRegionRects` once the band settles - differs only
 mid-shrink), `editMode`, `inConfigureAppletsMode`, `keyboardNavigation`.
+`inConfigureAppletsMode` is effective for that view: it is true only when the
+view is in edit mode and the global rearrange toggle is on.
 
 This replaces pixel-peeping for dock state: hidden-or-not, where the
 input region really is, whether startup stranded (`inStartup` stuck
 true with `isOffScreen`), what the compositor was told to reserve.
+
+### dockSystemData - atomic all-docks topology
+
+```bash
+call dockSystemData                    # s: compact schema-versioned JSON object
+```
+
+Top level: `schemaVersion` (currently 1), `snapshotSequence` (decimal string,
+process-local monotonic call identity), `globalConfigureAppletsMode`,
+`stacking`, and `views`. The complete view list is captured synchronously and
+serialized in ascending `persistentDockId` order, so repeated snapshots do not
+inherit `QHash` traversal order.
+
+Per dock:
+
+- Identity and relationship: `runtimeViewId` (decimal string),
+  `persistentDockId`, `logicalDockId`, `originalDockId` (number or null),
+  `relationship` (`single|screensGroupOriginal|screensGroupClone`),
+  `screensGroup` (`single|allScreens|allSecondaryScreens`), and
+  `cloneDockIds`. `persistentDockId` is the containment id. A clone's logical
+  id and original id name its original containment. Every other dock's logical
+  id equals its persistent id. Duplication creates no lasting relation to its
+  source. Under the current behavior, a duplicated all-screens policy produces
+  a new screens-group original and its own clones; duplicating a single-screen
+  dock produces a `single` record.
+  `screensGroup` is null only when a current clone's original is absent from
+  the same snapshot, because no live authority can supply the group policy.
+- Placement: `layout`, `screenId`, `screen`, `onPrimary`, `type`, `edge`,
+  `orientation`, `alignment`, `maximumLengthRatio`, and `offsetRatio`.
+- Sizing: `configuredIconSize`, `effectiveIconSize`,
+  `availablePrimaryLength`, `normalThickness`, and `maximumNormalThickness`.
+  `effectiveIconSize` and `availablePrimaryLength` are null while their live
+  QML authorities are not constructed. A null `configuredIconSize` instead
+  means the required containment configuration map or its `iconSize` entry is
+  missing; collection logs that defect. `availablePrimaryLength` is the
+  containment root's current logical-pixel `maxLength`, not the configured
+  ratio.
+- Geometry: `windowGeometry`, `absoluteGeometry`, `localGeometry`,
+  `screenGeometry`, `canvasGeometry`, `effectsRect`,
+  `appletsLayoutGeometry`, `maskRect`, `inputMask`, `appliedInputMask`,
+  `strutsThickness`, and `publishedStruts`. Every rectangle is `[x,y,w,h]` in
+  Qt logical pixels. `windowGeometry`, `absoluteGeometry`, `screenGeometry`,
+  `canvasGeometry`, and `publishedStruts` use virtual-desktop coordinates.
+  `localGeometry`, `effectsRect`, `appletsLayoutGeometry`, `maskRect`,
+  `inputMask`, and `appliedInputMask` use dock-window-local coordinates.
+  Thickness values are logical pixels as well.
+- Runtime state: `visibilityMode`, `isHidden`, `inStartup`, `isOffScreen`,
+  `inRelocationAnimation`, `inDelete`, and `inReadyState`.
+- Edit state: `editMode`, `effectiveConfigureAppletsMode`, and
+  `settingsWindowShown`. The effective field is true only for an edited view
+  while the top-level global toggle is true.
+- `objects`: opaque `object-N` identities for `view`, `containment`,
+  `configuration`, `layout`, `layoutController`, `geometryController`,
+  `editController`, and `configWindow`. Null means that authority is not live.
+  The configuration authority is required and its absence is logged as a
+  defect; the configuration window is legitimately absent while closed, and
+  QML controllers may be absent during startup or teardown. Tokens remain
+  stable for a QObject's lifetime and are useful only within the current
+  process. They are not memory addresses.
+
+`stacking.available` is currently false and its `reason` explains the missing
+capability. No runtime authority models same-edge stack order or accumulated
+offsets yet. Do not interpret canonical `views` array order as physical stack
+order.
+
+Example relationship checks:
+
+```bash
+state=$(call dockSystemData)
+# jq examples after extracting the D-Bus string payload:
+jq '.views | map({persistentDockId,logicalDockId,relationship,cloneDockIds})' <<<"$state"
+jq '[.views[] | select(.effectiveConfigureAppletsMode)] | length' <<<"$state"
+```
 
 ### Per-view reads (all take the containment id)
 
@@ -186,7 +261,8 @@ call setViewConfiguringApplets ub 1 true        # enter/leave the applet-REARRAN
                                                 # settings header rearrange button toggles); the ConfigOverlay
                                                 # drag machinery needs it. Refused loudly if view 1 is NOT in
                                                 # edit mode first (open it with setViewEditMode). Readback:
-                                                # viewsData inConfigureAppletsMode. false is always safe
+                                                # effective viewsData inConfigureAppletsMode, or dockSystemData's
+                                                # global and per-view fields. false is always safe
 call activateTaskAt ui 1 3             # what Meta+3 does on view 1: 1-BASED visual entry
                                        # index (badges' numbering); active task toggles
                                        # (minimize), launcher-only entries launch

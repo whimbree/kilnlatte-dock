@@ -2721,6 +2721,21 @@ showed how much of the dock can only be driven by a pointer today.
       schema additions recorded in the design doc, busctl smokes run
       in the nested-kwin vehicle at merge. The design doc's sequencing
       section carries the per-step record.
+      C0 (THE ATOMIC DOCK-SYSTEM OBSERVABILITY SNAPSHOT) IMPLEMENTED IN
+      PR #110, PENDING FINAL GATE AND FOLLOW-UP REVIEW 2026-07-22:
+      dockSystemData() captures every live dock synchronously in stable
+      persistent-containment order. It exposes logical, persistent, runtime,
+      containment, screen-group relationship, placement, sizing, geometry,
+      lifecycle, edit-mode, and QObject-authority identities in one
+      schema-versioned response. Runtime tokens are process-local and retire
+      with their QObject generation. Invalid lineage is refused loudly.
+      Same-edge stacking is an explicit unavailable capability until its
+      coordinator lands, so consumers cannot mistake serialization order for
+      physical stack order. D76 (global applet-configure readback marked
+      unrelated docks active) was split into its own root-cause commit.
+      Commits: fb81c297c (D76), f41dfff03 (C0 implementation); public contract
+      and tracking commit follows here and all hashes are replaced with final
+      post-rebase hashes after PR #110 merges.
       Commits: 9d183984e, f7561df37 (seeds); fdfdf5b00, 07e91e456,
       dd3046c03, 77a9586cc (step 1; the worktree merge rebased the
       hashes the agent log records); 2390e7220..bb3d8c53f (steps 2-4,
