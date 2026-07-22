@@ -103,11 +103,20 @@ PC3.Page {
         }
     }
 
+    function addApplet(pluginName) {
+        // The shell supplies latteView as the relationship-aware mutation
+        // boundary. Keeping this dependency at the page boundary also gives
+        // AppletDelegate one explicit, replaceable add interface.
+        // qmllint disable unqualified
+        latteView.addApplet(pluginName);
+        // qmllint enable unqualified
+    }
+
     function addCurrentApplet() {
-        var pluginName = list.currentItem ? list.currentItem.pluginName : ""
-        if (pluginName && latteView && typeof latteView.addApplet === "function") {
-            latteView.addApplet(pluginName);
-            scheduleRunningCountRefresh();
+        const pluginName = list.currentItem ? list.currentItem.pluginName : ""
+        if (pluginName) {
+            main.addApplet(pluginName);
+            main.scheduleRunningCountRefresh();
         }
     }
 

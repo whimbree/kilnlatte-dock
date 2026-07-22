@@ -51,7 +51,7 @@ Item {
     //! adds this widget to the dock - the one body shared by the tap
     //! handler and the screen-reader press action
     function addWidget() {
-        latteView.addApplet(delegate.pluginName);
+        main.addApplet(delegate.pluginName);
         main.scheduleRunningCountRefresh();
     }
 

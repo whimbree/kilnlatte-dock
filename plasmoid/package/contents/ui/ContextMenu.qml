@@ -879,11 +879,14 @@ PlasmaExtras.Menu {
         visible: appletAbilities.myView.isReady && appletAbilities.myView.inEditMode
 
         onClicked: {
+            // appletAbilities is injected by the containing Tasks plasmoid.
+            // qmllint disable unqualified
             if (appletAbilities.myView.isReady) {
                 appletAbilities.myView.removeApplet(Plasmoid.id);
             } else {
                 Plasmoid.internalAction("remove").trigger();
             }
+            // qmllint enable unqualified
         }
     }
 

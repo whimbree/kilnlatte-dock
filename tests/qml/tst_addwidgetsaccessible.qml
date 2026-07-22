@@ -12,7 +12,7 @@
 //! list) are provided here with recorder shims, and the model roles arrive
 //! through a real delegate context over a ListModel. Asserts the card's
 //! role/name/description, the current-item focus mirror, and that the
-//! Accessible press action lands in the same widgetExplorer.addApplet()
+//! Accessible press action lands in the same page-level addApplet()
 //! call the tap runs.
 
 import QtQuick
@@ -30,14 +30,14 @@ Item {
         id: main
         property bool draggingWidget: false
         property int refreshRequests: 0
+        property var addedApplets: []
+        function addApplet(pluginName) { addedApplets.push(pluginName); }
         function runningInstancesFor(pluginName) { return 0; }
         function scheduleRunningCountRefresh() { refreshRequests = refreshRequests + 1; }
     }
 
     Item {
         id: widgetExplorer
-        property var addedApplets: []
-        function addApplet(pluginName) { addedApplets.push(pluginName); }
         function removeAllInstances(pluginName) { }
     }
 
@@ -115,14 +115,14 @@ Item {
             var notes = card(1);
             verify(notes !== null, "the second delegate instantiates");
 
-            var addsBefore = widgetExplorer.addedApplets.length;
+            var addsBefore = main.addedApplets.length;
             var refreshesBefore = main.refreshRequests;
 
             notes.Accessible.pressAction();
 
-            compare(widgetExplorer.addedApplets.length, addsBefore + 1,
+            compare(main.addedApplets.length, addsBefore + 1,
                     "the a11y press adds exactly one widget");
-            compare(widgetExplorer.addedApplets[widgetExplorer.addedApplets.length - 1],
+            compare(main.addedApplets[main.addedApplets.length - 1],
                     "org.kde.plasma.notes",
                     "the added plugin is this card's");
             compare(main.refreshRequests, refreshesBefore + 1,

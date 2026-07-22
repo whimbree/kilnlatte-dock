@@ -586,8 +586,12 @@ MouseArea {
                             Accessible.name: removeHintMetrics.text
                             onClicked: {
                                 tooltip.visible = false;
-                                if(currentApplet && currentApplet.applet)
+                                if(currentApplet && currentApplet.applet) {
+                                    // latteView is the containment's injected relationship boundary.
+                                    // qmllint disable unqualified
                                     latteView.removeApplet(currentApplet.applet.plasmoid.id);
+                                    // qmllint enable unqualified
+                                }
                             }
                         }
                     }
