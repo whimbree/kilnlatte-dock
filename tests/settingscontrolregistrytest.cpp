@@ -20,6 +20,7 @@
 #include <memory>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 using namespace Latte;
 
@@ -71,6 +72,11 @@ class ForeignThreadObjects
     ForeignThreadObjects()
     {
         m_thread.start();
+        m_context = new QObject;
+        if (!m_context->moveToThread(&m_thread))
+        {
+            qFatal("failed to move test context to the foreign thread");
+        }
     }
 
     ~ForeignThreadObjects()
@@ -78,32 +84,75 @@ class ForeignThreadObjects
         QThread *guiThread = QCoreApplication::instance()->thread();
         for (QObject *object : std::as_const(m_objects))
         {
-            const bool invoked = QMetaObject::invokeMethod(
-                object, [object, guiThread]() { object->moveToThread(guiThread); }, Qt::BlockingQueuedConnection);
+            if (object->thread() == guiThread)
+            {
+                continue;
+            }
+            const bool invoked = QMetaObject::invokeMethod(m_context,
+                                                           [object, guiThread]() { object->moveToThread(guiThread); },
+                                                           Qt::BlockingQueuedConnection);
             if (!invoked || object->thread() != guiThread)
             {
                 qFatal("failed to return foreign test object to the GUI thread");
             }
         }
+        const bool contextReturned = QMetaObject::invokeMethod(
+            m_context, [this, guiThread]() { m_context->moveToThread(guiThread); }, Qt::BlockingQueuedConnection);
+        if (!contextReturned || m_context->thread() != guiThread)
+        {
+            qFatal("failed to return foreign test context to the GUI thread");
+        }
         m_thread.quit();
         m_thread.wait();
         qDeleteAll(m_objects);
+        delete m_context;
     }
 
     template<typename T>
     T *create()
     {
+        T *object = createOnGui<T>();
+        moveToWorker(object);
+        return object;
+    }
+
+    template<typename T>
+    T *createOnGui()
+    {
         auto *object = new T;
-        if (!object->moveToThread(&m_thread))
-        {
-            qFatal("failed to move test object to the foreign thread");
-        }
         m_objects.append(object);
         return object;
     }
 
+    void moveToWorker(QObject *object)
+    {
+        if (object->thread() != QCoreApplication::instance()->thread() || !object->moveToThread(&m_thread))
+        {
+            qFatal("failed to move test object to the foreign thread");
+        }
+    }
+
+    template<typename Function>
+    void runOnWorker(Function function)
+    {
+        if (!QMetaObject::invokeMethod(m_context, std::move(function), Qt::BlockingQueuedConnection))
+        {
+            qFatal("failed to invoke test operation on the foreign thread");
+        }
+    }
+
+    void destroyOnWorker(QObject *object)
+    {
+        if (object->thread() != &m_thread || !m_objects.removeOne(object))
+        {
+            qFatal("foreign test object ownership is invalid");
+        }
+        runOnWorker([object]() { delete object; });
+    }
+
   private:
     QThread m_thread;
+    QObject *m_context{nullptr};
     QList<QObject *> m_objects;
 };
 
@@ -138,8 +187,14 @@ struct Fixture
 
     quint64 openScope(uint containmentId = 7, QString surface = QStringLiteral("fixture.primary"))
     {
+        return openScopeWithOwner(lifetime.get(), containmentId, std::move(surface));
+    }
+
+    quint64 openScopeWithOwner(QObject *owner, uint containmentId, QString surface,
+                               std::optional<qint64> appletId = std::nullopt)
+    {
         const auto generation = registry.replaceScope(
-            {containmentId, std::move(surface), std::nullopt, lifetime.get(), root, &geometryProvider});
+            {containmentId, std::move(surface), appletId, owner, root, &geometryProvider});
         if (!generation)
         {
             qFatal("fixture scope registration failed");
@@ -210,8 +265,11 @@ class SettingsControlRegistryTest : public QObject
     void reloadAndRetargetAllocateStrictlyNewerGenerations();
     void replacementsDisconnectRetiredLifecycleCallbacks();
     void crossThreadScopeAndDescriptorObjectsRetireRegistrations();
+    void postRegistrationMigrationQueuesCleanupSafely();
     void popupRowsRequirePopupAncestryAndUniqueWireValues();
     void registrationFailuresRetireWholeLoadGeneration();
+    void invalidScopeTombstonesPoisonWholeContainment();
+    void diagnosticsProveCleanupDoesNotAccumulate();
     void unsupportedLiveEntriesRefuseWholeView();
 };
 
@@ -296,6 +354,9 @@ void SettingsControlRegistryTest::popupRowsTrackOpenGenerationsAndIndividualDest
                                                       separator,
                                                       QByteArrayLiteral("currentValue"),
                                                       {{QStringLiteral("row"), separator}}}));
+    QCOMPARE(fixture.registry.diagnostics().popupRows, 2);
+    QCOMPARE(fixture.registry.diagnostics().popupRoutes, 1);
+    QCOMPARE(fixture.registry.diagnostics().ownedConnections, 8);
 
     QJsonObject popup = fixture.data().at(0).toObject().value(QStringLiteral("popup")).toObject();
     QVERIFY(!popup.value(QStringLiteral("open")).toBool());
@@ -316,6 +377,9 @@ void SettingsControlRegistryTest::popupRowsTrackOpenGenerationsAndIndividualDest
     QVERIFY(!separatorJson.value(QStringLiteral("enabled")).toBool());
 
     delete row;
+    QCOMPARE(fixture.registry.diagnostics().popupRows, 1);
+    QCOMPARE(fixture.registry.diagnostics().popupRoutes, 1);
+    QCOMPARE(fixture.registry.diagnostics().ownedConnections, 7);
     popup = fixture.data().at(0).toObject().value(QStringLiteral("popup")).toObject();
     QCOMPARE(popup.value(QStringLiteral("rows")).toArray().size(), 1);
     QCOMPARE(popup.value(QStringLiteral("rows"))
@@ -527,6 +591,81 @@ void SettingsControlRegistryTest::crossThreadScopeAndDescriptorObjectsRetireRegi
     QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
 }
 
+void SettingsControlRegistryTest::postRegistrationMigrationQueuesCleanupSafely()
+{
+    ForeignThreadObjects foreign;
+
+    {
+        Fixture fixture;
+        PopupState *popupState = foreign.createOnGui<PopupState>();
+        const quint64 generation = fixture.openScope(7, QStringLiteral("migration.popup"));
+        fixture.addControl(
+            generation, fixture.item("popupControl"), QStringLiteral("migration.popup"), QStringLiteral("combo"),
+            std::nullopt,
+            SettingsControlRegistry::PopupDescriptor{popupState, QByteArrayLiteral("open"),
+                                                     fixture.item("popupItem")});
+
+        const SettingsControlRegistry::Diagnostics registered = fixture.registry.diagnostics();
+        QCOMPARE(registered.generations, 1);
+        QCOMPARE(registered.controls, 1);
+        QCOMPARE(registered.popupRoutes, 1);
+        QCOMPARE(registered.ownedConnections, 7);
+
+        foreign.moveToWorker(popupState);
+        foreign.runOnWorker([popupState]() { popupState->setOpen(true); });
+        QCOMPARE(fixture.registry.diagnostics().controls, 1);
+        QCOMPARE(fixture.registry.diagnostics().popupRoutes, 1);
+        QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
+
+        QCoreApplication::processEvents();
+        QCOMPARE(fixture.registry.diagnostics().controls, 1);
+        QCOMPARE(fixture.registry.diagnostics().popupRoutes, 1);
+        QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
+
+        foreign.destroyOnWorker(popupState);
+        QCOMPARE(fixture.registry.diagnostics().controls, 1);
+        QCOMPARE(fixture.registry.diagnostics().popupRoutes, 1);
+        QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
+        QTRY_COMPARE(fixture.registry.diagnostics().controls, 0);
+        QTRY_COMPARE(fixture.registry.diagnostics().popupRoutes, 0);
+        QCOMPARE(fixture.registry.diagnostics().ownedConnections, 3);
+
+        const quint64 replacement = fixture.openScope(7, QStringLiteral("migration.popup"));
+        QVERIFY(replacement > generation);
+        fixture.addControl(replacement, fixture.item("controlB"), QStringLiteral("replacement"),
+                           QStringLiteral("button"));
+        QCOMPARE(fixture.data().size(), 1);
+    }
+
+    {
+        Fixture fixture;
+        QObject *owner = foreign.createOnGui<QObject>();
+        const quint64 generation =
+            fixture.openScopeWithOwner(owner, 7, QStringLiteral("migration.owner"));
+        fixture.addControl(generation, fixture.item("controlA"), QStringLiteral("owner.control"),
+                           QStringLiteral("button"));
+
+        foreign.moveToWorker(owner);
+        QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
+        QCOMPARE(fixture.registry.diagnostics().generations, 1);
+        QCOMPARE(fixture.registry.diagnostics().controls, 1);
+
+        foreign.destroyOnWorker(owner);
+        QCOMPARE(fixture.registry.diagnostics().generations, 1);
+        QCOMPARE(fixture.registry.diagnostics().controls, 1);
+        QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
+        QTRY_COMPARE(fixture.registry.diagnostics().generations, 0);
+        QTRY_COMPARE(fixture.registry.diagnostics().controls, 0);
+        QCOMPARE(fixture.registry.diagnostics().ownedConnections, 0);
+
+        const quint64 replacement = fixture.openScope(7, QStringLiteral("migration.owner"));
+        QVERIFY(replacement > generation);
+        fixture.addControl(replacement, fixture.item("controlB"), QStringLiteral("replacement"),
+                           QStringLiteral("button"));
+        QCOMPARE(fixture.data().size(), 1);
+    }
+}
+
 void SettingsControlRegistryTest::popupRowsRequirePopupAncestryAndUniqueWireValues()
 {
     Fixture fixture;
@@ -606,6 +745,44 @@ void SettingsControlRegistryTest::popupRowsRequirePopupAncestryAndUniqueWireValu
                                                         QByteArrayLiteral("currentValue"),
                                                         {{QStringLiteral("row"), fixture.item("popupSeparator")}}}));
     QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
+
+    std::tie(generation, token) = openPopup(QStringLiteral("positive.safe.bound"));
+    QVERIFY(fixture.registry.registerPopupRow(token, {QStringLiteral("safe.maximum"),
+                                                       QStringLiteral("option"),
+                                                       std::nullopt,
+                                                       0,
+                                                       SettingsControls::MaximumJsonSafeInteger,
+                                                       fixture.item("popupRow"),
+                                                       QByteArrayLiteral("currentValue"),
+                                                       {{QStringLiteral("row"), fixture.item("popupRow")}}}));
+    QVERIFY(!fixture.registry.registerPopupRow(token, {QStringLiteral("unsafe.maximum"),
+                                                        QStringLiteral("option"),
+                                                        std::nullopt,
+                                                        1,
+                                                        SettingsControls::MaximumJsonSafeInteger + 1,
+                                                        fixture.item("popupSeparator"),
+                                                        QByteArrayLiteral("currentValue"),
+                                                        {{QStringLiteral("row"), fixture.item("popupSeparator")}}}));
+    QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
+    QVERIFY(!fixture.registry.registerPopupRow(token, {QStringLiteral("stale.maximum"),
+                                                        QStringLiteral("option"),
+                                                        std::nullopt,
+                                                        2,
+                                                        QStringLiteral("stale"),
+                                                        fixture.item("popupSeparator"),
+                                                        QByteArrayLiteral("currentValue"),
+                                                        {{QStringLiteral("row"), fixture.item("popupSeparator")}}}));
+
+    std::tie(generation, token) = openPopup(QStringLiteral("negative.safe.bound"));
+    QVERIFY(!fixture.registry.registerPopupRow(token, {QStringLiteral("unsafe.minimum"),
+                                                        QStringLiteral("option"),
+                                                        std::nullopt,
+                                                        0,
+                                                        -SettingsControls::MaximumJsonSafeInteger - 1,
+                                                        fixture.item("popupRow"),
+                                                        QByteArrayLiteral("currentValue"),
+                                                        {{QStringLiteral("row"), fixture.item("popupRow")}}}));
+    QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
 }
 
 void SettingsControlRegistryTest::registrationFailuresRetireWholeLoadGeneration()
@@ -673,6 +850,174 @@ void SettingsControlRegistryTest::registrationFailuresRetireWholeLoadGeneration(
                                                         fixture.item("popupSeparator"),
                                                         QByteArrayLiteral("currentValue"),
                                                         {{QStringLiteral("row"), fixture.item("popupSeparator")}}}));
+}
+
+void SettingsControlRegistryTest::invalidScopeTombstonesPoisonWholeContainment()
+{
+    Fixture fixture;
+    auto ownerA = std::make_unique<QObject>();
+    auto replacementOwnerA = std::make_unique<QObject>();
+    auto ownerB = std::make_unique<QObject>();
+    auto replacementOwnerB = std::make_unique<QObject>();
+
+    const quint64 generationA =
+        fixture.openScopeWithOwner(ownerA.get(), 7, QStringLiteral("surface.a"));
+    fixture.addControl(generationA, fixture.item("controlA"), QStringLiteral("control.a"),
+                       QStringLiteral("button"));
+    const quint64 generationB =
+        fixture.openScopeWithOwner(ownerB.get(), 7, QStringLiteral("surface.b"), qint64{42});
+    fixture.addControl(generationB, fixture.item("controlB"), QStringLiteral("control.b"),
+                       QStringLiteral("button"));
+    QCOMPARE(fixture.data().size(), 2);
+
+    QVERIFY(!fixture.registry.registerControl(generationB, {QStringLiteral("control.b"),
+                                                             QStringLiteral("button"),
+                                                             std::nullopt,
+                                                             fixture.item("hiddenControl"),
+                                                             QByteArrayLiteral("currentValue"),
+                                                             {{QStringLiteral("primary"),
+                                                               fixture.item("hiddenControl")}},
+                                                             std::nullopt}));
+    QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
+    QCOMPARE(fixture.registry.diagnostics().generations, 1);
+    QCOMPARE(fixture.registry.diagnostics().controls, 1);
+    QCOMPARE(fixture.registry.diagnostics().invalidScopes, 1);
+    QVERIFY(!fixture.registry.registerControl(generationB, {QStringLiteral("stale.invalid"),
+                                                             QStringLiteral("button"),
+                                                             std::nullopt,
+                                                             fixture.item("controlB"),
+                                                             QByteArrayLiteral("currentValue"),
+                                                             {{QStringLiteral("primary"), fixture.item("controlB")}},
+                                                             std::nullopt}));
+
+    const quint64 replacementA = fixture.openScopeWithOwner(
+        replacementOwnerA.get(), 7, QStringLiteral("surface.a"));
+    fixture.addControl(replacementA, fixture.item("controlA"), QStringLiteral("replacement.a"),
+                       QStringLiteral("button"));
+    QCOMPARE(fixture.registry.diagnostics().invalidScopes, 1);
+    QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
+
+    const quint64 replacementB = fixture.openScopeWithOwner(
+        replacementOwnerB.get(), 7, QStringLiteral("surface.b"), qint64{42});
+    fixture.addControl(replacementB, fixture.item("controlB"), QStringLiteral("replacement.b"),
+                       QStringLiteral("button"));
+    QCOMPARE(fixture.registry.diagnostics().invalidScopes, 0);
+    QCOMPARE(fixture.data().size(), 2);
+
+    QVERIFY(!fixture.registry.registerControl(replacementB, {QStringLiteral("replacement.b"),
+                                                              QStringLiteral("button"),
+                                                              std::nullopt,
+                                                              fixture.item("hiddenControl"),
+                                                              QByteArrayLiteral("currentValue"),
+                                                              {{QStringLiteral("primary"),
+                                                                fixture.item("hiddenControl")}},
+                                                              std::nullopt}));
+    QCOMPARE(fixture.registry.diagnostics().invalidScopes, 1);
+    QCOMPARE(fixture.registry.viewSettingsControlsData(7), QStringLiteral("[]"));
+    replacementOwnerB.reset();
+    QCOMPARE(fixture.registry.diagnostics().invalidScopes, 0);
+    QCOMPARE(fixture.data().size(), 1);
+    QCOMPARE(fixture.data().at(0).toObject().value(QStringLiteral("surface")).toString(),
+             QStringLiteral("surface.a"));
+}
+
+void SettingsControlRegistryTest::diagnosticsProveCleanupDoesNotAccumulate()
+{
+    Fixture fixture;
+    std::vector<std::unique_ptr<QObject>> owners;
+    std::vector<std::unique_ptr<PopupState>> popupStates;
+    quint64 previousGeneration{0};
+    quint64 previousControlToken{0};
+    quint64 currentGeneration{0};
+    quint64 currentControlToken{0};
+
+    for (int iteration = 0; iteration < 5; ++iteration)
+    {
+        owners.push_back(std::make_unique<QObject>());
+        popupStates.push_back(std::make_unique<PopupState>());
+        currentGeneration = fixture.openScopeWithOwner(
+            owners.back().get(), 7, QStringLiteral("diagnostics.scope"));
+        currentControlToken = fixture.addControl(
+            currentGeneration, fixture.item("popupControl"), QStringLiteral("diagnostics.popup"),
+            QStringLiteral("combo"), std::nullopt,
+            SettingsControlRegistry::PopupDescriptor{popupStates.back().get(), QByteArrayLiteral("open"),
+                                                     fixture.item("popupItem")});
+        QVERIFY(fixture.registry.registerPopupRow(currentControlToken, {QStringLiteral("diagnostics.row"),
+                                                                        QStringLiteral("option"),
+                                                                        std::nullopt,
+                                                                        0,
+                                                                        QStringLiteral("stable"),
+                                                                        fixture.item("popupRow"),
+                                                                        QByteArrayLiteral("currentValue"),
+                                                                        {{QStringLiteral("row"),
+                                                                          fixture.item("popupRow")}}}));
+
+        const SettingsControlRegistry::Diagnostics diagnostics = fixture.registry.diagnostics();
+        QCOMPARE(diagnostics.generations, 1);
+        QCOMPARE(diagnostics.controls, 1);
+        QCOMPARE(diagnostics.popupRows, 1);
+        QCOMPARE(diagnostics.popupRoutes, 1);
+        QCOMPARE(diagnostics.ownedConnections, 8);
+        QCOMPARE(diagnostics.invalidScopes, 0);
+
+        if (previousGeneration != 0)
+        {
+            QVERIFY(!fixture.registry.registerControl(previousGeneration, {QStringLiteral("stale.generation"),
+                                                                            QStringLiteral("button"),
+                                                                            std::nullopt,
+                                                                            fixture.item("controlA"),
+                                                                            QByteArrayLiteral("currentValue"),
+                                                                            {{QStringLiteral("primary"),
+                                                                              fixture.item("controlA")}},
+                                                                            std::nullopt}));
+            QVERIFY(!fixture.registry.registerPopupRow(previousControlToken, {QStringLiteral("stale.row"),
+                                                                               QStringLiteral("option"),
+                                                                               std::nullopt,
+                                                                               1,
+                                                                               QStringLiteral("stale"),
+                                                                               fixture.item("popupSeparator"),
+                                                                               QByteArrayLiteral("currentValue"),
+                                                                               {{QStringLiteral("row"),
+                                                                                 fixture.item("popupSeparator")}}}));
+            popupStates.at(static_cast<std::size_t>(iteration - 1))->setOpen(true);
+            QCOMPARE(fixture.registry.diagnostics().ownedConnections, 8);
+            QCOMPARE(fixture.registry.diagnostics().popupRoutes, 1);
+        }
+        previousGeneration = currentGeneration;
+        previousControlToken = currentControlToken;
+    }
+
+    popupStates.back().reset();
+    QCOMPARE(fixture.registry.diagnostics().generations, 1);
+    QCOMPARE(fixture.registry.diagnostics().controls, 0);
+    QCOMPARE(fixture.registry.diagnostics().popupRows, 0);
+    QCOMPARE(fixture.registry.diagnostics().popupRoutes, 0);
+    QCOMPARE(fixture.registry.diagnostics().ownedConnections, 3);
+
+    fixture.registry.retireGeneration(currentGeneration);
+    QCOMPARE(fixture.registry.diagnostics().generations, 0);
+    QCOMPARE(fixture.registry.diagnostics().controls, 0);
+    QCOMPARE(fixture.registry.diagnostics().popupRows, 0);
+    QCOMPARE(fixture.registry.diagnostics().popupRoutes, 0);
+    QCOMPARE(fixture.registry.diagnostics().ownedConnections, 0);
+    QCOMPARE(fixture.registry.diagnostics().invalidScopes, 0);
+    QVERIFY(!fixture.registry.registerControl(currentGeneration, {QStringLiteral("stale.explicit"),
+                                                                  QStringLiteral("button"),
+                                                                  std::nullopt,
+                                                                  fixture.item("controlA"),
+                                                                  QByteArrayLiteral("currentValue"),
+                                                                  {{QStringLiteral("primary"),
+                                                                    fixture.item("controlA")}},
+                                                                  std::nullopt}));
+    QVERIFY(!fixture.registry.registerPopupRow(currentControlToken, {QStringLiteral("stale.explicit.row"),
+                                                                     QStringLiteral("option"),
+                                                                     std::nullopt,
+                                                                     1,
+                                                                     QStringLiteral("stale"),
+                                                                     fixture.item("popupSeparator"),
+                                                                     QByteArrayLiteral("currentValue"),
+                                                                     {{QStringLiteral("row"),
+                                                                       fixture.item("popupSeparator")}}}));
 }
 
 void SettingsControlRegistryTest::unsupportedLiveEntriesRefuseWholeView()
