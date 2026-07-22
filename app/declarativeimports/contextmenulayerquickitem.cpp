@@ -524,6 +524,7 @@ void ContextMenuLayerQuickItem::addAppletActions(QMenu *desktopMenu, Plasma::App
             //qDebug() << "adding close action" << closeApplet->isEnabled() << closeApplet->isVisible();
             auto *const relationshipAwareRemove = new QAction(closeApplet->icon(), closeApplet->text(), desktopMenu);
             relationshipAwareRemove->setEnabled(closeApplet->isEnabled());
+            relationshipAwareRemove->setVisible(closeApplet->isVisible());
             const int appletId = static_cast<int>(applet->id());
             connect(relationshipAwareRemove, &QAction::triggered, this, [this, appletId]() {
                 if (!m_latteView || !m_latteView->removeApplet(appletId)) {

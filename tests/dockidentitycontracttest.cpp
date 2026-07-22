@@ -411,6 +411,7 @@ void DockIdentityContractTest::appletMutationsUseRelationshipBoundary()
     QVERIFY(dragDrop.contains(QStringLiteral("latteView.synchronizeDroppedApplet(event.mimeData,eventx,eventy)")));
     QVERIFY(configOverlay.contains(QStringLiteral("latteView.removeApplet(currentApplet.applet.plasmoid.id)")));
     QVERIFY(contextLayer.contains(QStringLiteral("m_latteView->removeApplet(appletId)")));
+    QVERIFY(contextLayer.contains(QStringLiteral("relationshipAwareRemove->setVisible(closeApplet->isVisible())")));
     QVERIFY(!containmentInterface.contains(QStringLiteral("Q_EMITapplet->appletDeleted(applet)")));
     QVERIFY(containmentInterface.contains(QStringLiteral("QMetaObject::invokeMethod(applet,\"askDestroy\",Qt::DirectConnection)")));
     QVERIFY(linkedSource.contains(QStringLiteral("destroyAppletImmediately(memberId)")));
