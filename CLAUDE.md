@@ -243,6 +243,8 @@ API, invariant, test meaning, traceability, and security issues are major. If
 the initial review finds any major issue, fix it and obtain one second
 independent review of the corrected diff before merge. That second review is
 the single follow-up review, not the start of a recursive review loop. The
+exception is a CRITICAL finding, which always requires an independent rereview
+after its fix, including when it is discovered during a follow-up review. The
 authoring session may merge immediately after a MERGE verdict, after fixing
 minor conditions in MERGE AFTER FIXES, or after the required second review for
 major findings. Authoring and approving inside one context is not review.
