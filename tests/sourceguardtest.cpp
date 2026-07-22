@@ -18,6 +18,8 @@
 //     window properties stay coalesced
 //   * VisibilityManager strut routing: discrete exclusive-zone thickness
 //     changes publish directly while geometry churn stays throttled
+//   * Views reporting: global applet rearrangement is effective only for the
+//     dock that is locally in edit mode
 //   * SC-T3 (the D29 narrow middle-click dispatch readback): the production QML
 //     branch, stable identity, reporter aliases, and containment-lifecycle scope
 //
@@ -96,6 +98,17 @@ private:
                    "{taskMouseArea.dispatchReporter.recordMiddleClickDispatch("
                    "taskMouseArea.stableRowIdentity(),taskMouseArea.dispatchIsLauncher,"
                    "taskMouseArea.configuredMiddleClickAction,operation);}");
+    }
+
+    static bool matchesEffectiveConfigureModeCollection(const QString &body)
+    {
+        const QString code = normalizedCode(body);
+        const QString effectiveAssignment = QStringLiteral(
+            "record.inConfigureAppletsMode=effectiveConfigureAppletsMode("
+            "record.editMode,globalConfigureAppletsMode);");
+        return code.count(effectiveAssignment) == 1
+            && !code.contains(QStringLiteral(
+                "record.inConfigureAppletsMode=globalConfigureAppletsMode;"));
     }
 
     static bool matchesMiddleClickCollectorBridge(const QString &body)
@@ -229,6 +242,8 @@ private Q_SLOTS:
     void windowsTrackerBinding_keepsRequesters();
     void waylandWindowSignals_keepDeliveryPolicy();
     void visibilityManager_strutThicknessBypassesGeometryThrottle();
+    void viewsDataConfigureMode_keepsPerViewContract();
+    void viewsDataConfigureMode_sourceGuardRejectsGlobalLeak();
     void middleClickDispatch_keepsProductionRecordingContract();
     void middleClickDispatch_keepsContainmentLifecycleScope();
     void middleClickDispatch_sourceGuardsRejectControlledMutations();
@@ -347,6 +362,32 @@ void SourceGuardTest::visibilityManager_strutThicknessBypassesGeometryThrottle()
     QCOMPARE(s.count(QStringLiteral("&ViewPart::Positioner::isOffScreenChanged")), 1);
     QVERIFY2(s.contains(QStringLiteral("connect(m_latteView->positioner(),&ViewPart::Positioner::isOffScreenChanged,this,&VisibilityManager::updateStrutsAfterTimer)")),
              "isOffScreenChanged must retain the floating-panel feedback throttle");
+}
+
+void SourceGuardTest::viewsDataConfigureMode_keepsPerViewContract()
+{
+    const QString source = readFile(QStringLiteral("app/dbusreports.cpp"));
+    const QString collector = functionBody(source, QStringLiteral("ViewRecord collectViewRecord"));
+    QVERIFY2(!collector.isEmpty(), "collectViewRecord not found");
+    QVERIFY2(matchesEffectiveConfigureModeCollection(collector),
+             "D76 (configure-applets mode leaked across docks) must combine local and global state");
+}
+
+void SourceGuardTest::viewsDataConfigureMode_sourceGuardRejectsGlobalLeak()
+{
+    const QString source = readFile(QStringLiteral("app/dbusreports.cpp"));
+    QString collector = normalizedCode(
+        functionBody(source, QStringLiteral("ViewRecord collectViewRecord")));
+    QVERIFY(matchesEffectiveConfigureModeCollection(collector));
+
+    const QString effectiveAssignment = QStringLiteral(
+        "record.inConfigureAppletsMode=effectiveConfigureAppletsMode("
+        "record.editMode,globalConfigureAppletsMode);");
+    QCOMPARE(collector.count(effectiveAssignment), 1);
+    collector.replace(effectiveAssignment, QStringLiteral(
+        "record.inConfigureAppletsMode=globalConfigureAppletsMode;"));
+    QVERIFY2(!matchesEffectiveConfigureModeCollection(collector),
+             "restoring the direct global D76 assignment must fail the collector guard");
 }
 
 void SourceGuardTest::middleClickDispatch_keepsProductionRecordingContract()

@@ -742,6 +742,22 @@ carries its own detail or points into the plan and the reference docs.
 
 ## Fixed (kept for the record)
 
+### D76 - Global applet-configure readback marked unrelated docks active
+- STATUS: FIXED IN PR #110 (dedicated configure-mode isolation commit; final
+  post-rebase hash is recorded after merge).
+- FOUND: 2026-07-21, multi-dock observability code reading.
+- SYMPTOM: `viewsData.inConfigureAppletsMode` copied the one global rearrange
+  toggle into every dock record. Entering applet configuration on one edited
+  dock therefore reported unrelated docks as configuring applets, even though
+  containment QML requires both that dock's `editMode` and the global toggle.
+- ROOT: `collectViewRecord()` accepted only the global bit and assigned it
+  directly. The readback did not apply the per-view QML expression
+  `editMode && universalSettings.inConfigureAppletsMode`.
+- FIX: derive the compatibility field through one constexpr value-layer helper
+  from per-view edit mode and the global bit. Compile-time truth-table checks
+  pin all four inputs. A production source guard pins the live collector route
+  and proves that restoring the direct global assignment fails.
+
 ### D25 - Task icons stay stale after icon-theme changes
 - STATUS: FIXED (PR #76, 8423fab40; coverage ratchet 6765b2320).
 - FOUND: 2026-07-19, code-reading during the ng-upstream commit audit, then
