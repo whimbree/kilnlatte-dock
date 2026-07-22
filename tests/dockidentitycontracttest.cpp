@@ -81,6 +81,8 @@ private Q_SLOTS:
     void linkedRootRemovalIsRefusedAtEveryBoundary();
     void runtimeRecreationRebindsWholeRelationship();
     void crossLayoutMovesRevalidateBeforeImport();
+    void clipboardCopyBreaksLinkedLineage();
+    void refusedLayoutMoveCancelsRelocation();
     void outputEligibilityUsesPersistentPlacementAuthority();
     void linkedAppletGeometryRemainsPerView();
 };
@@ -525,6 +527,55 @@ void DockIdentityContractTest::crossLayoutMovesRevalidateBeforeImport()
     const int importLayout = save.indexOf(QStringLiteral("central->newView(adjustedview)"), guard);
     QVERIFY2(guard >= 0 && importTemplate > guard && importLayout > guard,
              "the current origin graph must be revalidated before either destination import path");
+}
+
+void DockIdentityContractTest::clipboardCopyBreaksLinkedLineage()
+{
+    const QString source = readFile(QStringLiteral("app/settings/viewsdialog/viewscontroller.cpp"));
+    const QString copy = normalized(functionBody(
+        source, QStringLiteral("void Views::copySelectedViews")));
+    const int normalizeRelationship = copy.indexOf(
+        QStringLiteral("clipboardviews[i]=clipboardviews[i].toIndependentSnapshot()"));
+    const int publishClipboard = copy.indexOf(
+        QStringLiteral("setClipboardContents(clipboardviews)"), normalizeRelationship);
+    QVERIFY2(normalizeRelationship >= 0 && publishClipboard > normalizeRelationship,
+             "Copy must remove linked lineage before publishing clipboard records");
+}
+
+void DockIdentityContractTest::refusedLayoutMoveCancelsRelocation()
+{
+    const QString managerHeader = readFile(QStringLiteral("app/layouts/manager.h"));
+    QVERIFY(managerHeader.contains(QStringLiteral("[[nodiscard]] bool moveView")));
+
+    const QString managerSource = readFile(QStringLiteral("app/layouts/manager.cpp"));
+    const QString move = normalized(functionBody(
+        managerSource, QStringLiteral("bool Manager::moveView")));
+    const int relationshipGuard = move.indexOf(
+        QStringLiteral("participatesInLegacyLayoutMove"));
+    const int refuse = move.indexOf(QStringLiteral("returnfalse"), relationshipGuard);
+    const int unassign = move.indexOf(QStringLiteral("unassignFromLayout"), refuse);
+    const int accept = move.lastIndexOf(QStringLiteral("returntrue"));
+    QVERIFY2(relationshipGuard >= 0 && refuse > relationshipGuard
+                 && unassign > refuse && accept > unassign,
+             "the move transaction must report refusal before unassigning its source");
+
+    const QString positionerSource = readFile(QStringLiteral("app/view/positioner.cpp"));
+    const QString relocation = normalized(functionBody(
+        positionerSource, QStringLiteral("void Positioner::initSignalingForLocationChangeSliding")));
+    const int checkedMove = relocation.indexOf(
+        QStringLiteral("if(!m_corona->layoutsManager()->moveView"));
+    const int cancel = relocation.indexOf(
+        QStringLiteral("cancelFailedLayoutRelocation()"), checkedMove);
+    QVERIFY2(checkedMove >= 0 && cancel > checkedMove,
+             "a late move refusal must re-enter the normal reveal path");
+
+    const QString cancellation = normalized(functionBody(
+        positionerSource, QStringLiteral("void Positioner::cancelFailedLayoutRelocation")));
+    QVERIFY(cancellation.contains(QStringLiteral("m_nextLayoutName.clear()")));
+    QVERIFY(cancellation.contains(QStringLiteral("m_nextScreenName.clear()")));
+    QVERIFY(cancellation.contains(QStringLiteral("m_nextScreenEdge=Plasma::Types::Floating")));
+    QVERIFY(cancellation.contains(QStringLiteral("m_nextAlignment=Latte::Types::NoneAlignment")));
+    QVERIFY(cancellation.contains(QStringLiteral("scheduleLastRepositionApplyEvent()")));
 }
 
 void DockIdentityContractTest::outputEligibilityUsesPersistentPlacementAuthority()
