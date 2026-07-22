@@ -12,6 +12,27 @@
 namespace Latte {
 namespace Data {
 
+namespace {
+
+[[nodiscard]] bool isCanonicalPositiveContainmentId(const QString &id)
+{
+    if (id.isEmpty() || id.front() == QLatin1Char('0')) {
+        return false;
+    }
+
+    for (const QChar character : id) {
+        if (character < QLatin1Char('0') || character > QLatin1Char('9')) {
+            return false;
+        }
+    }
+
+    bool parsed{false};
+    const int value = id.toInt(&parsed);
+    return parsed && value > 0 && QString::number(value) == id;
+}
+
+} // namespace
+
 const char *TEMPIDPREFIX = "temp:";
 
 ViewsTable::ViewsTable()
@@ -81,8 +102,9 @@ QString ViewsTable::relationshipValidationError() const
     identities.reserve(rowCount());
 
     for (const auto &view : m_list) {
-        if (!view.isValid() || view.id.isEmpty()) {
-            return QStringLiteral("a persisted dock record is invalid or has no containment identity");
+        if (!view.isValid() || !isCanonicalPositiveContainmentId(view.id)) {
+            return QStringLiteral("persisted dock identity %1 is not a canonical positive decimal")
+                .arg(view.id.isEmpty() ? QStringLiteral("<empty>") : view.id);
         }
 
         if (identities.contains(view.id)) {
@@ -97,6 +119,11 @@ QString ViewsTable::relationshipValidationError() const
         if (!view.isCloned()
                 && view.linkPlacement != View::LinkPlacement::ScreenGroupDerived) {
             return QStringLiteral("independent dock %1 claims linked-member placement").arg(view.id);
+        }
+
+        if (view.isExplicitlyLinked()
+                && view.screensGroup != Latte::Types::SingleScreenGroup) {
+            return QStringLiteral("explicit linked dock %1 claims a shared screen group").arg(view.id);
         }
     }
 
