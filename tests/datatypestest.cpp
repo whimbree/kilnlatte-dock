@@ -708,6 +708,10 @@ void DataTypesTest::viewsTable_rejectsMalformedRelationshipGraphs_data()
     QTest::newRow("self-cycle") << QStringLiteral("self") << false << QStringLiteral("itself");
     QTest::newRow("duplicate-id") << QStringLiteral("duplicate") << false << QStringLiteral("duplicated");
     QTest::newRow("linked-placement-root") << QStringLiteral("malformed-root") << false << QStringLiteral("independent dock");
+    QTest::newRow("nonnumeric-id") << QStringLiteral("nonnumeric-id") << false << QStringLiteral("positive decimal");
+    QTest::newRow("zero-id") << QStringLiteral("zero-id") << false << QStringLiteral("positive decimal");
+    QTest::newRow("leading-zero-id") << QStringLiteral("leading-zero-id") << false << QStringLiteral("positive decimal");
+    QTest::newRow("explicit-multiscreen") << QStringLiteral("explicit-multiscreen") << false << QStringLiteral("shared screen group");
 }
 
 void DataTypesTest::viewsTable_rejectsMalformedRelationshipGraphs()
@@ -755,6 +759,21 @@ void DataTypesTest::viewsTable_rejectsMalformedRelationshipGraphs()
     } else if (shape == QStringLiteral("malformed-root")) {
         root.linkPlacement = Data::View::LinkPlacement::ExplicitTarget;
         views << root;
+    } else if (shape == QStringLiteral("nonnumeric-id")) {
+        root.id = QStringLiteral("dock");
+        views << root;
+    } else if (shape == QStringLiteral("zero-id")) {
+        root.id = QStringLiteral("0");
+        views << root;
+    } else if (shape == QStringLiteral("leading-zero-id")) {
+        root.id = QStringLiteral("01");
+        views << root;
+    } else if (shape == QStringLiteral("explicit-multiscreen")) {
+        Data::View member = makeView(QStringLiteral("2"));
+        member.isClonedFrom = 1;
+        member.linkPlacement = Data::View::LinkPlacement::ExplicitTarget;
+        member.screensGroup = Latte::Types::AllScreensGroup;
+        views << root << member;
     }
 
     const QString error = views.relationshipValidationError();
