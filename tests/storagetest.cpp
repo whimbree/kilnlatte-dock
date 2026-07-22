@@ -81,6 +81,8 @@ private Q_SLOTS:
     void listSubcontainmentsOfContainmentGroup();
     void reportContainsViewOnlyForLatteIds();
     void enumerateViewsOfInactiveLayout();
+    void validatePersistedRelationshipGraphs_data();
+    void validatePersistedRelationshipGraphs();
 
     //! clones
     void detectClonedViewsOnlyForLatteContainments();
@@ -128,6 +130,59 @@ void StorageTest::initTestCase()
 {
     QVERIFY(m_dir.isValid());
     QVERIFY(Storage::self() != nullptr);
+}
+
+void StorageTest::validatePersistedRelationshipGraphs_data()
+{
+    QTest::addColumn<QString>("shape");
+    QTest::addColumn<bool>("valid");
+
+    QTest::newRow("direct-root") << QStringLiteral("direct") << true;
+    QTest::newRow("missing-root") << QStringLiteral("missing") << false;
+    QTest::newRow("linked-chain") << QStringLiteral("chain") << false;
+    QTest::newRow("self-cycle") << QStringLiteral("self") << false;
+    QTest::newRow("two-member-cycle") << QStringLiteral("cycle") << false;
+}
+
+void StorageTest::validatePersistedRelationshipGraphs()
+{
+    QFETCH(QString, shape);
+    QFETCH(bool, valid);
+
+    const QString path = m_dir.filePath(QStringLiteral("relationship-%1.layout.latte").arg(shape));
+    KSharedConfigPtr config = KSharedConfig::openConfig(path);
+    KConfigGroup containments(config, QStringLiteral("Containments"));
+
+    const auto writeDock = [&containments](const int id,
+                                           const int rootId,
+                                           const Latte::Data::View::LinkPlacement placement) {
+        KConfigGroup group = containments.group(QString::number(id));
+        group.writeEntry(QStringLiteral("plugin"), QStringLiteral("org.kde.latte.containment"));
+        group.writeEntry(QStringLiteral("isClonedFrom"), rootId);
+        group.writeEntry(QStringLiteral("linkPlacement"), static_cast<int>(placement));
+    };
+
+    constexpr auto local = Latte::Data::View::LinkPlacement::ScreenGroupDerived;
+    constexpr auto linked = Latte::Data::View::LinkPlacement::ExplicitTarget;
+    writeDock(1, Latte::Data::View::ISCLONEDNULL, local);
+
+    if (shape == QStringLiteral("direct")) {
+        writeDock(2, 1, linked);
+    } else if (shape == QStringLiteral("missing")) {
+        writeDock(2, 99, linked);
+    } else if (shape == QStringLiteral("chain")) {
+        writeDock(2, 1, linked);
+        writeDock(3, 2, linked);
+    } else if (shape == QStringLiteral("self")) {
+        writeDock(2, 2, linked);
+    } else if (shape == QStringLiteral("cycle")) {
+        writeDock(2, 3, linked);
+        writeDock(3, 2, linked);
+    }
+    config->sync();
+
+    const Latte::Data::ViewsTable views = Storage::self()->views(path);
+    QCOMPARE(views.relationshipValidationError().isEmpty(), valid);
 }
 
 QString StorageTest::writeLayoutFixture(const QString &name)

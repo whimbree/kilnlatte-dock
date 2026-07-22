@@ -73,6 +73,8 @@ private Q_SLOTS:
     void screen_serializeRoundTrip();
     void screen_isScreensGroup();
     void viewsTable_hasContainmentIdRecursion();
+    void viewsTable_rejectsMalformedRelationshipGraphs_data();
+    void viewsTable_rejectsMalformedRelationshipGraphs();
     void viewsTable_subtractedAndOnlyOriginals();
     void viewsTable_appendTemporaryView();
     void layoutsTable_subtractedAndFreeActivities();
@@ -691,6 +693,75 @@ void DataTypesTest::viewsTable_hasContainmentIdRecursion()
     QVERIFY(views.hasContainmentId(QStringLiteral("201")));
     // absent
     QVERIFY(!views.hasContainmentId(QStringLiteral("999")));
+}
+
+void DataTypesTest::viewsTable_rejectsMalformedRelationshipGraphs_data()
+{
+    QTest::addColumn<QString>("shape");
+    QTest::addColumn<bool>("valid");
+    QTest::addColumn<QString>("errorFragment");
+
+    QTest::newRow("independent") << QStringLiteral("independent") << true << QString{};
+    QTest::newRow("direct-linked-member") << QStringLiteral("direct") << true << QString{};
+    QTest::newRow("missing-root") << QStringLiteral("missing") << false << QStringLiteral("missing root");
+    QTest::newRow("linked-chain") << QStringLiteral("chain") << false << QStringLiteral("non-root");
+    QTest::newRow("self-cycle") << QStringLiteral("self") << false << QStringLiteral("itself");
+    QTest::newRow("duplicate-id") << QStringLiteral("duplicate") << false << QStringLiteral("duplicated");
+    QTest::newRow("linked-placement-root") << QStringLiteral("malformed-root") << false << QStringLiteral("independent dock");
+}
+
+void DataTypesTest::viewsTable_rejectsMalformedRelationshipGraphs()
+{
+    QFETCH(QString, shape);
+    QFETCH(bool, valid);
+    QFETCH(QString, errorFragment);
+
+    const auto makeView = [](const QString &id) {
+        Data::View view{id, QStringLiteral("Dock %1").arg(id)};
+        view.setState(Data::View::IsCreated);
+        return view;
+    };
+
+    Data::ViewsTable views;
+    Data::View root = makeView(QStringLiteral("1"));
+
+    if (shape == QStringLiteral("independent")) {
+        views << root;
+    } else if (shape == QStringLiteral("direct")) {
+        Data::View member = makeView(QStringLiteral("2"));
+        member.isClonedFrom = 1;
+        member.linkPlacement = Data::View::LinkPlacement::ExplicitTarget;
+        views << root << member;
+    } else if (shape == QStringLiteral("missing")) {
+        Data::View member = makeView(QStringLiteral("2"));
+        member.isClonedFrom = 99;
+        member.linkPlacement = Data::View::LinkPlacement::ExplicitTarget;
+        views << root << member;
+    } else if (shape == QStringLiteral("chain")) {
+        Data::View middle = makeView(QStringLiteral("2"));
+        middle.isClonedFrom = 1;
+        middle.linkPlacement = Data::View::LinkPlacement::ExplicitTarget;
+        Data::View leaf = makeView(QStringLiteral("3"));
+        leaf.isClonedFrom = 2;
+        leaf.linkPlacement = Data::View::LinkPlacement::ExplicitTarget;
+        views << root << middle << leaf;
+    } else if (shape == QStringLiteral("self")) {
+        Data::View member = makeView(QStringLiteral("2"));
+        member.isClonedFrom = 2;
+        member.linkPlacement = Data::View::LinkPlacement::ExplicitTarget;
+        views << root << member;
+    } else if (shape == QStringLiteral("duplicate")) {
+        views << root << root;
+    } else if (shape == QStringLiteral("malformed-root")) {
+        root.linkPlacement = Data::View::LinkPlacement::ExplicitTarget;
+        views << root;
+    }
+
+    const QString error = views.relationshipValidationError();
+    QCOMPARE(error.isEmpty(), valid);
+    if (!valid) {
+        QVERIFY2(error.contains(errorFragment), qPrintable(error));
+    }
 }
 
 void DataTypesTest::viewsTable_subtractedAndOnlyOriginals()

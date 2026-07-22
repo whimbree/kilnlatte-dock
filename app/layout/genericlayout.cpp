@@ -40,6 +40,7 @@
 // C++
 #include <algorithm>
 #include <chrono>
+#include <utility>
 
 namespace Latte {
 namespace Layout {
@@ -982,6 +983,11 @@ void GenericLayout::addView(Plasma::Containment *containment)
 
     QScreen *nextScreen{m_corona->screenPool()->primaryScreen()};
     Data::View viewdata = Layouts::Storage::self()->view(this, containment);
+    if (!viewdata.isValid()) {
+        qCritical() << "GenericLayout::addView refused invalid persisted dock record for containment"
+                    << containment->id() << "in layout" << name();
+        return;
+    }
     viewdata.screen = Layouts::Storage::self()->expectedViewScreenId(m_corona, viewdata);
 
     QString nextScreenName = m_corona->screenPool()->hasScreenId(viewdata.screen) ? m_corona->screenPool()->connector(viewdata.screen) : "";
@@ -1033,7 +1039,13 @@ void GenericLayout::addView(Plasma::Containment *containment)
             return;
         }
 
-        auto originalview = qobject_cast<Latte::OriginalView *>(view);
+        auto *const originalview = qobject_cast<Latte::OriginalView *>(view);
+        if (!originalview) {
+            qCritical() << "GenericLayout::addView refused linked dock" << viewdata.id
+                        << "because persisted root" << viewdata.isClonedFrom
+                        << "is itself a linked member";
+            return;
+        }
         latteView = new Latte::ClonedView(
             m_corona, originalview, viewdata.linkPlacement, nextScreen, byPassWM);
     }
@@ -1162,6 +1174,20 @@ bool GenericLayout::initContainments()
         if (Layouts::Storage::self()->isLatteContainment(containment) && !hasLatteView(containment)) {
             pending << containment;
         }
+    }
+
+    Data::ViewsTable persistedViews;
+    for (const auto &containment : std::as_const(pending)) {
+        if (containment) {
+            persistedViews << Layouts::Storage::self()->view(this, containment);
+        }
+    }
+
+    const QString relationshipError = persistedViews.relationshipValidationError();
+    if (!relationshipError.isEmpty()) {
+        qCritical() << "GenericLayout::initContainments refused malformed dock relationship graph in layout"
+                    << name() << ":" << relationshipError;
+        return false;
     }
 
     //! A linked member needs its relationship root's runtime coordinator.

@@ -1,11 +1,13 @@
 /*
     SPDX-FileCopyrightText: 2021 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
 #include "viewstable.h"
 
 #include <QDebug>
+#include <QSet>
 
 namespace Latte {
 namespace Data {
@@ -71,6 +73,65 @@ bool ViewsTable::hasContainmentId(const QString &cid) const
     }
 
     return false;
+}
+
+QString ViewsTable::relationshipValidationError() const
+{
+    QSet<QString> identities;
+    identities.reserve(rowCount());
+
+    for (const auto &view : m_list) {
+        if (!view.isValid() || view.id.isEmpty()) {
+            return QStringLiteral("a persisted dock record is invalid or has no containment identity");
+        }
+
+        if (identities.contains(view.id)) {
+            return QStringLiteral("dock containment identity %1 is duplicated").arg(view.id);
+        }
+        identities.insert(view.id);
+
+        if (!view.hasValidLinkPlacement()) {
+            return QStringLiteral("dock %1 has an invalid linked-placement value").arg(view.id);
+        }
+
+        if (!view.isCloned()
+                && view.linkPlacement != View::LinkPlacement::ScreenGroupDerived) {
+            return QStringLiteral("independent dock %1 claims linked-member placement").arg(view.id);
+        }
+    }
+
+    for (const auto &member : m_list) {
+        if (!member.isCloned()) {
+            continue;
+        }
+
+        if (member.isClonedFrom <= 0) {
+            return QStringLiteral("linked dock %1 has invalid root identity %2")
+                .arg(member.id)
+                .arg(member.isClonedFrom);
+        }
+
+        const QString rootId = QString::number(member.isClonedFrom);
+        if (member.id == rootId) {
+            return QStringLiteral("linked dock %1 references itself as its root").arg(member.id);
+        }
+        if (!containsId(rootId)) {
+            return QStringLiteral("linked dock %1 references missing root %2")
+                .arg(member.id, rootId);
+        }
+
+        const View root = (*this)[rootId];
+        if (root.isCloned()) {
+            return QStringLiteral("linked dock %1 references non-root dock %2")
+                .arg(member.id, rootId);
+        }
+        if (root.linkPlacement != View::LinkPlacement::ScreenGroupDerived) {
+            return QStringLiteral("linked dock %1 references malformed root %2")
+                .arg(member.id, rootId);
+        }
+    }
+
+    return {};
 }
 
 ViewsTable ViewsTable::subtracted(const ViewsTable &rhs) const

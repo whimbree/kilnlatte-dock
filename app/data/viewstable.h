@@ -1,5 +1,6 @@
 /*
     SPDX-FileCopyrightText: 2020 Michail Vourlakos <mvourlakos@gmail.com>
+    SPDX-FileCopyrightText: 2026 Bree Spektor
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -31,6 +32,11 @@ public:
     void appendTemporaryView(const Data::View &view);
 
     bool hasContainmentId(const QString &cid) const;
+
+    //! Empty means that every linked member names a present direct root.
+    //! Persisted chains, cycles, missing roots, and duplicate identities are
+    //! rejected before any runtime view is constructed.
+    [[nodiscard]] QString relationshipValidationError() const;
 
     //! Operators
     ViewsTable &operator=(const ViewsTable &rhs);
