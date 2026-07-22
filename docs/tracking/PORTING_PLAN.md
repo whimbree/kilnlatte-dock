@@ -1270,15 +1270,15 @@ multi-view, multi-monitor setup.
       the existing relationship, propagated a visibility-mode change only
       inside that relationship, and retained all identities after restart. The
       shared const snapshot transformation also closes the layouts-dialog
-      Duplicate path found by the final cold review. The canonical full gate
-      passed first at `81c15c789`, then again with the review corrections at
-      `5f616abde`. Placement
+      Duplicate path found by the first cold review. The final canonical full
+      gate passed at `defaa0c7a` after both review rounds, D97's direct
+      transient-state assertions, and the commit-message cleanup. Placement
       normalization and same-edge stacking remain separate unchecked work in
       `docs/tracking/DOCK_IDENTITY_HARDENING.md`.
       Commits: a92d3b454, aad2f524f, 5de3f98d3, bf6602737,
       b72c6147c, 103147995, eb5b6d47b, d819fbb91, 8082a504f,
-      d2772a5ca, 8828f1f2b, d3d0a170e, f63e555e5, a8bbe1b7e,
-      e2f8bd1d6, 8af5b7f6d, ac6a078be, a10356c44, 170c827ee
+      d2772a5ca, c7568e90b, 8dbac9eb3, 70df153cf, 84f476185,
+      d70f65cc9, ddb48b8f3, 67b5aa5ea, 234a1fb35, efe1ec216
 
 - [x] Fix D93 (Duplicate submenu change left a stale settings-inventory
       identity). The relationship-aware menu made the structural separator
@@ -1286,12 +1286,12 @@ multi-view, multi-monitor setup.
       source-site ledger still named the old bound statement. Update that one
       structural exemption to the scanner's direct-receiver identity; do not
       broaden or bypass the inventory gate.
-      Commits: e0d9e21ac
+      Commits: d26aaf8de
 
 - [x] Fix D94 (dock identity tests were absent from the coverage ratchet). Add
       all four PR #109 targets to the sorted target ledger and raise its exact
       count from 100 to 104. The paired-header check now covers 35 unit headers.
-      Commits: 5efe665c2
+      Commits: a1304933b
 
 - [x] Fix D95 (layouts-dialog Duplicate preserves linked relationship state).
       The layouts dialog had a second Duplicate implementation that copied
@@ -1300,12 +1300,12 @@ multi-view, multi-monitor setup.
       `Data::View::toIndependentSnapshot()` transformation and require both
       production paths to call it before import. The source stays unchanged;
       only `isClonedFrom` and `screensGroup` are normalized on the copy.
-      Commits: 170c827ee
+      Commits: efe1ec216
 
 - [x] Fix D96 (Duplicate settings inventory still claims linked exclusion).
       Replace the obsolete noncloned precondition with original-or-linked source
       coverage and require the resulting relationship to be severed.
-      Commits: a009f8875
+      Commits: e50464334
 
 - [x] Fix D97 (independent snapshot test ignores transient view fields).
       `Data::View::operator==` intentionally omits five transient fields, so the
