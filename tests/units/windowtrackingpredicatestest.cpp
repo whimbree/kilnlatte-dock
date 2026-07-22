@@ -40,6 +40,7 @@ class WindowTrackingPredicatesTest : public QObject
 
 private Q_SLOTS:
     void intersects_minimizedOrShaded_false();
+    void exactWindowIdentityRejectsTitlePrefixes();
     void isActive_requiresValidActiveNotMinimized();
     void isActiveInViewScreen_intersectsScaledScreen();
     void isMaximizedInViewScreen_maximizedOnScreen();
@@ -68,6 +69,21 @@ void WindowTrackingPredicatesTest::intersects_minimizedOrShaded_false()
     // overlapping → true
     auto ok = makeWinfo(true, false, false, false, false, overlap);
     QVERIFY(WindowTrackingPredicates::intersects(ok, viewGeo));
+}
+
+void WindowTrackingPredicatesTest::exactWindowIdentityRejectsTitlePrefixes()
+{
+    QVERIFY(WindowTrackingPredicates::matchesExactWindowIdentity(
+        QStringLiteral("latte-dock"), QStringLiteral("#view#1"),
+        QStringLiteral("latte-dock"), QStringLiteral("#view#1")));
+
+    QVERIFY(!WindowTrackingPredicates::matchesExactWindowIdentity(
+        QStringLiteral("latte-dock"), QStringLiteral("#view#10"),
+        QStringLiteral("latte-dock"), QStringLiteral("#view#1")));
+
+    QVERIFY(!WindowTrackingPredicates::matchesExactWindowIdentity(
+        QStringLiteral("other-app"), QStringLiteral("#view#1"),
+        QStringLiteral("latte-dock"), QStringLiteral("#view#1")));
 }
 
 void WindowTrackingPredicatesTest::isActive_requiresValidActiveNotMinimized()

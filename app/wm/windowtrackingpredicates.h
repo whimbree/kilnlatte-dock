@@ -19,6 +19,7 @@
 
 #include <QList>
 #include <QRect>
+#include <QString>
 
 namespace Latte {
 namespace WindowSystem {
@@ -27,6 +28,14 @@ namespace WindowTrackingPredicates {
 inline bool intersects(const WindowInfoWrap &winfo, const QRect &viewAbsoluteGeometry)
 {
     return (!winfo.isMinimized() && !winfo.isShaded() && winfo.geometry().intersects(viewAbsoluteGeometry));
+}
+
+inline bool matchesExactWindowIdentity(const QString &appId,
+                                       const QString &title,
+                                       const QString &expectedAppId,
+                                       const QString &expectedTitle)
+{
+    return appId == expectedAppId && title == expectedTitle;
 }
 
 inline bool isActive(const WindowInfoWrap &winfo)
